@@ -1,0 +1,52 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+      {
+          "label": "Build",
+          "type": "shell",
+          "command": "./waf",
+          "group": {
+              "kind": "build",
+              "isDefault": true
+          }
+      },
+      {
+          "label": "Run tests",
+          "type": "shell",
+          "command": "./test.py",
+          "group": {
+              "kind": "test",
+              "isDefault": true
+          }
+      },
+      {
+        "label": "Configure",
+        "type": "shell",
+        "command": "./waf configure --enable-mpi",
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        }
+      },
+      {
+        "label": "Run SmartFlow",
+        "type": "shell",
+        "command": "./waf --run \"scratch/smartFlow_mainBody_A0003 --queueMode=QUEUE_MODE_PACKETS --serverNumberPerSwitch=2 --pathFileName=2900_val_paths.txt --channelFileName=2900_channels.txt  --workloadFileName=DCTCP_CDF.txt --parameterRecordFileName=smartflow_2900-parameters.txt --probeInfoFileName=smartflow_2900_probe.txt --screenDisplayIntervalInNs=10000\"",
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        }
+      },
+      {
+        "label": "Run ValFlow",
+        "type": "shell",
+        "command": "./waf --run \"scratch/valFlow_mainBody_A0003 --serverNumberPerSwitch=2 --pathFileName=2900_val_paths.txt --channelFileName=2900_channels.txt  --workloadFileName=DCTCP_CDF.txt --parameterRecordFileName=valflow_2900-parameters.txt --screenDisplayIntervalInNs=10000\"",
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        }
+      }
+  ]
+}

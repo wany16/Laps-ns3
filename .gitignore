@@ -1,0 +1,52 @@
+
+.vscode/settings.json
+.vagrant
+build/
+
+# Tempories
+~*
+*.DS_Store
+__pycache__
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+*.pyc
+*.pyo
+
+.waf*
+.lock-waf_*_build
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Custom
+py_interface/build/
+py_interface/dist/
+py_interface/ns3_ai.egg-info/

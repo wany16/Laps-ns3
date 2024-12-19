@@ -1,0 +1,18 @@
+6
+Name  Spine1 Type  Node
+Name  Spine2 Type  Node
+Name  Leaf1 Type  Node
+Name  Leaf2 Type  Node
+Name  Server1 Type  Node
+Name  Server2 Type  Node
+10
+From  Spine1  To  Leaf1 Type  P2P Rate  1Gbps Delay 1us
+From  Spine1  To  Leaf1 Type  P2P Rate  1Gbps Delay 1us
+From  Spine1  To  Leaf2 Type  P2P Rate  1Gbps Delay 1us
+From  Spine1  To  Leaf2 Type  P2P Rate  1Gbps Delay 1us
+From  Spine2  To  Leaf1 Type  P2P Rate  1Gbps Delay 1us
+From  Spine2  To  Leaf1 Type  P2P Rate  1Gbps Delay 1us
+From  Spine2  To  Leaf2 Type  P2P Rate  1Gbps Delay 1us
+From  Spine2  To  Leaf2 Type  P2P Rate  1Gbps Delay 1us
+From  Leaf1  To  Server1 Type  P2P Rate  1Gbps Delay 1us
+From  Leaf2  To  Server2 Type  P2P Rate  1Gbps Delay 1us
