@@ -50,3 +50,6 @@ __pycache__
 py_interface/build/
 py_interface/dist/
 py_interface/ns3_ai.egg-info/
+
+# Laps
+/simulation/results/
