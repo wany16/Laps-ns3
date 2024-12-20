@@ -436,7 +436,7 @@ namespace ns3
 				seqh.SetIrnNack(ch.udp.seq);
 				seqh.SetIrnNackSize(payload_size);
 			}else {
-				seqh.SetIrnNack(0);  // NACK without ackSyndrome (ACK) in loss recovery mode
+				seqh.SetIrnNack((uint16_t) 0);  // NACK without ackSyndrome (ACK) in loss recovery mode
 				seqh.SetIrnNackSize(0);
       }
 		}

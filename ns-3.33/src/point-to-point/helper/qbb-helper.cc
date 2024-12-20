@@ -348,6 +348,7 @@ void QbbHelper::GetTraceFromPacket(TraceFormat &tr, Ptr<QbbNetDevice> dev, Ptr<c
 			tr.ack.ts = hdr.ack.ih.GetTs();
 			tr.ack.irnNack = hdr.ack.irnNack;
 			tr.ack.irnNackSize = hdr.ack.irnNackSize;
+      tr.qidx = RdmaEgressQueue::ack_q_idx;
 			break;
 		case 0xFE:
 			tr.pfc.time = hdr.pfc.time;
