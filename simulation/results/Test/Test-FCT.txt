@@ -1,1 +1,0 @@
-SIP:0b000301 DIP:0b000401 SP:6666 DP:6666 DataSizeInByte:10000 PktSizeInByte:10480 StartTimeInNs:0 LastTimeInNs:25824 EndTimeInNs:25824 BaseFctInNs:9170
