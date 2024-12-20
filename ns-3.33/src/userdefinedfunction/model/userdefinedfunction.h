@@ -46,6 +46,7 @@
 #include "ns3/bulk-send-application.h"
 #include "ns3/tcp-socket-base.h"
 #include "ns3/boolean.h"
+#include "ns3/common-user-model.h"
 
 #define BYTE_NUMBER_PER_GBPS 1000000000 // 1Gbps
 #define TG_CDF_TABLE_ENTRY 32
@@ -287,7 +288,7 @@ namespace ns3
     Ipv4Address base;
   };
 
-  struct reorder_entry_t
+  /*struct reorder_entry_t
   {
     bool flag;
     std::vector<uint32_t> seqs;
@@ -305,7 +306,7 @@ namespace ns3
       std::cout << "SeqNums=" << vector_to_string<uint32_t>(seqs);
       std::cout << std::endl;
     }
-  };
+  };*/
 
   struct cdf_entry
   {
@@ -353,7 +354,7 @@ namespace ns3
     }
   };
 
-  struct LatencyData
+  /*struct LatencyData
   {
     std::pair<uint32_t, uint32_t> latencyInfo;
     Time tsGeneration;
@@ -503,7 +504,7 @@ namespace ns3
       }
       std::cout << "lastSelectedPathIdx=" << lastSelectedPathIdx << std::endl;
     }
-  };
+  };*/
 
   /* CDF distribution */
   struct tfc_entry_t
@@ -652,7 +653,7 @@ namespace ns3
 
   struct flow_entry_t
   {
-    int32_t idx;
+    uint32_t idx;
     uint32_t prioGroup;
     uint32_t pktCnt;
     uint64_t byteCnt;
@@ -797,23 +798,23 @@ namespace ns3
     uint64_t totalFlowSizeInByte;
     double simStartTimeInSec;
     double simEndTimeInSec;
+    double flowLunchStartTimeInSec;
     double flowLunchEndTimeInSec;
     uint32_t smallFlowCount;
     uint32_t largeFlowCount;
     uint64_t largeFLowThreshInByte;
     uint64_t smallFlowThreshInByte;
 
-
     std::string lbsName;
     uint64_t flowletTimoutInUs;
     std::string patternFile;
     std::string workLoadFileName;
-
+    std::string smtFile;
+    std::string pitFile;
+    std::string pstFile;
     Ptr<Node> srcNode;
     Ptr<Node> dstNode;
     std::vector<flow_entry_t> genFlows;
-
-
 
     std::string configFileName;
     uint32_t pfcPauseTimeInUs;
@@ -858,7 +859,6 @@ namespace ns3
     uint32_t flowGroupPrio;
     bool enableUnifiedWindow;
     bool enableWindow;
-
 
     bool enableQlenMonitor;
     bool enablePfcMonitor;
@@ -914,6 +914,7 @@ namespace ns3
       totalFlowSizeInByte = 0;
       simStartTimeInSec = 0;
       simEndTimeInSec = 0;
+      flowLunchStartTimeInSec=0;
       flowLunchEndTimeInSec = 0;
       smallFlowCount = 0;
       largeFlowCount = 0;
@@ -1006,17 +1007,17 @@ namespace ns3
 
   };
 
-  class routeSettings
-  {
-  public:
-    routeSettings() {}
-    virtual ~routeSettings() {}
+  // class routeSettings
+  //{
+  // public:
+  //  routeSettings() {}
+  //  virtual ~routeSettings() {}
 
-    /* The map between hosts' IP and ID, initial when build topology */
-    static std::map<Ipv4Address, uint32_t> hostIp2IdMap;
-    static std::map<Ipv4Address, uint32_t> hostId2IpMap;
-    static std::map<Ipv4Address, uint32_t> hostIp2SwitchId; // host's IP -> connected Switch's Id
-  };
+  /* The map between hosts' IP and ID, initial when build topology */
+  //  static std::map<Ipv4Address, uint32_t> hostIp2IdMap;
+  //  static std::map<Ipv4Address, uint32_t> hostId2IpMap;
+  //  static std::map<Ipv4Address, uint32_t> hostIp2SwitchId; // host's IP -> connected Switch's Id
+  //};
 
   template <typename T>
   bool integer_to_bool(T src)
@@ -1055,11 +1056,11 @@ namespace ns3
   void assign_address_to_single_device(Ipv4Address network, Ipv4Mask mask, Ipv4Address base, Ptr<NetDevice> device);
   uint32_t assign_addresses_to_devices(std::map<uint32_t, std::map<uint32_t, addr_entry_t>> &ADDR, NodeContainer &nodes);
   double avg_cdf(struct cdf_table *table);
-  bool cmp_pitEntry_in_increase_order_of_latency(const PathData *lhs, const PathData *rhs);
+  /*bool cmp_pitEntry_in_increase_order_of_latency(const PathData *lhs, const PathData *rhs);
   bool cmp_pitEntry_in_increase_order_of_Generation_time(const PathData *lhs, const PathData *rhs);
   bool cmp_pitEntry_in_increase_order_of_congestion_Degree(const PathData *lhs, const PathData *rhs);
   bool cmp_pitEntry_in_decrease_order_of_priority(const PathData *lhs, const PathData *rhs);
-  bool cmp_pitEntry_in_increase_order_of_Sent_time(const PathData *lhs, const PathData *rhs);
+  bool cmp_pitEntry_in_increase_order_of_Sent_time(const PathData *lhs, const PathData *rhs);*/
   std::string construct_target_string(uint32_t strLen, std::string c);
   uint32_t create_topology(NodeContainer &switchNodes, NodeContainer &serverNodes, NodeContainer &allNodes, uint32_t switchNum, uint32_t serverNum);
   void free_cdf(struct cdf_table *table);
@@ -1106,7 +1107,11 @@ namespace ns3
   uint32_t read_CHL_from_file(std::string chlFile, std::map<uint32_t, CHL_entry_t> &CHL);
   uint32_t read_files_by_line(std::ifstream &fh, std::vector<std::vector<std::string>> &resLines);
   uint32_t read_PIT_from_file(std::string pitFile, std::map<uint32_t, std::map<uint32_t, PathData>> &PIT);
-  uint32_t read_PST_from_file(std::string pstFile, std::map<uint32_t, std::map<PathSelTblKey, pstEntryData>> &PST);
+  // uint32_t read_PST_from_file(std::string pstFile, std::map<uint32_t, std::map<PathSelTblKey, pstEntryData>> &PST);
+  void install_LB_table(global_variable_t *varMap, Ptr<Node> node);
+  uint32_t read_hostId_PST_Path_from_file(global_variable_t *varMap, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST);
+  uint32_t read_SMT_from_file(std::string smtFile, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT);
+
   uint32_t read_TFC_from_file(std::string trafficFile, std::map<uint32_t, std::vector<tfc_entry_t>> &TFC);
   void read_pattern_from_file(std::string patternFile, std::map<uint32_t, std::vector<tfc_entry_t>> &TFC);
   uint32_t read_TOPO_from_file(std::string topoFile, TOPO_t &TOPO);
@@ -1137,11 +1142,13 @@ namespace ns3
   void print_node_routing_tables(global_variable_t *varMap, uint32_t nodeidx);
   void calculate_bdp_and_rtt(global_variable_t *varMap);
   void set_switch_cc_para(global_variable_t *varMap);
+
+  void config_switch_lb(global_variable_t *varMap);
   void set_QBB_trace(global_variable_t *varMap);
   // void switchportinfoPrint(global_variable_t *varMap, uint32_t nodeId);
   void save_egress_ports_loadinfo(global_variable_t *varMap);
   void sim_finish(global_variable_t *varMap);
-  void print_nic_info(global_variable_t *varMap);
+  // void print_nic_info(global_variable_t *varMap);
   void generate_rdma_flows_for_node_pair(global_variable_t *varMap);
   void generate_rdma_flows_on_nodes(global_variable_t *varMap);
   void install_rdma_flows_on_nodes(global_variable_t *varMap);

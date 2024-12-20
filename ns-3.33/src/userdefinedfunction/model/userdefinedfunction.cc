@@ -8,8 +8,9 @@ namespace ns3
   NS_LOG_COMPONENT_DEFINE("userdefinedfunction");
   // Conga LB seting
   std::map<Ipv4Address, uint32_t> routeSettings::hostIp2IdMap;
-  std::map<Ipv4Address, uint32_t> routeSettings::hostId2IpMap;
+  std::map<uint32_t, Ipv4Address> routeSettings::hostId2IpMap;
   std::map<Ipv4Address, uint32_t> routeSettings::hostIp2SwitchId;
+  std::map<uint32_t, std::vector<Ipv4Address>> routeSettings::ToRSwitchId2hostIp;
 
   void add_channel_between_two_nodes(Ptr<Node> firstNode, Ptr<Node> secondNode, PointToPointHelper &p2p)
   {
@@ -118,7 +119,23 @@ namespace ns3
       Ptr<Node> curNode = nodes.Get(nodeIdx);
       assign_rdma_addresses_to_node(curNode);
       record_save_addr_on_single_node(curNode, varMap->addr2node, varMap->paraMap);
+
+      if (curNode->GetNodeType() == SERVER_NODE_TYPE)
+      { // is server node
+        auto ipv4addr = curNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+        for (std::map<Ptr<Node>, std::vector<edge_t>>::iterator it = varMap->edges[curNode].begin(); it != varMap->edges[curNode].end(); ++it)
+        {
+          // host-switch link
+          if (it->first->GetNodeType() == SWITCH_NODE_TYPE)
+          {
+            routeSettings::hostIp2SwitchId[ipv4addr] = it->first->GetId();
+            update_EST(varMap->paraMap, "hostIp2SwitchId: " + ipv4Address_to_string(ipv4addr), it->first->GetId());
+            routeSettings::ToRSwitchId2hostIp[it->first->GetId()].push_back(ipv4addr);
+          }
+        }
+      }
     }
+    std::cout << map_to_string<Ipv4Address, uint32_t>(routeSettings::hostIp2SwitchId) << std::endl;
     return;
   }
   void record_save_addr_on_single_node(Ptr<Node> node, std::map<Ipv4Address, Ptr<Node>> &addr2node, std::map<uint32_t, est_entry_t> &paraMap)
@@ -183,7 +200,7 @@ namespace ns3
     return avg;
   }
 
-  bool cmp_pitEntry_in_increase_order_of_latency(const PathData *lhs, const PathData *rhs)
+  /*bool cmp_pitEntry_in_increase_order_of_latency(const PathData *lhs, const PathData *rhs)
   {
     return lhs->latency < rhs->latency; // 升序排列
   }
@@ -206,7 +223,7 @@ namespace ns3
   bool cmp_pitEntry_in_increase_order_of_Sent_time(const PathData *lhs, const PathData *rhs)
   {
     return lhs->tsLatencyLastSend < rhs->tsLatencyLastSend; // 升序排列
-  }
+  }*/
 
   std::string construct_target_string(uint32_t strLen, std::string c)
   {
@@ -1470,6 +1487,28 @@ namespace ns3
     }
     return lineCnt;
   }
+  void install_LB_table(global_variable_t *varMap, Ptr<Node> curNode)
+  {
+    Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(curNode);
+    std::map<Ipv4Address, hostIp2SMT_entry_t> SMT;
+    std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> PST;
+    std::map<uint32_t, std::map<uint32_t, PathData>> PIT;
+    read_SMT_from_file(varMap->smtFile, SMT);
+    read_PIT_from_file(varMap->pitFile, PIT);
+    read_hostId_PST_Path_from_file(varMap, PST);
+
+    uint32_t nodeId = sw->GetSwitchId();
+    uint32_t pitsize = sw->m_mmu->m_SmartFlowRouting->install_PIT(PIT[nodeId]);
+    pitsize = sw->m_mmu->m_ConWeaveRouting->routePath.install_PIT(PIT[nodeId]);
+    std::cout << "nodeId " << nodeId << " finished install_PIT_from_swnode" << nodeId << " size " << pitsize << std::endl;
+    uint32_t pstsize = sw->m_mmu->m_SmartFlowRouting->install_PST(PST[nodeId]);
+    pstsize = sw->m_mmu->m_ConWeaveRouting->routePath.install_PST(PST[nodeId]);
+    std::cout << "nodeId " << nodeId << " finished install_PST_from_swnode" << nodeId << " size " << pstsize << std::endl;
+    uint32_t smtsize = sw->m_mmu->m_SmartFlowRouting->install_SMT(SMT);
+    smtsize = sw->m_mmu->m_ConWeaveRouting->routePath.install_SMT(SMT);
+    std::cout << "nodeId " << nodeId << " finished install_SMT_from_swnode" << nodeId << " size " << smtsize << std::endl;
+    return;
+  }
 
   uint32_t read_PIT_from_file(std::string pitFile, std::map<uint32_t, std::map<uint32_t, PathData>> &PIT)
   {
@@ -1515,7 +1554,7 @@ namespace ns3
     return pitSize;
   }
 
-  uint32_t read_PST_from_file(std::string pstFile, std::map<uint32_t, std::map<PathSelTblKey, pstEntryData>> &PST)
+  /*uint32_t read_PST_from_file(std::string pstFile, std::map<uint32_t, std::map<PathSelTblKey, pstEntryData>> &PST)
   {
     // std::srand(static_cast<unsigned int>(std::time(0)));
     std::ifstream fh_pstFile(pstFile.c_str());
@@ -1551,8 +1590,77 @@ namespace ns3
     }
     fh_pstFile.close();
     return pstSize;
-  }
+  }*/
+  uint32_t read_hostId_PST_Path_from_file(global_variable_t *varMap, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST)
+  {
+    // std::srand(static_cast<unsigned int>(std::time(0)));
+    // read Path(port[]) of srcToRId to dstToRid from file
+    std::string pstFile = varMap->pstFile;
+    std::ifstream fh_pstFile(pstFile.c_str());
+    if (!fh_pstFile.is_open())
+    {
+      std::cerr << "read_PST_from_file() 无法打开文件 " << pstFile << std::endl;
+      return 0;
+    }
+    std::vector<std::vector<std::string>> resLines;
+    uint32_t lineCnt = read_files_by_line(fh_pstFile, resLines);
+    std::cout << "read_PST_from_file() reads file: " << pstFile << " about " << lineCnt << " Lines" << std::endl;
+    uint32_t nodeIdx = UINT32_MAX, pstSize = 0;
+    uint32_t srcHostId, dstHostId;
+    std::vector<uint32_t> pids;
+    for (uint32_t i = 0; i < lineCnt; i++)
+    {
+      nodeIdx = std::atoi(resLines[i][0].c_str());
+      srcHostId = std::atoi(resLines[i][1].c_str());
+      dstHostId = std::atoi(resLines[i][2].c_str());
+      Ptr<Node> srcnode = varMap->allNodes.Get(srcHostId);
+      Ptr<Node> dstnode = varMap->allNodes.Get(dstHostId);
 
+      HostId2PathSeleKey pstKey(srcHostId, dstHostId);
+      struct pstEntryData *pstEntry = new pstEntryData();
+      pstEntry->pathNum = resLines[i].size() - 4;
+      pstEntry->highestPriorityPathIdx = std::atoi(resLines[i][3].c_str());
+      pstEntry->baseRTTInNs = varMap->pairDelayInNs[srcnode][dstnode] * 2;
+      pids.clear();
+      for (uint32_t j = 4; j < resLines[i].size(); j++)
+      {
+        uint32_t portIdx = std::atoi(resLines[i][j].c_str());
+        pids.push_back(portIdx);
+      }
+      pstEntry->paths = pids;
+      PST[nodeIdx][pstKey] = *pstEntry;
+      pstSize = pstSize + 1;
+    }
+    fh_pstFile.close();
+    return pstSize;
+  }
+  uint32_t read_SMT_from_file(std::string smtFile, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT)
+  {
+    // nodeIdx portIdx, addr
+    std::ifstream fh_smtFile(smtFile.c_str());
+    if (!fh_smtFile.is_open())
+    {
+      std::cout << "read_SMT_from_file() 无法打开文件" << smtFile << std::endl;
+      return 0;
+    }
+    std::vector<std::vector<std::string>> resLines;
+    uint32_t lineCnt = read_files_by_line(fh_smtFile, resLines);
+    // NS_LOG_INFO("read_VMT_from_file() reads file: " << vmtFile << " about " << lineCnt << " Lines");
+    uint32_t smtCnt = 0;
+    Ipv4Address svAddr;
+    uint32_t torId, hostId;
+    for (uint32_t i = 0; i < lineCnt; i++)
+    {
+      svAddr = string_to_ipv4Address(resLines[i][0]);
+      hostId = std::atoi(resLines[i][1].c_str());
+      torId = std::atoi(resLines[i][2].c_str());
+      SMT[svAddr].hostId = hostId;
+      SMT[svAddr].torId = torId;
+      smtCnt = smtCnt + 1;
+    }
+    fh_smtFile.close();
+    return smtCnt;
+  }
   uint32_t read_TFC_from_file(std::string trafficFile, std::map<uint32_t, std::vector<tfc_entry_t>> &TFC)
   {
     // std::srand(static_cast<unsigned int>(std::time(0)));
@@ -1755,7 +1863,7 @@ namespace ns3
   void save_egress_ports_loadinfo(global_variable_t *varMap)
   {
 
-    /*for (auto it = SwitchNode::m_PortInf.begin(); it != SwitchNode::m_PortInf.end(); ++it)
+    for (auto it = SwitchNode::m_PortInf.begin(); it != SwitchNode::m_PortInf.end(); ++it)
     {
       uint32_t nodeid = it->first;
       for (auto portinfo = it->second.begin(); portinfo != it->second.end(); ++portinfo)
@@ -1763,10 +1871,8 @@ namespace ns3
         std::string swid_poid = "nodeID: " + to_string(nodeid) + ",portIdx: " + to_string(portinfo->first);
         update_EST(varMap->paraMap, swid_poid + ",packetcount", portinfo->second.Packetcount);
         update_EST(varMap->paraMap, swid_poid + ",packetsize", portinfo->second.Packetsize);
-
       }
     }
-    */
     return;
   }
   // void print_mac_address_for_single_node(Ptr<Node> curNode){
@@ -2116,11 +2222,171 @@ namespace ns3
       }
     }
   }
+  void config_switch_lb(global_variable_t *varMap)
+  {
 
+    NodeContainer &allNodes = varMap->allNodes;
+    uint32_t node_num = allNodes.GetN();
+    for (uint32_t nodeIdx = 0; nodeIdx < node_num; nodeIdx++)
+    {
+      Ptr<Node> curNode = allNodes.Get(nodeIdx);
+      uint32_t curNodeId = curNode->GetId();
+      if (curNode->GetNodeType() == SWITCH_NODE_TYPE)
+      {
+        if (routeSettings::ToRSwitchId2hostIp.find(curNodeId) != routeSettings::ToRSwitchId2hostIp.end())
+        {
+          Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(curNode);
+          sw->SetSwitchInfo(true, curNodeId);
+        }
+        if (varMap->lbsName == "laps" || varMap->lbsName == "conweave")
+        {
+          install_LB_table(varMap, curNode);
+        }
+      }
+    }
+    std::map<Ptr<Node>, std::map<Ptr<Node>, std::vector<Ptr<Node>>>> &nextHop = varMap->nextHop;
+    for (auto i = nextHop.begin(); i != nextHop.end(); i++)
+    { // every node
+      if (i->first->GetNodeType() == SWITCH_NODE_TYPE)
+      { // switch
+        Ptr<Node> nodeSrc = i->first;
+        Ptr<SwitchNode> swSrc = DynamicCast<SwitchNode>(nodeSrc); // switch
+        uint32_t swSrcId = swSrc->GetId();
+        // config m_outPort2BitRateMap for Conga
+        auto table = i->second;
+        for (auto j = table.begin(); j != table.end(); j++)
+        {
+          Ptr<Node> dst = j->first; // dst
+          // auto dstIP = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+
+          for (auto next : j->second)
+          {
+            uint32_t outPort = varMap->edges[nodeSrc][next][0].nicIdx;
+            uint64_t bw = varMap->edges[nodeSrc][next][0].bwInBitps;
+            swSrc->SetLinkCapacity(outPort, bw);
+            // printf("Node: %d, interface: %d, bw: %lu\n", swId, outPort, bw);
+          }
+        }
+
+        // TOR switch
+        if (swSrc->GetIsToRSwitch())
+        {
+          NS_LOG_INFO("--- ToR Switch %d\n"
+                      << swSrcId);
+          auto table1 = i->second;
+          for (auto j = table1.begin(); j != table1.end(); j++)
+          {
+            Ptr<Node> dst = j->first; // dst
+            auto dstIP = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+            uint32_t swDstId = routeSettings::hostIp2SwitchId[dstIP]; // Rx(dst)ToR
+
+            if (swSrcId == swDstId)
+            {
+              continue; // if in the same pod, then skip
+            }
+
+            if (varMap->lbsName == "conga")
+            {
+              // initialize `m_congaFromLeafTable` and `m_congaToLeafTable`
+              swSrc->m_congaFromLeafTable[swDstId]; // dynamically will be added in
+                                                    // conga
+              swSrc->m_congaToLeafTable[swDstId];
+            }
+
+            // construct paths
+            uint32_t pathId;
+            uint8_t path_ports[4] = {0, 0, 0, 0}; // interface is always large than 0
+            std::vector<Ptr<Node>> nexts1 = j->second;
+            for (auto next1 : nexts1)
+            {
+              uint32_t outPort1 = varMap->edges[nodeSrc][next1][0].nicIdx;
+              auto nexts2 = nextHop[next1][dst];
+              if (nexts2.size() == 1 && nexts2[0]->GetId() == swDstId)
+              {
+                // this destination has 2-hop distance
+                uint32_t outPort2 = varMap->edges[next1][nexts2[0]][0].nicIdx;
+                // printf("[IntraPod-2hop] %d (%d)-> %d (%d) -> %d -> %d\n",
+                // nodeSrc->GetId(), outPort1, next1->GetId(), outPort2,
+                // nexts2[0]->GetId(), dst->GetId());
+                path_ports[0] = (uint8_t)outPort1;
+                path_ports[1] = (uint8_t)outPort2;
+                pathId = *((uint32_t *)path_ports);
+                if (varMap->lbsName == "conga")
+                {
+                  swSrc->m_congaRoutingTable[swDstId]
+                      .insert(pathId);
+                }
+                continue;
+              }
+
+              for (auto next2 : nexts2)
+              {
+                uint32_t outPort2 = varMap->edges[next1][next2][0].nicIdx;
+                auto nexts3 = nextHop[next2][dst];
+                if (nexts3.size() == 1 && nexts3[0]->GetId() == swDstId)
+                {
+                  // this destination has 3-hop distance
+                  uint32_t outPort3 = varMap->edges[next2][nexts3[0]][0].nicIdx;
+                  // printf("[IntraPod-3hop] %d (%d)-> %d (%d) -> %d (%d) -> %d ->
+                  // %d\n", nodeSrc->GetId(), outPort1, next1->GetId(), outPort2,
+                  // next2->GetId(), outPort3, nexts3[0]->GetId(), dst->GetId());
+                  path_ports[0] = (uint8_t)outPort1;
+                  path_ports[1] = (uint8_t)outPort2;
+                  path_ports[2] = (uint8_t)outPort3;
+                  pathId = *((uint32_t *)path_ports);
+                  if (varMap->lbsName == "conga")
+                  {
+                    swSrc->m_congaRoutingTable[swDstId]
+                        .insert(pathId);
+                  }
+                  continue;
+                }
+
+                for (auto next3 : nexts3)
+                {
+                  uint32_t outPort3 = varMap->edges[next2][next3][0].nicIdx;
+                  auto nexts4 = nextHop[next3][dst];
+                  if (nexts4.size() == 1 && nexts4[0]->GetId() == swDstId)
+                  {
+                    // this destination has 4-hop distance
+                    uint32_t outPort4 = varMap->edges[next3][nexts4[0]][0].nicIdx;
+                    // printf("[IntraPod-4hop] %d (%d)-> %d (%d) -> %d (%d) ->
+                    // %d (%d) -> %d -> %d\n", nodeSrc->GetId(), outPort1,
+                    // next1->GetId(), outPort2, next2->GetId(), outPort3,
+                    // next3->GetId(), outPort4, nexts4[0]->GetId(),
+                    // dst->GetId());
+                    path_ports[0] = (uint8_t)outPort1;
+                    path_ports[1] = (uint8_t)outPort2;
+                    path_ports[2] = (uint8_t)outPort3;
+                    path_ports[3] = (uint8_t)outPort4;
+                    pathId = *((uint32_t *)path_ports);
+                    if (varMap->lbsName == "conga")
+                    {
+                      swSrc->m_congaRoutingTable[swDstId].insert(pathId);
+                    }
+
+                    continue;
+                  }
+                  else
+                  {
+                    NS_LOG_INFO("Too large topology?\n");
+                    assert(false);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return;
+  }
   void config_switch(global_variable_t *varMap)
   {
     config_switch_mmu(varMap);
     set_switch_cc_para(varMap);
+    config_switch_lb(varMap);
     return;
   }
   /*
@@ -2532,6 +2798,7 @@ std::string boolToString (bool m_value) {
         sw->SetAttribute("CcMode", StringValue(varMap->ccMode));
         sw->SetAttribute("MaxRtt", UintegerValue(varMap->maxRttInNs));
         swNode->SetAttribute("EcnEnabled", BooleanValue(varMap->enableQcn));
+        sw->SetAttribute("AckHighPrio", UintegerValue(varMap->enableAckHigherPrio));
       }
       else
       {
@@ -2916,12 +3183,10 @@ std::string boolToString (bool m_value) {
     varMap->qlenMonitorIntervalInNs = varMap->configMap.find("qlenMonitorIntervalInNs") != varMap->configMap.end() ? std::stoi(varMap->configMap["qlenMonitorIntervalInNs"][0]) : 1111;
     varMap->simStartTimeInSec = varMap->configMap.find("simStartTimeInSec") != varMap->configMap.end() ? std::stof(varMap->configMap["simStartTimeInSec"][0]) : 0.0;
     varMap->simEndTimeInSec = varMap->configMap.find("simEndTimeInSec") != varMap->configMap.end() ? std::stof(varMap->configMap["simEndTimeInSec"][0]) : 1;
-    varMap->topoFileName = varMap->configMap.find("topoFileName") != varMap->configMap.end() ? varMap->configMap["topoFileName"][0] : "/file-in-ctr/inputFiles/A00083-test/TOPO.txt";
-    varMap->fileIdx = varMap->configMap.find("fileIdx") != varMap->configMap.end() ? varMap->configMap["fileIdx"][0] : "A00083-test-DCTCP_CDF-Ring-rps-0.5";
-    varMap->outputFileDir = varMap->configMap.find("outputFileDir") != varMap->configMap.end() ? varMap->configMap["outputFileDir"][0] : "/file-in-ctr/outputFiles/A00083-test/";
-    varMap->inputFileDir = varMap->configMap.find("inputFileDir") != varMap->configMap.end() ? varMap->configMap["inputFileDir"][0] : "/file-in-ctr/inputFiles/A00083-test/";
-    varMap->topoFileName = varMap->configMap.find("topoFileName") != varMap->configMap.end() ? varMap->configMap["topoFileName"][0] : " /file-in-ctr/inputFiles/A00083-test/TOPO.txt";
-
+    varMap->topoFileName = varMap->configMap.find("topoFileName") != varMap->configMap.end() ? varMap->configMap["topoFileName"][0] : "/file-in-ctr/inputFiles/C00002/fat_tree_4-8-8-16_topology.txt";
+    varMap->fileIdx = varMap->configMap.find("fileIdx") != varMap->configMap.end() ? varMap->configMap["fileIdx"][0] : "C00002_DCTCP_CDF_Ring-lr-0.5-lb-conweave";
+    varMap->outputFileDir = varMap->configMap.find("outputFileDir") != varMap->configMap.end() ? varMap->configMap["outputFileDir"][0] : "/file-in-ctr/outputFiles/C00002/";
+    varMap->inputFileDir = varMap->configMap.find("inputFileDir") != varMap->configMap.end() ? varMap->configMap["inputFileDir"][0] : "/file-in-ctr/inputFiles/C00002/";
   }
 
   std::map<uint32_t, ecn_para_entry_t> parse_ecn_parameter(std::vector<std::string> &s)
