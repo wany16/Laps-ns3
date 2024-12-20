@@ -3,16 +3,22 @@
 
 #include <unordered_map>
 #include <ns3/node.h>
+#include "rdma-smartflow-routing.h"
+#include "conweave-routing.h"
 
 namespace ns3 {
 
 class Packet;
+class RdmaSmartFlowRouting;
+class ConWeaveRouting;
 
 class SwitchMmu: public Object{
 public:
 	static const uint32_t pCnt = 257;	// Number of ports used
 	static const uint32_t qCnt = 8;	// Number of queues/priorities used
-
+									/*------------ smartFloW Objects-------------*/
+	Ptr<RdmaSmartFlowRouting> m_SmartFlowRouting;
+	Ptr<ConWeaveRouting> m_ConWeaveRouting;
 	static TypeId GetTypeId (void);
 
 	SwitchMmu(void);

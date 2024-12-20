@@ -6,7 +6,7 @@
 #include "qbb-net-device.h"
 #include "switch-mmu.h"
 #include "pint.h"
-#include "ns3/userdefinedfunction.h"
+// #include "ns3/userdefinedfunction.h"
 #include "ns3/rdma-hw.h"
 
 namespace ns3
@@ -24,7 +24,10 @@ namespace ns3
     LB_CONGA = 5,
     LB_LAPS = 6,
     LB_RRS = 7,
-    LB_NONE = 8
+    LB_CONWEAVE = 8,
+    LB_PLB = 9,
+    LB_NONE = 10
+
   };
 
   template <typename T>
@@ -94,8 +97,58 @@ namespace ns3
   {
     uint32_t port;
     Time activeTime;
+    uint64_t nPackets;
+  };
+  struct CongaFlowlet
+  {
+    Time activeTime;    // to check creating a new flowlet
+    Time activatedTime; // start time of new flowlet
+    uint32_t PathId;    // current pathId
+    uint32_t nPackets;  // for debugging
+  };
+  const uint32_t CONGA_NULL = UINT32_MAX;
+
+  struct FeedbackInfo
+  {
+    uint32_t _ce;
+    Time _updateTime;
   };
 
+  struct OutpathInfo
+  {
+    uint32_t _ce;
+    Time _updateTime;
+  };
+
+  class CongaTag : public Tag
+  {
+  public:
+    CongaTag();
+    ~CongaTag();
+    static TypeId GetTypeId(void);
+    void SetPathId(uint32_t pathId);
+    uint32_t GetPathId(void) const;
+    void SetCe(uint32_t ce);
+    uint32_t GetCe(void) const;
+    void SetFbPathId(uint32_t fbPathId);
+    uint32_t GetFbPathId(void) const;
+    void SetFbMetric(uint32_t fbMetric);
+    uint32_t GetFbMetric(void) const;
+    void SetHopCount(uint32_t hopCount);
+    uint32_t GetHopCount(void) const;
+    virtual TypeId GetInstanceTypeId(void) const;
+    virtual uint32_t GetSerializedSize(void) const;
+    virtual void Serialize(TagBuffer i) const;
+    virtual void Deserialize(TagBuffer i);
+    virtual void Print(std::ostream &os) const;
+
+  private:
+    uint32_t m_pathId;   // forward
+    uint32_t m_ce;       // forward
+    uint32_t m_hopCount; // hopCount to get outPort
+    uint32_t m_fbPathId; // feedback
+    uint32_t m_fbMetric; // feedback
+  };
   // std::map<uint32_t, uint32_t> SwitchNode::m_rpsPortInf;
   class SwitchNode : public Node
   {
@@ -139,7 +192,7 @@ namespace ns3
     uint32_t m_ackHighPrio; // set high priority for ACK/NACK
 
   private:
-    int GetOutDev(Ptr<const Packet>, CustomHeader &ch);
+    int GetOutDev(Ptr<Packet>, CustomHeader &ch);
     void SendToDev(Ptr<Packet> p, CustomHeader &ch);
     static uint32_t EcmpHash(const uint8_t *key, size_t len, uint32_t seed);
     void CheckAndSendPfc(uint32_t inDev, uint32_t qIndex);
@@ -148,6 +201,16 @@ namespace ns3
     // Flowlet Table
     std::map<std::string, LetFlowFlowletInfo> m_flowletTable;
     Time m_flowletTimeout;
+    bool m_isToR;         // is ToR (leaf)
+    uint32_t m_switch_id; // switch's nodeID
+    // conga
+    Time m_dreTime;         // dre algorithm (e.g., 200us) timegap
+    double m_alpha;         // dre algorithm (e.g., 0.2)
+    Time m_agingTime;       // aging time (e.g., 10ms)
+    uint32_t m_quantizeBit; // quantizing (2**X) param (e.g., X=3)
+    // local
+    std::map<uint32_t, uint32_t> m_DreMap;                     // outPort -> DRE (at SrcToR)
+    std::map<std::string, CongaFlowlet *> m_congaflowletTable; // QpKey -> Flowlet (at SrcToR)
 
   public:
     Ptr<SwitchMmu> m_mmu;
@@ -158,17 +221,53 @@ namespace ns3
     void AddTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx);
     void ClearTable();
     bool SwitchReceiveFromDevice(Ptr<NetDevice> device, Ptr<Packet> packet, CustomHeader &ch);
+    void DoSwitchSend(Ptr<Packet> p, CustomHeader &ch, uint32_t outDev, uint32_t qIndex);
+    void SendToDevContinue(Ptr<Packet> p, CustomHeader &ch);
     void SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p);
     void SetFlowletTimeout(Time timeout);
-
+    struct FlowPortInfo
+    {
+      uint32_t Packetcount;
+      uint32_t Packetsize;
+    };
     static std::map<uint32_t, std::map<uint32_t, uint32_t>> m_rpsPortInf;                      // map from nodeid to port to packetCount (RPS select port)
     static std::map<uint32_t, std::map<uint32_t, std::map<uint32_t, uint32_t>>> m_ecmpPortInf; // map from nodeid to port to flowid,flowidCount (ECMP select port)
     static std::map<uint32_t, std::map<uint32_t, uint32_t>> m_rrsPortInf;                      // map from nodeid to port to packetCount (RRS select port)
+    static std::map<uint32_t, std::map<uint32_t, FlowPortInfo>> m_PortInf;
+
+    static uint32_t GetOutPortFromPath(const uint32_t &path, const uint32_t &hopCount); // decode outPort from path, given a hop's order
+    bool GetIsToRSwitch();
+    uint32_t GetSwitchId();
+    static void SetOutPortToPath(uint32_t &path, const uint32_t &hopCount, const uint32_t &outPort); // encode outPort to path,,hopcount <=sizeof(path)=4
+    uint32_t GetNormalEcmpPort(Ptr<Packet> p, CustomHeader &ch);
+    static uint32_t nFlowletTimeout;
+    // map from nodeid to port to packetCount��packetsize
     // for approximate calc in PINT
     int logres_shift(int b, int l);
     int log2apprx(int x, int b, int m, int l); // given x of at most b bits, use most significant m bits of x, calc the result in l bits
+    /* main function :GetEgressPort */
+    uint32_t GetCongaEgressPort(Ptr<Packet> p, CustomHeader &ch);
+    uint32_t UpdateLocalDre(Ptr<Packet> p, CustomHeader ch, uint32_t outPort);
+    uint32_t QuantizingX(uint32_t outPort, uint32_t X); // X is bytes here and we quantizing it to 0 - 2^Q
+    uint32_t GetBestPath(uint32_t dstTorId, uint32_t nSample);
+    std::map<Ipv4Address, CandidatePortEntry> m_congaIp2ports;
+    /* SET functions */
+    void SetConstants(Time dreTime, Time agingTime, uint32_t quantizeBit, double alpha); // not set flowlet time
+    void SetSwitchInfo(bool isToR, uint32_t switch_id);
+    void SetLinkCapacity(uint32_t outPort, uint64_t bitRate);
+
+    // periodic events
+    EventId m_dreEvent;
+    EventId m_agingEvent;
+    void DreEvent();
+    void AgingEvent();
+
+    // topological info (should be initialized in the beginning)
+    std::map<uint32_t, std::set<uint32_t>> m_congaRoutingTable;                // routing table (ToRId -> pathId) (stable)
+    std::map<uint32_t, std::map<uint32_t, FeedbackInfo>> m_congaFromLeafTable; // ToRId -> <pathId -> FeedbackInfo> (aged)
+    std::map<uint32_t, std::map<uint32_t, OutpathInfo>> m_congaToLeafTable;    // ToRId -> <pathId -> OutpathInfo> (aged)
+    std::map<uint32_t, uint64_t> m_outPort2BitRateMap;                         // outPort -> link bitrate (bps) (stable)
   };
 
 } /* namespace ns3 */
-
 #endif /* SWITCH_NODE_H */

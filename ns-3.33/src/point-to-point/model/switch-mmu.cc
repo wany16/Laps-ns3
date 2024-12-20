@@ -32,6 +32,17 @@ namespace ns3 {
 		memset(ingress_bytes, 0, sizeof(ingress_bytes));
 		memset(paused, 0, sizeof(paused));
 		memset(egress_bytes, 0, sizeof(egress_bytes));
+		m_SmartFlowRouting = CreateObject<RdmaSmartFlowRouting>();
+		m_ConWeaveRouting = CreateObject<ConWeaveRouting>();
+
+		if (!m_SmartFlowRouting)
+		{
+			NS_FATAL_ERROR("Failed to create RdmaSmartFlowRouting object.");
+		}
+		if (!m_ConWeaveRouting)
+		{
+			NS_FATAL_ERROR("Failed to create m_ConWeaveRouting object.");
+		}
 	}
 	bool SwitchMmu::CheckIngressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize){
 		if (psize + hdrm_bytes[port][qIndex] > headroom[port] && psize + GetSharedUsed(port, qIndex) > GetPfcThreshold(port)){

@@ -25,6 +25,10 @@ def build(bld):
         'model/switch-mmu.cc',
 		'model/flow-stat-tag.cc',
         'model/pint.cc',
+        'model/ipv4-smartflow-tag.cc',
+        'model/common-user-model.cc',
+        'model/rdma-smartflow-routing.cc',
+        'model/conweave-routing.cc',
         ]
     if bld.env['ENABLE_MPI']:
         module.source.append('model/point-to-point-remote-channel.cc')
@@ -63,6 +67,10 @@ def build(bld):
         'model/pint.h',
         'helper/sim-setting.h',
 		'model/flow-stat-tag.h',
+        'model/ipv4-smartflow-tag.h',
+        'model/common-user-model.h',
+        'model/rdma-smartflow-routing.h',
+        'model/conweave-routing.h',
         ]
     if bld.env['ENABLE_MPI']:
         headers.source.append('model/point-to-point-remote-channel.h')
