@@ -76,7 +76,7 @@ dir_host_patterns = dir_host_root + "simulation/" + "patterns/"
 create_directory(dir_host_patterns)
 dir_host_configures = dir_host_root + "simulation/" + "configures/"
 create_directory(dir_host_configures)
-dir_host_runScript = dir_host_root + "simulation/" + "runScript/"
+dir_host_runScript = dir_host_root + "simulation/" + "runScript/" + experimentalName + "/"
 create_directory(dir_host_runScript)
 dir_ns3_root = "/app/ns3-detnet-rdma-main/ns-3.33/"
 dir_ns3_scratch = dir_ns3_root + "scratch/"
@@ -100,10 +100,10 @@ parser.add_argument("--simStartTimeInSec", default="0", help="simulation start t
 parser.add_argument("--simEndTimeInSec", default="0.005",  help="simulation end time")
 parser.add_argument("--flowLunchEndTimeInSec", default="0.001", help="flow end time")
 parser.add_argument("--qlenMonitorIntervalInNs", default="100000", help="Qlen Monitor period In Ns")
-parser.add_argument("--lbsName", default="RPS", help="Load balancing algorithm")
+parser.add_argument("--lbsName", default="rps", help="Load balancing algorithm")
 parser.add_argument("--flowletTimoutInUs", default="50", help="The time out of the flowlet in microsecond.")
 parser.add_argument("--loadRatioShift", default="1.0",  help="loadfactorAdjustFacror:Ring ->1,all2all->1/(n-1),Reduce->1/(K-1),n is host num,k is group num.")
-parser.add_argument("--PS", default="30",  help="Physical Server 30 is DCTCP_CDF',29 is RPC_CDF,28 is VL2_CDF")
+parser.add_argument("--loadratio", default="1",  help="The ratio of the load")
 parser.add_argument("--ccMode", default="Dcqcn_mlx",  help="congestion control algorithm")
 parser.add_argument("--screenDisplayInNs", default="10000000",  help="screen display interval in Ns")
 parser.add_argument("--enablePfcMonitor", default="true",  help="trace Pfc packets or not ")
@@ -112,31 +112,34 @@ parser.add_argument("--enableQlenMonitor", default="false",  help="trace queue l
 parser.add_argument("--rdmaAppStartPort", default="6666",  help="minimal port for rdma client")
 parser.add_argument("--enableQbbTrace", default="true",  help="trace the packet event on node's all Qbb netdevices")
 parser.add_argument("--testPktNum", default="1",  help="The number of packets to test")
+parser.add_argument("--workloadFile", default="DCTCP.txt",  help="The workload file")
+parser.add_argument("--patternFile", default="spine-leaf-2-4-16-Ring.txt",  help="The pattern file")
 args = parser.parse_args()
 
 
 os.chdir(dir_ns3_root)
+print("Working Directoty: ", os.getcwd())
 
 Line_command = '\
-./waf --run "scratch/{}\
---fileIdx={}\
---outputFileDir={}\
---topoFileName={}\
---simStartTimeInSec={}\
---qlenMonitorIntervalInNs={}\
---simEndTimeInSec={}\
---lbsName={}\
---flowletTimoutInUs={}\
---loadRatioShift={}\
---ccMode={}\
---screenDisplayInNs={}\
---enablePfcMonitor={}\
---enableFctMonitor={}\
---enableQlenMonitor={}\
---enableQbbTrace={}\
---rdmaAppStartPort={}\
---testPktNum={}\
---loadRatio={} --workloadFile={} --patternFile={}"\
+    ./waf --run "scratch/{}\
+    --fileIdx={}\
+    --outputFileDir={}\
+    --topoFileName={}\
+    --simStartTimeInSec={}\
+    --qlenMonitorIntervalInNs={}\
+    --simEndTimeInSec={}\
+    --lbsName={}\
+    --flowletTimoutInUs={}\
+    --loadRatioShift={}\
+    --ccMode={}\
+    --screenDisplayInNs={}\
+    --enablePfcMonitor={}\
+    --enableFctMonitor={}\
+    --enableQlenMonitor={}\
+    --enableQbbTrace={}\
+    --rdmaAppStartPort={}\
+    --testPktNum={}\
+    --loadRatio={} --workloadFile={} --patternFile={}"\
 '.format(
     mainFileName,
     experimentalName,

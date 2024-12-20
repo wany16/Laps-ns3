@@ -1,0 +1,26 @@
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:0 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:0 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:84 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:1000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:168 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:252 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:3000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:336 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:4000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:420 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:5000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:504 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:6000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:588 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:7000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:672 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:8000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:756 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:9000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:8356 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:1000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:8440 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:8608 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:8692 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:8692 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:8776 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:8944 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:8944 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:9028 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:9112 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:9112 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:2000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:17048 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:6000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:17300 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:6000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:17468 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:6000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:3 Time:17468 Event:Dequ Sip:11.0.3.1 Dip:11.0.4.1 PktType:Data SrcPort:6666 DstPort:6666 PG:3 Seq:6000 Size:1048 Qlen:0
+Node:3 NodeType:Host Nic:1 Qidx:0 Time:25824 Event:Recv Sip:11.0.4.1 Dip:11.0.3.1 PktType:NACK SrcPort:6666 DstPort:6666 PG:3 Seq:10000 Ts:0 IrnSeq:-1984382920 IrnLen:32767 Size:60 Qlen:0
