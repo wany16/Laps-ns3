@@ -73,11 +73,12 @@ struct Irn{
 		uint32_t m_nextReTxSeq{0};		
 		uint32_t m_dupAckCnt{0};
 		uint32_t m_max_next_seq{0}; 
+		uint64_t m_last_recovery_time_in_ns{0}; 
 
 		IrnSackManager m_sack;
-		bool m_recovery;
+		bool m_recovery{false};
 		bool m_isTimeOut{false};
-		uint32_t m_recovery_seq;// snd_nxt upon entering the recovery mode
+		uint32_t m_recovery_seq{0};// snd_nxt upon entering the recovery mode
 		uint32_t GetOnTheFly() const {
 				// IRN do not consider SACKed segments for simplicity, to be optimized.
 				if (m_max_seq < m_highest_ack) {
@@ -252,6 +253,7 @@ public:
 	void Acknowledge(uint64_t ack);
 	void ResumeQueue();
 	void RecoverQueue();
+	void RecoverQueueUponTimeout();
 	uint64_t GetOnTheFly();
 	bool IsWinBound();
 	uint64_t GetWin(); // window size calculated from m_rate

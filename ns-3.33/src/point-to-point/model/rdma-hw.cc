@@ -565,8 +565,7 @@ namespace ns3
 
 		if (Irn::isTrnOptimizedEnabled)
 		{
-			// qp->m_irn.m_isTimeOut = true;
-			RecoverQueue(qp);
+			qp->RecoverQueueUponTimeout();
     	dev->TriggerTransmit();
 			return ;
 		}

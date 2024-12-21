@@ -118,6 +118,12 @@ void RdmaQueuePair::SetFlowId(int32_t v) {
 
 		if (Irn::isTrnOptimizedEnabled)
 		{
+			uint32_t sack_seq, sack_sz;
+			if (m_irn.m_sack.peekFrontBlock(&sack_seq, &sack_sz)) {
+				if (snd_nxt == sack_seq) {
+					snd_nxt += sack_sz;
+				}
+			}
 			m_size >= snd_nxt ? m_size - snd_nxt : 0;	
 		}
 		else if (Irn::isIrnEnabled) {
@@ -157,6 +163,7 @@ void RdmaQueuePair::SetFlowId(int32_t v) {
 		if (Irn::isTrnOptimizedEnabled)
 		{
 			m_irn.m_recovery = false;
+			m_irn.m_last_recovery_time_in_ns = Simulator::Now().GetNanoSeconds();
 			if (snd_una < m_irn.m_recovery_seq)
 			{
 			 m_irn.m_dupAckCnt = 0;
@@ -189,6 +196,23 @@ void RdmaQueuePair::SetFlowId(int32_t v) {
 		}
 		else{
 			std::cout << "ERROR: RdmaQueuePair::RecoverQueue() is not implemented\n";
+		}
+			return ;
+	}
+
+
+	void RdmaQueuePair::RecoverQueueUponTimeout()
+	{
+		if (Irn::isTrnOptimizedEnabled)
+		{
+			m_irn.m_recovery = true;
+			m_irn.m_dupAckCnt = 0;
+			m_irn.m_max_next_seq = snd_nxt;
+			snd_nxt = snd_una;
+			m_irn.m_recovery_seq = m_irn.m_max_next_seq;
+		}
+		else{
+			std::cout << "ERROR: RdmaQueuePair::RecoverQueueUponTimeout() is not implemented\n";
 		}
 			return ;
 	}
@@ -237,20 +261,13 @@ void RdmaQueuePair::SetFlowId(int32_t v) {
 			{
 				if (m_irn.m_dupAckCnt >= Irn::reTxThresholdNPackets)
 				{
-					// m_irn.m_recovery = true;
-					// m_irn.m_dupAckCnt = 0;
-					// m_irn.m_max_next_seq = snd_nxt;
-					// snd_nxt = snd_una;
-					// if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
-					// {
-					// 	m_irn.m_recovery_seq = firstSackSeq;
-					// }
-					// else
-					// {
-					// 	std::cout << "ERROR: cannot find the block for retransmission\n";
-					// 	exit(1);
-					// }
-					RecoverQueue();
+					if ((m_irn.m_recovery_seq > snd_una)&&(Simulator::Now().GetNanoSeconds() - m_irn.m_last_recovery_time_in_ns < m_baseRtt))
+					{
+					}
+					else
+					{
+						RecoverQueue();
+					}
 				}
 			}
 			return ;
