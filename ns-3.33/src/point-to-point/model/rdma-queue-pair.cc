@@ -116,20 +116,15 @@ void RdmaQueuePair::SetFlowId(int32_t v) {
 	{
 		NS_LOG_INFO(this);
 
-		if (Irn::isTrnOptimizedEnabled) {
+		if (Irn::isTrnOptimizedEnabled)
+		{
 			uint32_t sack_seq, sack_sz;
 			if (m_irn.m_sack.peekFrontBlock(&sack_seq, &sack_sz)) {
 				if (snd_nxt == sack_seq) {
 					snd_nxt += sack_sz;
 				}
 			}
-			if (m_irn.m_dupAckCnt >= Irn::reTxThresholdNPackets)
-			{
-				return sack_seq > snd_una ? sack_seq - snd_una : 0;
-			}else{
-				return m_size >= snd_nxt ? m_size - snd_nxt : 0;
-			}
-			
+			m_size >= snd_nxt ? m_size - snd_nxt : 0;	
 		}
 		else if (Irn::isIrnEnabled) {
 			uint32_t sack_seq, sack_sz;
@@ -163,6 +158,65 @@ void RdmaQueuePair::SetFlowId(int32_t v) {
 		return Hash32(buf.c, 12);
 	}
 
+	void RdmaQueuePair::ResumeQueue()
+	{
+		if (Irn::isTrnOptimizedEnabled)
+		{
+			m_irn.m_recovery = false;
+			m_irn.m_last_recovery_time_in_ns = Simulator::Now().GetNanoSeconds();
+			if (snd_una < m_irn.m_recovery_seq)
+			{
+			 m_irn.m_dupAckCnt = 0;
+			}
+			snd_nxt = m_irn.m_max_next_seq > snd_nxt ? m_irn.m_max_next_seq : snd_nxt;
+			return ;
+		}else
+		{
+			std::cout << "ERROR: RdmaQueuePair::ResumeQueue() is not implemented\n";
+		}
+	}
+
+	void RdmaQueuePair::RecoverQueue()
+	{
+		if (Irn::isTrnOptimizedEnabled)
+		{
+			m_irn.m_recovery = true;
+			m_irn.m_dupAckCnt = 0;
+			m_irn.m_max_next_seq = snd_nxt;
+			snd_nxt = snd_una;
+			uint32_t firstSackSeq, firstSackLen;
+			if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
+			{
+				m_irn.m_recovery_seq = firstSackSeq;
+			}
+			else
+			{
+				m_irn.m_recovery_seq = m_irn.m_max_next_seq;
+			}
+		}
+		else{
+			std::cout << "ERROR: RdmaQueuePair::RecoverQueue() is not implemented\n";
+		}
+			return ;
+	}
+
+
+	void RdmaQueuePair::RecoverQueueUponTimeout()
+	{
+		if (Irn::isTrnOptimizedEnabled)
+		{
+			m_irn.m_recovery = true;
+			m_irn.m_dupAckCnt = 0;
+			m_irn.m_max_next_seq = snd_nxt;
+			snd_nxt = snd_una;
+			m_irn.m_recovery_seq = m_irn.m_max_next_seq;
+		}
+		else{
+			std::cout << "ERROR: RdmaQueuePair::RecoverQueueUponTimeout() is not implemented\n";
+		}
+			return ;
+	}
+
 	void RdmaQueuePair::Acknowledge(uint64_t ack)
 	{
 
@@ -176,6 +230,45 @@ void RdmaQueuePair::SetFlowId(int32_t v) {
 			else if (ack == snd_una)
 			{
 					m_irn.m_dupAckCnt += 1;
+			}
+			uint32_t firstSackSeq, firstSackLen;
+			if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
+			{
+				if (snd_una == firstSackSeq && firstSackLen!=0)
+					{
+						snd_una += firstSackLen;
+						m_irn.m_dupAckCnt = 0;	
+					}
+			}
+			m_irn.m_sack.discardUpTo(snd_una);
+			m_irn.m_highest_ack = snd_una > m_irn.m_highest_ack ? snd_una : m_irn.m_highest_ack;
+			if (snd_una > snd_nxt) { snd_nxt = snd_una;	}
+
+			if (m_irn.m_recovery)
+			{
+				if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
+				{
+					if (snd_nxt == firstSackSeq)
+						{
+							snd_nxt += firstSackLen;
+						}
+				}
+				if(snd_nxt >= m_irn.m_recovery_seq)
+				{
+					ResumeQueue();
+				}
+			}else
+			{
+				if (m_irn.m_dupAckCnt >= Irn::reTxThresholdNPackets)
+				{
+					if ((m_irn.m_recovery_seq > snd_una)&&(Simulator::Now().GetNanoSeconds() - m_irn.m_last_recovery_time_in_ns < m_baseRtt))
+					{
+					}
+					else
+					{
+						RecoverQueue();
+					}
+				}
 			}
 			return ;
 		}

@@ -67,9 +67,9 @@ struct TraceFormat {
 			uint16_t flags;
 			uint16_t pg;
 			uint32_t seq;
-			uint64_t ts;
 		  uint32_t irnNack;
 		  uint16_t irnNackSize;
+			uint64_t ts;
 		} ack;
 		struct {
 			uint32_t time;

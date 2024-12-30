@@ -105,6 +105,7 @@ namespace ns3
 		static uint16_t EtherToPpp(uint16_t protocol);
 
 		void RecoverQueue(Ptr<RdmaQueuePair> qp);
+		
 		void QpComplete(Ptr<RdmaQueuePair> qp);
 		void SetLinkDown(Ptr<QbbNetDevice> dev);
 		Ptr<RdmaSmartFlowRouting> GetE2ELapsLBouting();
@@ -137,7 +138,11 @@ namespace ns3
 		uint32_t m_cnt_cnpByOoo;
 		uint32_t m_cnt_Cnp;
 
-		std::unordered_map<uint32_t, bool> m_manualDropSeqMap={{2000, true},{6000, true}};
+
+
+		
+		std::unordered_map<uint32_t, bool> m_manualDropSeqMap={{2000, true},{3000, true},{9000,true},{19000,true}};
+>>>>>>> 372aa1a8b1e523547becdfc0acbc342505f1de79
 
 		// the Mellanox's version of alpha update:
 		// every fixed time slot, update alpha.

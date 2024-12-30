@@ -450,7 +450,7 @@ namespace ns3
 				seqh.SetIrnNack(ch.udp.seq);
 				seqh.SetIrnNackSize(payload_size);
 			}else {
-				seqh.SetIrnNack(0);  // NACK without ackSyndrome (ACK) in loss recovery mode
+				seqh.SetIrnNack((uint16_t) 0);  // NACK without ackSyndrome (ACK) in loss recovery mode
 				seqh.SetIrnNackSize(0);
       }
 		}
@@ -577,19 +577,20 @@ namespace ns3
     uint32_t nic_idx = GetNicIdxOfQp(qp);
     Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
 
+		if (Irn::isTrnOptimizedEnabled)
+		{
+			qp->RecoverQueueUponTimeout();
+    	dev->TriggerTransmit();
+			return ;
+		}
+
     // IRN: disable timeouts when PFC is enabled to prevent spurious retransmissions
     if (Irn::isIrnEnabled && dev->IsPfcEnabled()) return;
     if (m_cnt_timeout.find(qp->m_flow_id) == m_cnt_timeout.end())
         m_cnt_timeout[qp->m_flow_id] = 0;
     m_cnt_timeout[qp->m_flow_id]++;
 
-		if (Irn::isIrnEnabled && Irn::isTrnOptimizedEnabled)
-		{
-			// qp->m_irn.m_isTimeOut = true;
-			RecoverQueue(qp);
-    	dev->TriggerTransmit();
-			return ;
-		}
+
 		
     if (Irn::isIrnEnabled) qp->m_irn.m_recovery = true;
     RecoverQueue(qp);
@@ -628,6 +629,12 @@ namespace ns3
 			std::cout << "ERROR: shouldn't receive ack\n";
 			exit(1);
 		}else	{
+			if (Irn::isTrnOptimizedEnabled && ch.ack.irnNackSize != 0)
+			{
+				qp->m_irn.m_sack.sack(ch.ack.irnNack, ch.ack.irnNackSize);
+				qp->m_irn.m_sack.discardUpTo(qp->snd_una);
+			}
+			
 			if (!m_backto0)
 			{
 				qp->Acknowledge(seq);
@@ -638,26 +645,19 @@ namespace ns3
 				qp->Acknowledge(goback_seq);
 			}
 
-			if (Irn::isIrnEnabled && Irn::isTrnOptimizedEnabled)
+			if (Irn::isTrnOptimizedEnabled)
 			{
 					// handle NACK
 					NS_ASSERT(ch.l3Prot == L3ProtType::NACK); // no pure ack in Irn
 					// for bdp-fc calculation update m_irn_maxAck
-					if (seq > qp->m_irn.m_highest_ack) qp->m_irn.m_highest_ack = seq;
-
-					if (ch.ack.irnNackSize != 0) qp->m_irn.m_sack.sack(ch.ack.irnNack, ch.ack.irnNackSize);
-					
-
-					uint32_t firstSackSeq, firstSackLen;
-					if (qp->m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen)) {
-							if (qp->snd_una == firstSackSeq) {
-									qp->snd_una += firstSackLen;
-							}
-					}
-
-					qp->m_irn.m_sack.discardUpTo(qp->snd_una);
-
-					if (qp->snd_nxt < qp->snd_una) { qp->snd_nxt = qp->snd_una;	}
+					// qp->m_irn.m_highest_ack = seq > qp->m_irn.m_highest_ack ? seq : qp->m_irn.m_highest_ack;
+					// if (ch.ack.irnNackSize != 0) qp->m_irn.m_sack.sack(ch.ack.irnNack, ch.ack.irnNackSize);
+					// uint32_t firstSackSeq, firstSackLen;
+					// if (qp->m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen)) {
+					// 		if (qp->snd_una == firstSackSeq) { qp->snd_una += firstSackLen;	}
+					// }
+					// qp->m_irn.m_sack.discardUpTo(qp->snd_una);
+					// if (qp->snd_nxt < qp->snd_una) { qp->snd_nxt = qp->snd_una;	}
 					// if (qp->irn.m_sack.IsEmpty())  { //
 					// if (qp->m_irn.m_recovery && qp->snd_una >= qp->m_irn.m_recovery_seq) { qp->m_irn.m_recovery = false; }
 			}
@@ -1024,8 +1024,16 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 		return 0;
 	}
 
+
+
 	void RdmaHw::RecoverQueue(Ptr<RdmaQueuePair> qp)
 	{
+		if (Irn::isTrnOptimizedEnabled)
+		{
+			qp->RecoverQueue();
+			return ;
+		}
+		
 		qp->snd_nxt = qp->snd_una;
 	}
 
@@ -1089,90 +1097,7 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 	Ptr<Packet> RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp)
 	{
 		NS_LOG_FUNCTION(this);
-		if (Irn::isTrnOptimizedEnabled)
-		{
-			uint32_t payload_size = 0, seq = 0;
-			// if(m_irn.m_max_seq < qp->snd_nxt) m_irn.m_max_seq = qp->snd_nxt;
-			if (qp->m_irn.m_dupAckCnt >= Irn::reTxThresholdNPackets)
-			{
-				qp->m_irn.m_dupAckCnt = 0;
-				uint32_t prev_snd_nxt = qp->snd_nxt;
-				qp->snd_nxt = qp->snd_una;
-				payload_size = qp->GetBytesLeft();
-				if (m_mtu < payload_size)	{	payload_size = m_mtu;	}
-				seq = (uint32_t)qp->snd_nxt;
-				qp->snd_nxt = prev_snd_nxt + payload_size;
-			}else{
-				payload_size = qp->GetBytesLeft();
-				if (m_mtu < payload_size)	{	payload_size = m_mtu;	}
-				seq = (uint32_t)qp->snd_nxt;
-				qp->snd_nxt += payload_size;
-			}
 
-			{
-				if(qp->m_irn.m_max_seq < seq) qp->m_irn.m_max_seq = seq;
-
-				qp->m_phyTxNPkts += 1;
-				qp->m_phyTxBytes += payload_size;
-
-				Ptr<Packet> p = Create<Packet>(payload_size);
-				// add SeqTsHeader
-				SeqTsHeader seqTs;
-				seqTs.SetSeq(seq);
-				seqTs.SetPG(qp->m_pg);
-				p->AddHeader(seqTs);
-				// add udp header
-				UdpHeader udpHeader;
-				udpHeader.SetDestinationPort(qp->dport);
-				udpHeader.SetSourcePort(qp->sport);
-				p->AddHeader(udpHeader);
-				// add ipv4 header
-				Ipv4Header ipHeader;
-				ipHeader.SetSource(qp->sip);
-				ipHeader.SetDestination(qp->dip);
-				ipHeader.SetProtocol(0x11);
-				ipHeader.SetPayloadSize(p->GetSize());
-				ipHeader.SetTtl(64);
-				ipHeader.SetTos(0);
-				ipHeader.SetIdentification(qp->m_ipid);
-				p->AddHeader(ipHeader);
-				// add ppp header
-				PppHeader ppp;
-				ppp.SetProtocol(0x0021); // EtherToPpp(0x800), see point-to-point-net-device.cc
-				p->AddHeader(ppp);
-
-				// attach Stat Tag
-				uint8_t packet_pos = UINT8_MAX;
-				{
-						FlowIDNUMTag fint;
-						if (!p->PeekPacketTag(fint)) {
-								fint.SetId(qp->m_flow_id);
-								fint.SetFlowSize(qp->m_size);
-								p->AddPacketTag(fint);
-						}
-						FlowStatTag fst;
-						uint64_t size = qp->m_size;
-						if (!p->PeekPacketTag(fst)) {
-								if (size < m_mtu && qp->snd_nxt + payload_size >= qp->m_size) {
-										fst.SetType(FlowStatTag::FLOW_START_AND_END);
-								} else if (qp->snd_nxt + payload_size >= qp->m_size) {
-										fst.SetType(FlowStatTag::FLOW_END);
-								} else if (qp->snd_nxt == 0) {
-										fst.SetType(FlowStatTag::FLOW_START);
-								} else {
-										fst.SetType(FlowStatTag::FLOW_NOTEND);
-								}
-								packet_pos = fst.GetType();
-								fst.setInitiatedTime(Simulator::Now().GetSeconds());
-								p->AddPacketTag(fst);
-						}
-				}
-				qp->m_ipid++;
-				return p;
-			}
-			
-		}
-		
 		uint32_t payload_size = qp->GetBytesLeft();
 		if (m_mtu < payload_size)	{
 			payload_size = m_mtu;
@@ -1244,9 +1169,14 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 		// qp->snd_nxt += payload_size;
 		// qp->m_ipid++;
 
-
-
-
+	if (Irn::isTrnOptimizedEnabled)
+	{
+		qp->snd_nxt += payload_size;
+		qp->m_irn.m_max_next_seq = qp->m_irn.m_max_next_seq < qp->snd_nxt ? qp->snd_nxt : qp->m_irn.m_max_next_seq;
+		qp->m_irn.m_max_seq = qp->m_irn.m_max_seq < qp->snd_nxt ? qp->snd_nxt : qp->m_irn.m_max_seq;
+		qp->m_ipid++;
+	}else
+	{
 		if (Irn::isIrnEnabled) {
         if (qp->m_irn.m_max_seq < seq)
 					qp->m_irn.m_max_seq = seq;
@@ -1254,7 +1184,7 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 		// update state
 		qp->snd_nxt += payload_size;
 		qp->m_ipid++;
-
+	}
 		// return
 		return p;
 	}

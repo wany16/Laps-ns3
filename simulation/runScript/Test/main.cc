@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 
     std::cout << "*******************************Parse the Default Parameters*****************************************" << std::endl;
     global_variable_t varMap;
-    varMap.configFileName = "/file-in-ctr/inputFiles/A00083-test/CONFIG_DCQCN-test-00001.txt";  
+    varMap.configFileName = "/file-in-ctr/simulation/configures/CONFIG_DCQCN-test-00001.txt";  
     parse_default_configures(&varMap);
 
     std::cout << "*******************************Parse the Input Parameters*****************************************" << std::endl;

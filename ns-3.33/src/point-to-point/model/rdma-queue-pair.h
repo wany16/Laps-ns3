@@ -70,12 +70,15 @@ struct Irn{
 
 		EventId m_reTxEvent;
 		uint32_t m_lastReTxSeq{0};
-		uint32_t m_dupAckCnt{0}; 
+		uint32_t m_nextReTxSeq{0};		
+		uint32_t m_dupAckCnt{0};
+		uint32_t m_max_next_seq{0}; 
+		uint64_t m_last_recovery_time_in_ns{0}; 
 
 		IrnSackManager m_sack;
-		bool m_recovery;
+		bool m_recovery{false};
 		bool m_isTimeOut{false};
-		uint32_t m_recovery_seq;// snd_nxt upon entering the recovery mode
+		uint32_t m_recovery_seq{0};// snd_nxt upon entering the recovery mode
 		uint32_t GetOnTheFly() const {
 				// IRN do not consider SACKed segments for simplicity, to be optimized.
 				if (m_max_seq < m_highest_ack) {
@@ -182,15 +185,33 @@ public:
 	Time GetRto(uint32_t mtu) const{
 			if (Irn::isIrnEnabled) {
 					return m_irn.GetRto(mtu);
-			} else {
+			}
+			else if (Irn::isTrnOptimizedEnabled)
+			{
+				return m_irn.GetRto(mtu);
+			}
+			else {
 					return m_timeout;
 			}
 	}
 
 	inline bool CanIrnTransmit(uint32_t mtu) const {
-		if (!Irn::isIrnEnabled) {
+		if (!Irn::isIrnEnabled && !Irn::isTrnOptimizedEnabled) {
 				return true;
-		}else{
+		}
+		else if (Irn::isTrnOptimizedEnabled)
+		{
+			uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
+			uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
+			uint64_t byteOnFly = m_irn.GetOnTheFly();
+			bool isBdpAllowed = (byteOnFly + byteTx) < m_irn.m_bdp ? true : false;
+			if (isBdpAllowed) {
+				bool isBdpExceeded = (m_irn.m_highest_ack + m_irn.m_bdp) > snd_nxt ? false : true;
+				return !isBdpExceeded;
+			}
+			return false;
+		}
+		else if(Irn::isIrnEnabled) {
 			uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
 			uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
 			uint64_t byteOnFly = m_irn.GetOnTheFly();
@@ -230,6 +251,9 @@ public:
 	uint64_t GetBytesLeft();
 	uint32_t GetHash(void);
 	void Acknowledge(uint64_t ack);
+	void ResumeQueue();
+	void RecoverQueue();
+	void RecoverQueueUponTimeout();
 	uint64_t GetOnTheFly();
 	bool IsWinBound();
 	uint64_t GetWin(); // window size calculated from m_rate

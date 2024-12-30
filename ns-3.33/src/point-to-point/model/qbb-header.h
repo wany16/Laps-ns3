@@ -70,9 +70,9 @@ private:
   uint16_t flags;
   uint16_t m_pg;
   uint32_t m_seq; // the qbb sequence number.
-  IntHeader ih;
   uint32_t m_irn_nack;
   uint16_t m_irn_nack_size;
+  IntHeader ih;
   bool enable_irn;
   
 };
