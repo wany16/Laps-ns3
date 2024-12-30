@@ -296,7 +296,7 @@ namespace ns3 {
 		Time txCompleteTime = txTime1 + m_tInterframeGap;
 		Time allInterframeGap = m_tInterframeGap;
 		uint32_t allPktSize = p->GetSize();
-		if (false) // 遗留bug,探测报文不能正常发送；
+		if (srcOutEntryPtr->Isprobe) // 遗留bug,探测报文不能正常发送；
 		{
 			probe = srcOutEntryPtr->probePacket;
 			Time txTime2 = Seconds(m_bps.CalculateTxTime(probe->GetSize()));
@@ -604,16 +604,20 @@ namespace ns3 {
 				// send to RdmaHw
 				FlowIdTag flowIdTag1;
 				Ipv4SmartFlowProbeTag probeTag;
-				if (packet->PeekPacketTag(probeTag))
+				bool findProPacket = packet->PeekPacketTag(probeTag);
+				if (findProPacket)
 				{
-					NS_LOG_INFO("Node" << m_node->GetId() << " Nic Receive ProbePacket");
+					NS_LOG_INFO("Node " << m_node->GetId() << " Nic Receive ProbePacket");
 				}
-				if (!packet->PeekPacketTag(flowIdTag1))
+				if (!packet->PeekPacketTag(flowIdTag1) && findProPacket)
 				{
 					// add flowid tag
 					// flowIdTag.SetFlowId(m_ifIndex);
 					// packet->AddPacketTag(flowIdTag);
 					NS_LOG_INFO("NOT FIND FLOWIDtag");
+					// add flowid tag
+					//flowIdTag1.SetFlowId(m_ifIndex);
+					//packet->AddPacketTag(flowIdTag1);
 				}
 				else
 				{
