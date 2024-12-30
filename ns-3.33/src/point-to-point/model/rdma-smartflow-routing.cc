@@ -91,6 +91,10 @@ namespace ns3
         m_isToR = isToR;
         m_switch_id = switch_id;
     }
+    void RdmaSmartFlowRouting::SetServerInfo(uint32_t server_node_id)
+    {
+        m_server_node_id = server_node_id;
+    }
 
     TypeId RdmaSmartFlowRouting::GetTypeId(void)
     {
@@ -142,6 +146,11 @@ namespace ns3
                                               "all kind of packet feed back path info ",
                                               BooleanValue(true),
                                               MakeBooleanAccessor(&RdmaSmartFlowRouting::m_enabledAllPacketFeedbackInfo),
+                                              MakeBooleanChecker())
+                                .AddAttribute("enabledE2ELb",
+                                              "lb is installed server",
+                                              BooleanValue(false),
+                                              MakeBooleanAccessor(&RdmaSmartFlowRouting::lb_isInstallSever),
                                               MakeBooleanChecker());
 
         return tid;
@@ -337,7 +346,29 @@ namespace ns3
 
         return true;
     }
+    bool RdmaSmartFlowRouting::e2eLBSrc_output_packet(Ptr<E2ESrcOutPackets> &srcOutEntry)
+    {
+        NS_LOG_INFO("############ Fucntion: e2eLBSrc_output_packet ############");
+        // std::cout << "Enter output_packet_by_path_tag()"<<std::endl;
+        if (srcOutEntry == nullptr)
+        {
+            NS_LOG_INFO("srcOutEntry==nullptr");
+            return false;
+        }
+        Ipv4SmartFlowPathTag pathTag;
+        srcOutEntry->dataPacket->PeekPacketTag(pathTag);
+        // uint32_t maxQLen = pathTag.GetDre();
+        // uint32_t selectedPortId = get_egress_port_id_by_path_tag(pathTag);
+        update_path_tag(srcOutEntry->dataPacket, pathTag);
 
+        if (srcOutEntry->Isprobe)
+        {
+            Ipv4SmartFlowPathTag probePathTag;
+            srcOutEntry->probePacket->PeekPacketTag(probePathTag);
+            update_path_tag(srcOutEntry->probePacket, probePathTag);
+        }
+        return true;
+    }
     /*void RdmaSmartFlowRouting::add_conga_tag_by_pit_entry(Ptr<Packet> packet, PathData *pitEntry)
     {
         if (pitEntry == 0)
@@ -1346,37 +1377,35 @@ namespace ns3
 
     bool RdmaSmartFlowRouting::reach_the_last_hop_of_path_tag(Ipv4SmartFlowPathTag &smartFlowTag, PathData *&pitEntry)
     {
-        // NS_LOG_INFO ("############ Fucntion: reach_the_last_hop_of_path_tag() ############");
-        uint32_t pathId = smartFlowTag.get_path_id();
-        uint32_t pathSize = get_the_path_length_by_path_id(pathId, pitEntry);
-        uint32_t hopIdx = smartFlowTag.get_the_current_hop_index();
-        if (hopIdx == pathSize)
-        {
-            // NS_LOG_INFO ("Reaching the Dst ToR");
-            return true;
-        }
-        else
-        {
-            // NS_LOG_INFO ("Is " << hopIdx << "/" << pathSize << " hops");
-            return false;
-        }
-    }
-    bool RdmaSmartFlowRouting::reach_the_DstToR_last_hop_of_path_tag(Ipv4SmartFlowPathTag &smartFlowTag, PathData *&pitEntry)
-    {
         NS_LOG_INFO("############ Fucntion: reach_the_last_hop_of_path_tag() ############");
         uint32_t pathId = smartFlowTag.get_path_id();
         uint32_t pathSize = get_the_path_length_by_path_id(pathId, pitEntry);
         uint32_t hopIdx = smartFlowTag.get_the_current_hop_index();
-
-        if (hopIdx == (pathSize - 1))
+        if (lb_isInstallSever)
         {
-            NS_LOG_INFO("Reaching the Dst ToR");
-            return true;
+            if (hopIdx == (pathSize))
+            {
+                NS_LOG_INFO("Reaching the Dst server");
+                return true;
+            }
+            else
+            {
+                NS_LOG_INFO("Is " << hopIdx << "/" << pathSize << " hops");
+                return false;
+            }
         }
         else
         {
-            NS_LOG_INFO("Is " << hopIdx << "/" << pathSize << " hops");
-            return false;
+            if (hopIdx == pathSize - 2)
+            {
+                NS_LOG_INFO("Reaching the Dst ToR");
+                return true;
+            }
+            else
+            {
+                NS_LOG_INFO("Is " << hopIdx << "/" << (pathSize - 2) << " hops");
+                return false;
+            }
         }
     }
 
@@ -1410,6 +1439,11 @@ namespace ns3
         uint32_t pathId = smartFlowTag.get_path_id();
         uint32_t hopIdx = smartFlowTag.get_the_current_hop_index();
         PathData *pitEntry = lookup_PIT(pathId);
+        if (lb_isInstallSever)
+        {
+            return pitEntry->portSequence[hopIdx];
+        }
+
         return pitEntry->portSequence[hopIdx + 1];
     }
 
@@ -1446,7 +1480,7 @@ namespace ns3
          return dres;
      }*/
 
-    uint32_t RdmaSmartFlowRouting::forward_normal_packet(Ptr<Packet> &p, CustomHeader &ch, uint32_t srcHostId, uint32_t dstHostId, uint32_t pg)
+    uint32_t RdmaSmartFlowRouting::forward_normal_packet(Ptr<Packet> &p, CustomHeader &ch, uint32_t srcHostId, uint32_t dstHostId, uint32_t pg, Ptr<E2ESrcOutPackets> &srcOutEntry)
     {
         // NS_LOG_INFO("PST strategy=" << m_pathSelStrategy << "<1:min, 2:rbnp, 3:rnd, 4:lspray, 5:flet, 6:ecmp, 7:rbnf, 8:rbnh>");
         // ############ Function: forward_normal_packet() ############");
@@ -1484,7 +1518,7 @@ namespace ns3
             //     e->print();
             // }
 
-            forward_probe_packet_optimized(p, forwardPitEntries, ch, pg); // probing
+            forward_probe_packet_optimized(p, forwardPitEntries, ch, pg, srcOutEntry); // probing
 
             HostId2PathSeleKey reversePstKey(dstHostId, srcHostId);
             pstEntryData *reversePstEntry = lookup_PST(reversePstKey);
@@ -1570,15 +1604,24 @@ namespace ns3
                 // bestForwadPitEntry->latency = curBestForwardPitEntry->latency;
                 // bestForwadPitEntry->print();
             }
+
             else
             {
                 NS_LOG_INFO("The exist flow, the worse Pid, use the previous PDT entry");
             }
             uint32_t bestForwardPid = bestForwadPitEntry->pit->pid;
-            NS_LOG_INFO("The final forward path Id");
+            NS_LOG_INFO("The final forward path Id " << bestForwardPid);
             // std::cout << "bestForwardPid: "<< bestForwardPid << std::endl;
             add_path_tag_by_path_id(p, bestForwardPid);
-            output_packet_by_path_tag(p, ch, pg); // sending
+            if (IsE2ELb())
+            {
+                srcOutEntry->dataPacket = p;
+                e2eLBSrc_output_packet(srcOutEntry);
+            }
+            else
+            {
+                output_packet_by_path_tag(p, ch, pg); // sending
+            }
             return p->GetSize();
         }
         else
@@ -1588,9 +1631,9 @@ namespace ns3
         }
     }
 
-    uint32_t RdmaSmartFlowRouting::forward_probe_packet_optimized(Ptr<Packet> pkt, std::vector<PathData *> &forwardPitEntries, CustomHeader &ch, uint32_t pg)
+    uint32_t RdmaSmartFlowRouting::forward_probe_packet_optimized(Ptr<Packet> pkt, std::vector<PathData *> &forwardPitEntries, CustomHeader &ch, uint32_t pg, Ptr<E2ESrcOutPackets> &srcOutEntry)
     {
-
+        FlowIdTag flowIdTag;
         NS_LOG_INFO("############ Fucntion: forward_probe_packet_optimized() ############");
         if (m_pathSelStrategy != PATH_SELECTION_SMALL_LATENCY_FIRST_OPTIMIZED_STRATEGY)
         {
@@ -1618,15 +1661,40 @@ namespace ns3
         if (probePacket->PeekHeader(probech) > 0)
         {
             NS_LOG_INFO("Extracted CustomHeader:");
-            probePacket->AddPacketTag(FlowIdTag(1));
+            if (!IsE2ELb())
+            {
+                // probePacket->AddPacketTag(FlowIdTag(1));
+            }
+
+            if (!probePacket->PeekPacketTag(flowIdTag))
+            {
+                // 如果标签不存在，则添加
+                flowIdTag.SetFlowId(1);
+                probePacket->AddPacketTag(flowIdTag);
+            }
+            else
+            {
+                NS_LOG_INFO("probePacket FlowIdTag already exists on packet " << probePacket->GetUid());
+            }
+
+            // probePacket->AddPacketTag(FlowIdTag(1));
         }
         else
         {
             NS_LOG_WARN("Failed to extract CustomHeader from the packet.");
         }
         uint32_t probepg = 3;
-        output_packet_by_path_tag(probePacket, probech, probepg);
+        if (IsE2ELb())
+        {
+            srcOutEntry->probePacket = probePacket;
+            srcOutEntry->Isprobe = true;
+        }
+        else
+        {
+            output_packet_by_path_tag(probePacket, probech, probepg);
+        }
         update_PIT_after_probing(bestProbingPitEntry);
+
         // bestProbingPitEntry->print();
         record_the_probing_info(bestProbingPitEntry->pid);
         return probePacket->GetSize();
@@ -1643,11 +1711,11 @@ namespace ns3
             NS_LOG_INFO("ch.udp.seq:" << std::to_string(ch.udp.seq) << ",ACK/PFC or other control pkts. Sw("
                                       << m_switch_id << "),l3Prot:" << ch.l3Prot);
         }
-        // assert(ch.l3Prot == 0x11 || ch.l3Prot == 0xFD && "Only supports UDP data packets or (N)ACK packets");
+        assert(ch.l3Prot == 0x11 || ch.l3Prot == 0xFD && "Only supports UDP data packets or (N)ACK packets");
         Ipv4Address srcServerAddr = Ipv4Address(ch.sip);
         Ipv4Address dstServerAddr = Ipv4Address(ch.dip);
         NS_LOG_INFO("(srcServer, dstServer)=(" << srcServerAddr << ", " << dstServerAddr << ")");
-
+        Ptr<E2ESrcOutPackets> srcOutEntry;
         uint32_t srcToRId = lookup_SMT(srcServerAddr)->torId;
         uint32_t srcHostId = lookup_SMT(srcServerAddr)->hostId;
         uint32_t dstHostId = lookup_SMT(dstServerAddr)->hostId;
@@ -1696,7 +1764,7 @@ namespace ns3
             }
             else
             {
-                forward_normal_packet(packet, ch, srcHostId, dstHostId, pg);
+                forward_normal_packet(packet, ch, srcHostId, dstHostId, pg, srcOutEntry);
                 // forward_probe_packet(packet, forwardPitEntries, bestForwardingPitEntry, header, ucb, dstServerAddr);
                 NS_LOG_INFO("FINISH the RouteInput");
                 return;
@@ -1706,7 +1774,7 @@ namespace ns3
         else
         {
             PathData *pitEntry;
-            if (reach_the_DstToR_last_hop_of_path_tag(pathTag, pitEntry) == true)
+            if (reach_the_last_hop_of_path_tag(pathTag, pitEntry) == true)
             { // dst ToR
                 NS_LOG_FUNCTION("Reaching the Destination ToR switch");
                 if (exist_probe_tag(packet, probeTag) == true)
@@ -1724,7 +1792,7 @@ namespace ns3
                     {
                         // record_reorder_at_dst_tor(packet, ch);
                     }
-                    output_packet_by_path_tag(packet, ch, pg);
+                    // output_packet_by_path_tag(packet, ch, pg);
                     NS_LOG_INFO("FINISH the RouteInput, normal packet, end");
                     return;
                 }
@@ -1741,25 +1809,96 @@ namespace ns3
         }
     }
 
-    /* void RdmaSmartFlowRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) const
-     {
-         std::cout << "Node: " << m_ipv4->GetObject<Node>()->GetId()
-                   << ", RdmaSmartFlowRouting table" << std::endl;
+    void RdmaSmartFlowRouting::RouteOutput(Ptr<Packet> p, CustomHeader ch, Ptr<E2ESrcOutPackets> &srcOutEntry)
+    {
 
-         for (std::map<uint32_t, PathData>::const_iterator it = m_nexthopSelTbl.begin(); it != m_nexthopSelTbl.end(); it++)
-         {
-             std::cout << "Path Id: " << it->first << std::endl;
-             std::cout << "port sequence: ";
-             uint32_t size = it->second.portSequence.size();
-             for (uint32_t i = 0; i < size; i++)
-             {
-                 std::cout << " " << it->second.portSequence[i];
-             }
-             std::cout << "latency: " << it->second.latency << std::endl;
-         }
-         return;
-     }*/
+        NS_LOG_INFO("########## Node: " << m_server_node_id << ", Time: " << Simulator::Now().GetMicroSeconds() << "us, Size:" << p->GetSize() << " ################## Function: RouteOutput() #######################");
 
+        if (ch.l3Prot != 0x11 || ch.l3Prot != 0xFD)
+        {
+            NS_LOG_INFO("ch.udp.seq:" << std::to_string(ch.udp.seq) << ",ACK/PFC or other control pkts. Sw("
+                                      << m_server_node_id << "),l3Prot:" << ch.l3Prot);
+        }
+        // assert(ch.l3Prot == 0x11 || ch.l3Prot == 0xFD && "Only supports UDP data packets or (N)ACK packets");
+        Ipv4Address srcServerAddr = Ipv4Address(ch.sip);
+        Ipv4Address dstServerAddr = Ipv4Address(ch.dip);
+        NS_LOG_INFO("(srcServer, dstServer)=(" << srcServerAddr << ", " << dstServerAddr << ")");
+
+        uint32_t srcToRId = lookup_SMT(srcServerAddr)->torId;
+        uint32_t srcHostId = lookup_SMT(srcServerAddr)->hostId;
+        uint32_t dstHostId = lookup_SMT(dstServerAddr)->hostId;
+        uint32_t dstToRId = lookup_SMT(dstServerAddr)->torId;
+
+        Ptr<Packet> packet = ConstCast<Packet>(p);
+        Ipv4SmartFlowPathTag pathTag;
+        Ipv4SmartFlowProbeTag probeTag;
+
+        // bool existPathTag = exist_path_tag(packet, pathTag);
+        // NS_LOG_INFO("existPathTag " << existPathTag);
+        int32_t pg = ch.udp.pg;
+        if (exist_path_tag(packet, pathTag) == false)
+        { // reaching the src host/server
+
+            NS_LOG_INFO("Reaching the Source host/server:" << m_server_node_id);
+            if (srcToRId == dstToRId)
+            { // do normal routing (only one path)
+                NS_LOG_INFO("Intra Switch : (srcToR, dstToR)=" << srcToRId << ", " << dstToRId << ")");
+                HostId2PathSeleKey forwarPstKey(srcHostId, dstHostId);
+                pstEntryData *forwardPstEntry = lookup_PST(forwarPstKey);
+                NS_LOG_INFO("forward PST Entry");
+                add_path_tag_by_path_id(packet, forwardPstEntry->paths[0]);
+                srcOutEntry->dataPacket = p;
+                srcOutEntry->Isprobe = false;
+                e2eLBSrc_output_packet(srcOutEntry);
+                return;
+            }
+            else
+            {
+                forward_normal_packet(packet, ch, srcHostId, dstHostId, pg, srcOutEntry);
+                // forward_probe_packet(packet, forwardPitEntries, bestForwardingPitEntry, header, ucb, dstServerAddr);
+                NS_LOG_INFO("FINISH the RouteOutput");
+                return;
+            }
+        }
+
+        else
+        {
+            PathData *pitEntry;
+            if (reach_the_last_hop_of_path_tag(pathTag, pitEntry) == true)
+            { // dst server
+
+                NS_LOG_INFO("Reaching the Destination Server " << m_server_node_id);
+                if (exist_probe_tag(packet, probeTag) == true)
+                { // probe pkt
+                    NS_LOG_INFO("Is a Probe Packet");
+                    receive_probe_packet(probeTag);
+                    NS_LOG_INFO("FINISH the RouteOutput, has probe tag");
+                    return;
+                }
+                else
+                { // normal pkt
+                    // NS_LOG_FUNCTION ("Is a Normal Packet");
+                    receive_normal_packet(packet, pathTag, pitEntry);
+                    if (m_reorderFlag != 0)
+                    {
+                        // record_reorder_at_dst_tor(packet, ch);
+                    }
+                    // output_packet_by_path_tag(packet, ch, pg);
+                    NS_LOG_INFO("FINISH the RouteOutput, normal packet, end");
+                    return;
+                }
+            }
+            else
+            { // ToR
+                // NS_LOG_FUNCTION ("Reaching the switch");
+                NS_LOG_INFO("Reaching the TOR " << m_switch_id);
+                output_packet_by_path_tag(packet, ch, pg); // normal pkt
+                NS_LOG_INFO("FINISH the RouteOutput, normal packet, mid");
+
+                return;
+            }
+        }
+    }
     void RdmaSmartFlowRouting::set_PST(std::map<HostId2PathSeleKey, pstEntryData> &pathSelTbl)
     {
         m_pathSelTbl.insert(pathSelTbl.begin(), pathSelTbl.end());
@@ -1827,7 +1966,10 @@ namespace ns3
     {
         return m_piggyLatencyCnt;
     }
-
+    bool RdmaSmartFlowRouting::IsE2ELb(void)
+    {
+        return lb_isInstallSever;
+    }
     void RdmaSmartFlowRouting::record_the_probing_info(uint32_t pathId)
     {
         if (pathId >= m_prbInfoTable.size())

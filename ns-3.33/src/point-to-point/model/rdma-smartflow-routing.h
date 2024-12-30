@@ -21,6 +21,7 @@
 #include "ns3/object.h"
 #include "common-user-model.h"
 // #include "ns3/smartFlow-goldenStru.h"
+#include "rdma-queue-pair.h"
 
 #define DEFAULT_PATH_ID 999999
 #define DEFAULT_PATH_INDEX 999999999
@@ -60,65 +61,22 @@
 namespace ns3
 {
 
-  // struct LatencyData
-  // {
-  // std::pair<uint32_t, uint32_t> latencyInfo;
-  // Time tsGeneration;
-  // };
-
-  // struct PathData
-  //{
-  // uint32_t pid;
-  // uint32_t priority;
-  // std::vector<uint32_t> portSequence;
-  // std::vector<uint32_t> nodeIdSequence;
-  // uint32_t latency;
-  // Time tsGeneration;
-  // Time tsProbeLastSend;
-  // Time tsLatencyLastSend;
-  // };
-
- 
- 
-  
-
-  /*struct PathSelTblKey
+  class E2ESrcOutPackets : public SimpleRefCount<E2ESrcOutPackets>
   {
-    Ipv4Address selfToRIp;
-    Ipv4Address dstToRIp;
-
-    PathSelTblKey(Ipv4Address &self, Ipv4Address &dest) : selfToRIp(self), dstToRIp(dest) {}
-    bool operator<(const PathSelTblKey &other) const
+  public:
+    Ptr<Packet> dataPacket = Create<Packet>();
+    Ptr<Packet> probePacket = Create<Packet>();
+    bool Isprobe = false;
+    Ptr<RdmaQueuePair> lastQp;
+    bool Isack;
+    E2ESrcOutPackets(Ptr<Packet> dataPacket, bool Isprobe, Ptr<Packet> probePacket)
     {
-      if (this->selfToRIp < other.selfToRIp)
-      {
-        return true;
-      }
-
-      if (this->selfToRIp == other.selfToRIp)
-      {
-        return (this->dstToRIp < other.dstToRIp);
-      }
-      return false;
+      this->dataPacket = dataPacket;
+      this->probePacket = probePacket;
+      this->Isprobe = Isprobe;
     }
-
-    bool operator==(const PathSelTblKey &other) const
-    {
-      return this->selfToRIp == other.selfToRIp && this->dstToRIp == other.dstToRIp;
-    }
-
-    void print()
-    {
-      std::cout << "PST_KEY: selfToRIp=" << ipv4Address_to_string(selfToRIp) << ", ";
-      std::cout << "dstToRIp=" << ipv4Address_to_string(dstToRIp) << std::endl;
-    }
-  };*/
-
- 
-  
-  
-  
-  
+    E2ESrcOutPackets() : dataPacket(Create<Packet>()), probePacket(Create<Packet>()), Isprobe(false) {}
+  };
 
   class RdmaSmartFlowRouting : public Object
   {
@@ -137,11 +95,9 @@ namespace ns3
     // virtual bool RouteInput  (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev, UnicastForwardCallback ucb, MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb);
     // Ptr<Ipv4Route> ConstructIpv4Route (uint32_t port, Ipv4Address &destAddress);
     void RouteInput(Ptr<Packet> p, CustomHeader ch);
-    // virtual void DoDispose();
-    // uint32_t CalculateQueueLength(uint32_t interface);
+    void RouteOutput(Ptr<Packet> p, CustomHeader ch, Ptr<E2ESrcOutPackets> &SrcOutEntry); // E2E LB input
+    bool e2eLBSrc_output_packet(Ptr<E2ESrcOutPackets> &SrcOutEntry);
 
-    // virtual void PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit = Time::S) const;
-    //  user-added functions
     void add_latency_tag_by_pit_entries(Ptr<Packet> packet, std::vector<PathData *> &pitEntries);
     void add_path_tag_by_path_id(Ptr<Packet> packet, uint32_t pid);
     void add_probe_tag_by_path_id(Ptr<Packet> packet, uint32_t expiredPathId);
@@ -151,9 +107,9 @@ namespace ns3
     Ipv4SmartFlowProbeTag construct_probe_tag_by_path_id(uint32_t expiredPathId);
     bool exist_path_tag(Ptr<Packet> packet, Ipv4SmartFlowPathTag &pathTag);
     bool exist_probe_tag(Ptr<Packet> packet, Ipv4SmartFlowProbeTag &probeTag);
-    uint32_t forward_normal_packet(Ptr<Packet> &p, CustomHeader &ch, uint32_t srcToRId, uint32_t dstToRId, uint32_t pg);
+    uint32_t forward_normal_packet(Ptr<Packet> &p, CustomHeader &ch, uint32_t srcToRId, uint32_t dstToRId, uint32_t pg, Ptr<E2ESrcOutPackets> &SrcOutEntry);
     // uint32_t forward_probe_packet(Ptr<Packet> pkt, std::vector<PathData *> &forwardPitEntries, PathData *bestPitEntry, const Ipv4Header &header, UnicastForwardCallback ucb, Ipv4Address dstServerAddr);
-    uint32_t forward_probe_packet_optimized(Ptr<Packet> pkt, std::vector<PathData *> &forwardPitEntries, CustomHeader &ch, uint32_t pg);
+    uint32_t forward_probe_packet_optimized(Ptr<Packet> pkt, std::vector<PathData *> &forwardPitEntries, CustomHeader &ch, uint32_t pg, Ptr<E2ESrcOutPackets> &SrcOutEntry);
 
     uint32_t get_egress_port_id_by_path_tag(Ipv4SmartFlowPathTag &smartFlowTag);
     // uint32_t get_node_id(void) const;
@@ -201,7 +157,7 @@ namespace ns3
     bool output_packet_by_path_tag(Ptr<Packet> packet, CustomHeader &ch, uint32_t pg);
 
     bool reach_the_last_hop_of_path_tag(Ipv4SmartFlowPathTag &smartFlowTag, PathData *&pitEntry);
-    bool reach_the_DstToR_last_hop_of_path_tag(Ipv4SmartFlowPathTag &smartFlowTag, PathData *&pitEntry);
+
     void receive_normal_packet(Ptr<Packet> &pkt, Ipv4SmartFlowPathTag &pathTag, PathData *&pitEntry);
     void receive_probe_packet(Ipv4SmartFlowProbeTag &probeTag);
     void record_the_probing_info(uint32_t pathId);
@@ -230,6 +186,8 @@ namespace ns3
     // uint32_t UpdateLocalDre(const Ipv4Header &header, Ptr<Packet> packet, uint32_t port);
 
     void SetSwitchInfo(bool isToR, uint32_t switch_id);
+    void SetServerInfo(uint32_t server_node_id);
+    bool IsE2ELb(void);
 
     // void DreEvent();
     // void AgingEvent();
@@ -258,6 +216,7 @@ namespace ns3
     std::map<HostId2PathSeleKey, pdt_entry_t> m_pathDecTbl;
 
     uint32_t m_nodeId;
+    uint32_t m_server_node_id;
     uint32_t m_switch_id;
     uint32_t m_probeStrategy;
     uint32_t m_pathExpiredTimeThld;
@@ -269,6 +228,7 @@ namespace ns3
     bool m_enabledAllPacketFeedbackInfo;
     bool m_isToR;
 
+    bool lb_isInstallSever;
     EventId m_dreEvent;
     // Metric aging event
     EventId m_agingEvent;

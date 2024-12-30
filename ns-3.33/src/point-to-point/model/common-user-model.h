@@ -50,6 +50,23 @@ namespace ns3
 #define DEPARSE_FIVE_TUPLE(sip, sport, dip, dport, protocol, seq, ecn)                        \
     sip << "(" << sport << ")," << dip << "(" << dport << ")[" << protocol << "],SEQ:" << seq \
         << ",ECN:" << ecn << ","
+
+    enum LB_Solution
+    {
+        LB_ECMP = 0,
+        LB_RPS = 1,
+        LB_DRILL = 2,
+        LB_LETFLOW = 3,
+        LB_DEFLOW = 4,
+        LB_CONGA = 5,
+        LB_LAPS = 6,
+        LB_E2ELAPS = 11,
+        LB_RRS = 7,
+        LB_CONWEAVE = 8,
+        LB_PLB = 9,
+        LB_NONE = 10
+
+    };
     struct pstEntryData
     {
         uint32_t pathNum;

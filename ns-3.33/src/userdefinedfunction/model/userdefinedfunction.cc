@@ -2238,7 +2238,7 @@ namespace ns3
           Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(curNode);
           sw->SetSwitchInfo(true, curNodeId);
         }
-        if (varMap->lbsName == "laps" || varMap->lbsName == "conweave")
+        if (varMap->lbsName == "laps" || varMap->lbsName == "conweave" || varMap->lbsName == "e2elaps")
         {
           install_LB_table(varMap, curNode);
         }
@@ -2469,7 +2469,7 @@ namespace ns3
         rdmaHw->SetAttribute("RateBound", BooleanValue(nicParas.enableRateBound));
         rdmaHw->SetAttribute("DctcpRateAI", DataRateValue(DataRate(to_data_rate(nicParas.dctcpRateAiInMbps, "Mb/s"))));
         rdmaHw->SetPintSmplThresh(nicParas.pintProbTresh);
-        if (svIdx == 0) {
+        /*if (svIdx == 0) {
           update_EST(varMap->paraMap, "ClampTargetRate", boolToString(nicParas.enableClampTargetRate));
           NS_LOG_INFO("ClampTargetRate : " << boolToString(nicParas.enableClampTargetRate));
           NS_LOG_INFO("AlphaResumIntervalInUs : " << nicParas.alphaResumeIntervalInUs);
@@ -2516,11 +2516,15 @@ namespace ns3
           update_EST(varMap->paraMap, "DctcpRateAiInMbps", nicParas.dctcpRateAiInMbps);
           NS_LOG_INFO("PintProbTresh : " << nicParas.pintProbTresh);
           update_EST(varMap->paraMap, "PintProbTresh", nicParas.pintProbTresh);
-        }
-        
-
+        }*/
 
         // create and install RdmaDriver
+
+        NS_LOG_INFO("Is E2E laps");
+        if (varMap->lbsName == "e2elaps")
+        {
+          server_instal_LB_table(varMap, rdmaHw, svNode->GetId());
+        }
         Ptr<RdmaDriver> rdma = CreateObject<RdmaDriver>();
         rdma->SetNode(svNode);
         rdma->SetRdmaHw(rdmaHw);
@@ -2553,6 +2557,22 @@ namespace ns3
     }
   }
 
+  void server_instal_LB_table(global_variable_t *varMap, Ptr<RdmaHw> &rdmaHw, uint32_t nodeId)
+  {
+    std::map<Ipv4Address, hostIp2SMT_entry_t> SMT;
+    std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> PST;
+    std::map<uint32_t, std::map<uint32_t, PathData>> PIT;
+    read_SMT_from_file(varMap->smtFile, SMT);
+    read_PIT_from_file(varMap->pitFile, PIT);
+    read_hostId_PST_Path_from_file(varMap, PST);
+    uint32_t pitsize = rdmaHw->m_E2ErdmaSmartFlowRouting->install_PIT(PIT[nodeId]);
+    std::cout << "nodeId " << nodeId << " finished install_PIT_from_servernode" << " size " << pitsize << std::endl;
+    uint32_t pstsize = rdmaHw->m_E2ErdmaSmartFlowRouting->install_PST(PST[nodeId]);
+    std::cout << "nodeId " << nodeId << " finished install_PST_from_servernode" << " size " << pstsize << std::endl;
+    uint32_t smtsize = rdmaHw->m_E2ErdmaSmartFlowRouting->install_SMT(SMT);
+    std::cout << "nodeId " << nodeId << " finished install_SMT_from_servernode" << " size " << smtsize << std::endl;
+    return;
+  }
   bool stringToBool(const std::string &str)
   {
     std::string lowerStr = str;
@@ -3337,6 +3357,12 @@ std::string boolToString (bool m_value) {
     Config::SetDefault("ns3::SwitchNode::LbSolution", StringValue(varMap->lbsName)); // ecmp drill letflow rps rrs
     NS_LOG_INFO("SwitchNode::LbSolution : " << varMap->lbsName);
     update_EST(varMap->paraMap, "SwitchNode::LbSolution", varMap->lbsName);
+    if (varMap->lbsName == "e2elaps")
+    {
+      Config::SetDefault("ns3::QbbNetDevice::QbbE2ELb", StringValue(varMap->lbsName));
+      Config::SetDefault("ns3::RdmaHw::E2ELb", StringValue(varMap->lbsName));
+      Config::SetDefault("ns3::RdmaSmartFlowRouting::enabledE2ELb", BooleanValue(true));
+    }
 
     Config::SetDefault("ns3::SwitchNode::FlowletTimeout", TimeValue(MicroSeconds(varMap->flowletTimoutInUs)));
     NS_LOG_INFO("SwitchNode::FlowletTimeoutInUs : " << varMap->flowletTimoutInUs);

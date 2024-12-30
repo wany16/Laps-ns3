@@ -107,7 +107,9 @@ namespace ns3
 		void RecoverQueue(Ptr<RdmaQueuePair> qp);
 		void QpComplete(Ptr<RdmaQueuePair> qp);
 		void SetLinkDown(Ptr<QbbNetDevice> dev);
-
+		Ptr<RdmaSmartFlowRouting> GetE2ELapsLBouting();
+		Ptr<RdmaSmartFlowRouting> m_E2ErdmaSmartFlowRouting;
+		LB_Solution m_lbSolution;
 		// call this function after the NIC is setup
 		void AddTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx);
 		void ClearTable();
@@ -115,6 +117,7 @@ namespace ns3
 
 		Ptr<Packet> GetNxtPacket(Ptr<RdmaQueuePair> qp); // get next packet to send, inc snd_nxt
 		void PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap);
+		void LBPktSent(Ptr<RdmaQueuePair> qp, uint32_t pkt_size, Time interframeGap); // For E2E LB
 		void UpdateNextAvail(Ptr<RdmaQueuePair> qp, Time interframeGap, uint32_t pkt_size);
 		void ChangeRate(Ptr<RdmaQueuePair> qp, DataRate new_rate);
 		/******************************
@@ -131,10 +134,9 @@ namespace ns3
 		DataRate m_rhai; //< Rate of hyper-additive increase
 
 		uint32_t m_cnt_cnpByEcn;
-    uint32_t m_cnt_cnpByOoo;
-    uint32_t m_cnt_Cnp;
+		uint32_t m_cnt_cnpByOoo;
+		uint32_t m_cnt_Cnp;
 
-		
 		std::unordered_map<uint32_t, bool> m_manualDropSeqMap={{2000, true},{6000, true}};
 
 		// the Mellanox's version of alpha update:

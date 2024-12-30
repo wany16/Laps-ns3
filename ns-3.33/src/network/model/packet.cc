@@ -955,7 +955,7 @@ Packet::FindFirstMatchingByteTag (Tag &tag) const
 void 
 Packet::AddPacketTag (const Tag &tag) const
 {
-  NS_LOG_FUNCTION (this << tag.GetInstanceTypeId ().GetName () << tag.GetSerializedSize ());
+  NS_LOG_FUNCTION(this << GetUid() << " " << tag.GetInstanceTypeId().GetName() << tag.GetSerializedSize());
   m_packetTagList.Add (tag);
 }
 
