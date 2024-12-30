@@ -19,6 +19,7 @@ namespace ns3
 	bool Irn::isTrnOptimizedEnabled = true;
 	uint32_t Irn::reTxThresholdNPackets = IRN_OPTIMIZED_RE_TX_THRESHOLD_N_PACKETS;
 	uint32_t Irn::reTxThresholdNNanoSeconds = IRN_OPTIMIZED_RE_TX_THRESHOLD_N_NANOSECONDS;
+	uint32_t CcLaps::maxIncStage = 5;
 
 	/**************************
 	 * RdmaQueuePair

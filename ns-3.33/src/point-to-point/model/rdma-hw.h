@@ -19,6 +19,7 @@ namespace ns3
 			TIMELY = 7,
 			HPCC = 3,
 			DCQCN_MLX = 1,
+			CC_LAPS = 9,
 			CC_NONE = 2,
 		};
 
@@ -194,6 +195,12 @@ namespace ns3
 		void SetPintSmplThresh(double p);
 		void HandleAckHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
 		void UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
+
+		/*********************
+		 * LAPS
+		 ********************/
+		void HandleAckLaps(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+
 	};
 
 } /* namespace ns3 */

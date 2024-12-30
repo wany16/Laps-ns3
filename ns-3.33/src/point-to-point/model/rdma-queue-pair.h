@@ -34,6 +34,25 @@ enum CcMode {
     CC_MODE_UNDEFINED = 0,
 };
 
+struct CcLaps {
+	DataRate m_tgtRate;	//< Target rate
+	DataRate m_curRate;	//< Target rate
+	uint32_t m_incStage{0};	//< Target delay
+	int64_t m_targetDelay{-1};	//< Target delay
+	uint64_t m_nxtRateDecTimeInNs{0};	//< Next time to decrease rate
+	uint64_t m_nxtRateIncTimeInNs{0};	//< Next time to increase rate
+	static uint64_t maxIncStage;	
+
+	EventId m_eventUpdateAlpha;
+	double m_alpha;
+	bool m_alpha_cnp_arrived; // indicate if CNP arrived in the last slot
+	bool m_first_cnp; // indicate if the current CNP is the first CNP
+	EventId m_eventDecreaseRate;
+	bool m_decrease_cnp_arrived; // indicate if CNP arrived in the last slot
+	uint32_t m_rpTimeStage;
+	EventId m_rpTimer;
+};
+
 
 class IrnSackManager {
    private:
@@ -180,6 +199,8 @@ public:
 		DataRate m_curRate;
 		uint32_t m_incStage;
 	}hpccPint;
+	
+	CcLaps laps;
 
 
 	Time GetRto(uint32_t mtu) const{

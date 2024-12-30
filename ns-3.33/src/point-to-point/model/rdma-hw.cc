@@ -264,11 +264,11 @@ namespace ns3
 		DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
 		qp->m_rate = m_bps;
 		qp->m_max_rate = m_bps;
-		if (m_cc_mode == 1)
+		if (m_cc_mode == CongestionControlMode::DCQCN_MLX)
 		{
 			qp->mlx.m_targetRate = m_bps;
 		}
-		else if (m_cc_mode == 3)
+		else if (m_cc_mode == CongestionControlMode::HPCC)
 		{
 			qp->hp.m_curRate = m_bps;
 			if (m_multipleRate)
@@ -277,14 +277,27 @@ namespace ns3
 					qp->hp.hopState[i].Rc = m_bps;
 			}
 		}
-		else if (m_cc_mode == 7)
+		else if (m_cc_mode == CongestionControlMode::TIMELY)
 		{
 			qp->tmly.m_curRate = m_bps;
 		}
-		else if (m_cc_mode == 10)
+		else if (m_cc_mode == CongestionControlMode::HPCC_PINT)
 		{
 			qp->hpccPint.m_curRate = m_bps;
+		}else if (m_cc_mode == CongestionControlMode::CC_LAPS)
+		{
+			qp->laps.m_curRate = m_bps;
+			qp->laps.m_tgtRate = m_bps;
+			qp->laps.m_incStage = 0;
+			qp->laps.m_nxtRateDecTimeInNs = 0;
+			qp->laps.m_nxtRateIncTimeInNs = 0;
 		}
+		else
+		{
+			std::cout << "Unknown CC mode" << std::endl;
+			exit(1);
+		}
+		
 
 		// Notify Nic
 		m_nic[nic_idx].dev->NewQp(qp);
@@ -740,7 +753,12 @@ namespace ns3
 		else if (m_cc_mode == CongestionControlMode::HPCC_PINT)
 		{
 			HandleAckHpPint(qp, p, ch);
+		}else if (m_cc_mode == CongestionControlMode::CC_LAPS)
+		{
+			HandleAckLaps(qp, p, ch);
 		}
+
+		
 		// ACK may advance the on-the-fly window, allowing more packets to send
 		dev->TriggerTransmit();
 		return 0;
@@ -1797,5 +1815,40 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 			}
 		}
 	}
+
+	void RdmaHw::HandleAckLaps(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch)
+	{
+		// peek int header
+		// update/get path delay
+		// get target delay
+		uint64_t curDelayInNs = 0;
+		uint64_t tgtDelayInNs = 0;
+		uint64_t curTimeInNs = Simulator::Now().GetNanoSeconds();
+		if (curDelayInNs > tgtDelayInNs)
+		{
+			if (qp->laps.m_nextRateDecTime < curTimeInNs)
+			{
+				qp->laps.m_nextRateDecTime = curTimeInNs + 2*curDelayInNs;
+				qp->laps.m_tgtRate = qp->laps.m_curRate;
+				qp->laps.m_tgtRate = qp->laps.m_curRate / 2;
+				qp->laps.m_incStage = 0;
+			}
+		}
+		else
+		{
+			if (qp->laps.m_nextRateIncTime < curTimeInNs)
+			{
+				qp->laps.m_incStage++;
+				if (qp->laps.m_incStage > CcLaps::maxIncStage)
+				{
+					qp->laps.m_tgtRate = qp->laps.m_tgtRate * 2;
+					qp->laps.m_incStage = 0;
+				}
+				qp->laps.m_curRate = 0.5 * (qp->laps.m_curRate + qp->laps.m_tgtRate);
+			  qp->laps.m_nextRateIncTime = curTimeInNs + 2*curDelayInNs;
+			}
+		}
+	}
+
 
 }
