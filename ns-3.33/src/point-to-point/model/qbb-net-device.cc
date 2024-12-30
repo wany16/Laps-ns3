@@ -385,7 +385,7 @@ namespace ns3 {
 			{ // exist packet to send
 				if (m_lbSolution == LB_Solution::LB_E2ELAPS)
 				{
-					std::cout << "----------------ServerNode:" << m_node->GetId() << " ,Qbbdevice application LB_E2ELAPS" << std::endl;
+					NS_LOG_INFO("----------------ServerNode:" << m_node->GetId() << " ,Qbbdevice application LB_E2ELAPS");
 					NS_LOG_INFO("Qbbdevice application LB_E2ELAPS");
 					// Ptr<E2ESrcOutPackets> srcOutEntryPtr = new E2ESrcOutPackets();
 					Ptr<E2ESrcOutPackets> srcOutEntryPtr = Create<E2ESrcOutPackets>();

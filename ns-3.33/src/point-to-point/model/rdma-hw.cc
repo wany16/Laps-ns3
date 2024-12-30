@@ -1855,9 +1855,9 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 		uint64_t curTimeInNs = Simulator::Now().GetNanoSeconds();
 		if (curDelayInNs > tgtDelayInNs)
 		{
-			if (qp->laps.m_nextRateDecTime < curTimeInNs)
+			if (qp->laps.m_nxtRateDecTime < curTimeInNs)
 			{
-				qp->laps.m_nextRateDecTime = curTimeInNs + 2*curDelayInNs;
+				qp->laps.m_nxtRateDecTime = curTimeInNs + 2*curDelayInNs;
 				qp->laps.m_tgtRate = qp->laps.m_curRate;
 				qp->laps.m_tgtRate = qp->laps.m_curRate / 2;
 				qp->laps.m_incStage = 0;
@@ -1865,7 +1865,7 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 		}
 		else
 		{
-			if (qp->laps.m_nextRateIncTime < curTimeInNs)
+			if (qp->laps.m_nxtRateIncTime < curTimeInNs)
 			{
 				qp->laps.m_incStage++;
 				if (qp->laps.m_incStage > CcLaps::maxIncStage)
@@ -1874,7 +1874,7 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 					qp->laps.m_incStage = 0;
 				}
 				qp->laps.m_curRate = 0.5 * (qp->laps.m_curRate + qp->laps.m_tgtRate);
-			  qp->laps.m_nextRateIncTime = curTimeInNs + 2*curDelayInNs;
+			  qp->laps.m_nxtRateIncTime = curTimeInNs + 2*curDelayInNs;
 			}
 		}
 	}
