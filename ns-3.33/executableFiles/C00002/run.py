@@ -194,7 +194,7 @@ patternNameMap = {'Ring': 1, 'all2all': 0.032, 'Reduce': 0.333}
 onePatternNameMap = {'Ring': 1}
 allLbsNameList = ['drill', 'letflow', 'ecmp','laps','conweave','conga']
 loadratioList = ['0.5']
-lbsNameList = ['conweave']
+lbsNameList = ['e2elaps']
 
 
 def runBigSimTest():
@@ -259,7 +259,7 @@ def runLBSimTest():
         # 0.7
         for loadratio in loadratioList:
             # conga
-            for lbsName in allLbsNameList:
+            for lbsName in lbsNameList:
                 fileIdx = experimentalName+"_"+workloadName + "_" +\
                     patternName + "-lr-"+loadratio+"-lb-"+lbsName
                 patternFile = vm_inputFiles_path +"singpare.txt"

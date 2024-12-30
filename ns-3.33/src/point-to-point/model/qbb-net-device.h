@@ -33,6 +33,7 @@
 #include<map>
 #include <ns3/rdma.h>
 #include <unordered_map>
+#include "rdma-smartflow-routing.h"
 
 #define QINDEX_OF_NONE_PACKET_IN_SERVER -1024
 #define QINDEX_OF_ACK_PACKET_IN_SERVER -1
@@ -75,10 +76,10 @@ public:
 	typedef Callback<Ptr<Packet>, Ptr<RdmaQueuePair> > RdmaGetNxtPkt;
 	RdmaGetNxtPkt m_rdmaGetNxtPkt;
 
-	static TypeId GetTypeId (void);
-	RdmaEgressQueue();
-	Ptr<Packet> DequeueQindex(int qIndex);
-	int GetNextQindex(bool paused[]);
+  static TypeId GetTypeId(void);
+  RdmaEgressQueue();
+  Ptr<Packet> DequeueQindex(int qIndex);
+  int GetNextQindex(bool paused[]);
 	int GetLastQueue();
 	uint32_t GetNBytes(uint32_t qIndex);
 	uint32_t GetFlowCount(void);
@@ -216,22 +217,33 @@ protected:
 public:
 	Ptr<RdmaEgressQueue> m_rdmaEQ;
 	void RdmaEnqueueHighPrioQ(Ptr<Packet> p);
-
-	// callback for processing packet in RDMA
-	typedef Callback<int, Ptr<Packet>, CustomHeader&> RdmaReceiveCb;
-	RdmaReceiveCb m_rdmaReceiveCb;
-	// callback for link down
-	typedef Callback<void, Ptr<QbbNetDevice> > RdmaLinkDownCb;
-	RdmaLinkDownCb m_rdmaLinkDownCb;
+  LB_Solution m_lbSolution;
+  uint32_t testcount = 0;
+  bool LbPacketTransmitStart(Ptr<E2ESrcOutPackets> &srcOutEntryPtr, bool Isack);
+  bool ApplyLoadBalancingSolution(uint32_t qIndex, Ptr<E2ESrcOutPackets> &srcOutEntryPtr);
+  // callback rdma.hw laps routing
+  typedef Callback<Ptr<RdmaSmartFlowRouting>> RdmaGetE2ELapsLBouting;
+  RdmaGetE2ELapsLBouting m_rdmaGetE2ELapsLBouting;
+  // RdmaSmartFlowRouting m_rdmaSmartFlowRouting;
+  //  callback for processing packet in RDMA
+  typedef Callback<int, Ptr<Packet>, CustomHeader &> RdmaReceiveCb;
+  RdmaReceiveCb m_rdmaReceiveCb;
+  // callback for link down
+  typedef Callback<void, Ptr<QbbNetDevice>> RdmaLinkDownCb;
+  RdmaLinkDownCb m_rdmaLinkDownCb;
 	// callback for sent a packet
 	typedef Callback<void, Ptr<RdmaQueuePair>, Ptr<Packet>, Time> RdmaPktSent;
 	RdmaPktSent m_rdmaPktSent;
 
-	Ptr<RdmaEgressQueue> GetRdmaQueue();
-	void TakeDown(); // take down this device
-	void UpdateNextAvail(Time t);
+  // callback for sent a packet
+  typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t, Time> RdmaLBPktSent;
+  RdmaLBPktSent m_rdmaLbPktSent;
 
-	TracedCallback<Ptr<const Packet>, Ptr<RdmaQueuePair> > m_traceQpDequeue; // the trace for printing dequeue
+  Ptr<RdmaEgressQueue> GetRdmaQueue();
+  void TakeDown(); // take down this device
+  void UpdateNextAvail(Time t);
+
+  TracedCallback<Ptr<const Packet>, Ptr<RdmaQueuePair>> m_traceQpDequeue; // the trace for printing dequeue
 };
 
 } // namespace ns3

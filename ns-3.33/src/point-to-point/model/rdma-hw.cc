@@ -19,6 +19,7 @@
 namespace ns3
 {
 	// bool RdmaHw::isIrnEnabled = false;
+	NS_OBJECT_ENSURE_REGISTERED(RdmaHw);
 	NS_LOG_COMPONENT_DEFINE("RdmaHw");
 	TypeId RdmaHw::GetTypeId(void)
 	{
@@ -39,12 +40,11 @@ namespace ns3
 											  EnumValue(CongestionControlMode::CC_NONE),
 											  MakeEnumAccessor(&RdmaHw::m_cc_mode),
 											  MakeEnumChecker(CongestionControlMode::DCQCN_MLX, "Dcqcn_mlx",
-																				CongestionControlMode::HPCC_PINT, "Hpcc_pint",
-																				CongestionControlMode::DCTCP, "Dctcp",
-																				CongestionControlMode::TIMELY, "Timely",
-																				CongestionControlMode::HPCC, "Hpcc",
-																				CongestionControlMode::CC_NONE, "None"
-																			 ))
+															  CongestionControlMode::HPCC_PINT, "Hpcc_pint",
+															  CongestionControlMode::DCTCP, "Dctcp",
+															  CongestionControlMode::TIMELY, "Timely",
+															  CongestionControlMode::HPCC, "Hpcc",
+															  CongestionControlMode::CC_NONE, "None"))
 								.AddAttribute("NACKInterval",
 											  "The NACK Generation interval",
 											  DoubleValue(500.0),
@@ -184,12 +184,17 @@ namespace ns3
 											  "PINT's sampling threshold in rand()%65536",
 											  UintegerValue(65536),
 											  MakeUintegerAccessor(&RdmaHw::pint_smpl_thresh),
-											  MakeUintegerChecker<uint32_t>());
+											  MakeUintegerChecker<uint32_t>())
+								.AddAttribute("E2ELb", "E2E Load balancing algorithm.",
+											  EnumValue(LB_Solution::LB_NONE),
+											  MakeEnumAccessor(&RdmaHw::m_lbSolution),
+											  MakeEnumChecker(LB_Solution::LB_E2ELAPS, "e2elaps"));
 		return tid;
 	}
 
 	RdmaHw::RdmaHw()
 	{
+		m_E2ErdmaSmartFlowRouting = CreateObject<RdmaSmartFlowRouting>();
 	}
 
 	void RdmaHw::SetNode(Ptr<Node> node)
@@ -198,6 +203,13 @@ namespace ns3
 	}
 	void RdmaHw::Setup(QpCompleteCallback cb)
 	{
+		if (m_lbSolution == LB_Solution::LB_E2ELAPS)
+		{
+
+			m_E2ErdmaSmartFlowRouting->SetServerInfo(m_node->GetId());
+			NS_LOG_INFO("RDMAHW SET LB_ROUTE NODE ID" << m_node->GetId());
+		}
+
 		for (uint32_t i = 0; i < m_nic.size(); i++)
 		{
 			Ptr<QbbNetDevice> dev = m_nic[i].dev;
@@ -209,6 +221,9 @@ namespace ns3
 			dev->m_rdmaReceiveCb = MakeCallback(&RdmaHw::Receive, this);
 			dev->m_rdmaLinkDownCb = MakeCallback(&RdmaHw::SetLinkDown, this);
 			dev->m_rdmaPktSent = MakeCallback(&RdmaHw::PktSent, this);
+			dev->m_rdmaLbPktSent = MakeCallback(&RdmaHw::LBPktSent, this);
+			dev->m_rdmaGetE2ELapsLBouting = MakeCallback(&RdmaHw::GetE2ELapsLBouting, this);
+			dev->m_lbSolution = m_lbSolution;
 			// config NIC
 			dev->m_rdmaEQ->m_rdmaGetNxtPkt = MakeCallback(&RdmaHw::GetNxtPacket, this);
 		}
@@ -389,8 +404,7 @@ namespace ns3
 			
 			/* code */
 		}
-		
-    NS_LOG_LOGIC ("Find corresponding Rx queue pair.");
+
 		Ptr<RdmaRxQueuePair> rxQp = GetRxQp(ch.dip, ch.sip, ch.udp.dport, ch.udp.sport, ch.udp.pg, true);
 		if (rxQp == NULL)
 		{
@@ -766,6 +780,14 @@ namespace ns3
 
 	int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch)
 	{
+
+		if (m_lbSolution == LB_Solution::LB_E2ELAPS)
+		{
+			NS_LOG_INFO("E2ELaps receive info update table");
+			Ptr<E2ESrcOutPackets> srcOutEntry;
+			m_E2ErdmaSmartFlowRouting->RouteOutput(p, ch, srcOutEntry);
+			NS_LOG_INFO("E2ELaps receive info finished update table");
+		}
 		if (ch.l3Prot == L3ProtType::UDP)
 		{ // UDP
 			ReceiveUdp(p, ch);
@@ -1184,13 +1206,20 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 		// return
 		return p;
 	}
-
+	Ptr<RdmaSmartFlowRouting> RdmaHw::GetE2ELapsLBouting()
+	{
+		return m_E2ErdmaSmartFlowRouting;
+	}
 	void RdmaHw::PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap)
 	{
 		qp->lastPktSize = pkt->GetSize();
 		UpdateNextAvail(qp, interframeGap, pkt->GetSize());
 	}
-
+	void RdmaHw::LBPktSent(Ptr<RdmaQueuePair> qp, uint32_t pkt_size, Time interframeGap)
+	{
+		qp->lastPktSize = pkt_size;
+		UpdateNextAvail(qp, interframeGap, pkt_size);
+	}
 	void RdmaHw::UpdateNextAvail(Ptr<RdmaQueuePair> qp, Time interframeGap, uint32_t pkt_size)
 	{
 		Time sendingTime;

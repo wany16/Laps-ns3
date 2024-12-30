@@ -263,8 +263,8 @@ PacketTagList::Add (const Tag &tag) const
   // ensure this id was not yet added
   for (struct TagData *cur = m_next; cur != 0; cur = cur->next)
     {
-      NS_ASSERT_MSG (cur->tid != tag.GetInstanceTypeId (),
-                     "Error: cannot add the same kind of tag twice.");
+      NS_ASSERT_MSG(cur->tid != tag.GetInstanceTypeId(),
+                    "Error: cannot add the same kind of tag twice.:" << tag.GetInstanceTypeId().GetName() << tag.GetSerializedSize());
     }
   struct TagData * head = CreateTagData (tag.GetSerializedSize ());
   head->count = 1;

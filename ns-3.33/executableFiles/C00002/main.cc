@@ -46,13 +46,14 @@ NS_LOG_COMPONENT_DEFINE("CongestionControlSimulator");
 
 int main(int argc, char *argv[])
 {
+    LogComponentEnable("RdmaHw", LOG_LEVEL_INFO);
+    LogComponentEnable("SwitchNode", LOG_LEVEL_INFO);
+    LogComponentEnable("ConWeaveRouting", LOG_LEVEL_INFO);
+    LogComponentEnable("RdmaSmartFlowRouting", LOG_LEVEL_INFO);
     LogComponentEnable("userdefinedfunction", LOG_LEVEL_INFO);
     LogComponentEnable("CongestionControlSimulator", LOG_LEVEL_INFO);
     LogComponentEnable("QbbNetDevice", LOG_LEVEL_INFO);
     // LogComponentEnable ("BEgressQueue", LOG_LEVEL_INFO);
-    LogComponentEnable("RdmaHw", LOG_LEVEL_LOGIC);
-    LogComponentEnable("SwitchNode", LOG_LEVEL_INFO);
-    LogComponentEnable("ConWeaveRouting", LOG_LEVEL_INFO);
 
     global_variable_t varMap;
     varMap.configFileName = "/file-in-ctr/inputFiles/C00002/CONFIG_DCQCN.txt";
@@ -92,7 +93,7 @@ int main(int argc, char *argv[])
 
     std::cout << "*******************************Load the Default Configures*****************************************" << std::endl;
     load_default_configures(&varMap);
-    std::cout << "-b------------------------------Create The Topology----------------------------------------" << std::endl;
+    std::cout << "-------------------------------Create The Topology----------------------------------------" << std::endl;
     create_topology_rdma(&varMap);
     std::cout << "-------------------------------Assign The Addresses----------------------------------------" << std::endl;
     // assign_addresses(varMap.allNodes, varMap.addr2node);
@@ -108,7 +109,7 @@ int main(int argc, char *argv[])
     config_switch(&varMap);
     std::cout << "-------------------------------Install The Application----------------------------------------" << std::endl;
     // install_rdma_client_on_node(&varMap, 20, 24);
-    install_rdma_client_on_node(&varMap, 20, 32, 1, varMap.testPktNum, varMap.appStartPort);
+    install_rdma_client_on_node(&varMap, 20, 32, 1, 200000000, varMap.appStartPort);
     // node_install_rdma_application(&varMap);
     std::cout << "-------------------------------Monitor The queue Len----------------------------------------" << std::endl;
     monitor_special_port_qlen(&varMap, 0, 1, 0);

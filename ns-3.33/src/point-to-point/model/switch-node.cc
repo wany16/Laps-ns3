@@ -110,6 +110,7 @@ namespace ns3
 															  LB_Solution::LB_DEFLOW, "deflow",
 															  LB_Solution::LB_LAPS, "laps",
 															  LB_Solution::LB_RPS, "rps",
+															  LB_Solution::LB_E2ELAPS, "e2elaps",
 															  LB_Solution::LB_RRS, "rrs"))
 								.AddAttribute("d", "Load balancing algorithm drill: Sample d random outputs queue",
 											  UintegerValue(2),
@@ -140,7 +141,7 @@ namespace ns3
 		m_alpha = 0.2;
 		Ptr<RdmaSmartFlowRouting> smartFlowRouting = m_mmu->m_SmartFlowRouting;
 
-		// LAPS Callback for switch functions
+		// LAPS OR e2eLaps Callback for switch functions
 		m_mmu->m_SmartFlowRouting->SetSwitchSendCallback(MakeCallback(&SwitchNode::DoSwitchSend, this));
 		m_mmu->m_SmartFlowRouting->SetSwitchSendToDevCallback(MakeCallback(&SwitchNode::SendToDevContinue, this));
 		m_mmu->m_SmartFlowRouting->SetSwitchInfo(m_isToR, m_switch_id);
@@ -961,6 +962,11 @@ namespace ns3
 			// Do ecmp
 			return GetNormalEcmpPort(p, ch);
 		}
+		case LB_Solution::LB_E2ELAPS:
+		{
+			// Do ecmp
+			return GetNormalEcmpPort(p, ch);
+		}
 		case LB_Solution::LB_CONWEAVE:
 		{
 			// Do ecmp to dvice
@@ -1087,6 +1093,14 @@ namespace ns3
 			m_mmu->m_SmartFlowRouting->RouteInput(p, ch);
 			return;
 		}
+		if (m_lbSolution == LB_Solution::LB_E2ELAPS)
+		{
+			NS_LOG_INFO("Apply Competitor Load Balancing Algorithm:E2ELAPS");
+			Ptr<E2ESrcOutPackets> srcOutEntry;
+			m_mmu->m_SmartFlowRouting->RouteOutput(p, ch, srcOutEntry);
+			return;
+		}
+
 		if (m_lbSolution == LB_Solution::LB_CONWEAVE)
 		{
 			NS_LOG_INFO("Apply Competitor Load Balancing Algorithm:CONWEAVE");

@@ -14,21 +14,7 @@ namespace ns3
 
   class Packet;
 
-  enum LB_Solution
-  {
-    LB_ECMP = 0,
-    LB_RPS = 1,
-    LB_DRILL = 2,
-    LB_LETFLOW = 3,
-    LB_DEFLOW = 4,
-    LB_CONGA = 5,
-    LB_LAPS = 6,
-    LB_RRS = 7,
-    LB_CONWEAVE = 8,
-    LB_PLB = 9,
-    LB_NONE = 10
-
-  };
+  
 
   template <typename T>
   std::string ports_to_string(std::vector<T> src)
