@@ -335,6 +335,7 @@ namespace ns3
 		if (create)
 		{
 			// create new rx qp
+			NS_LOG_INFO("create new rx qp");
 			Ptr<RdmaRxQueuePair> q = CreateObject<RdmaRxQueuePair>();
 			// init the qp
 			q->sip = sip;
@@ -418,17 +419,27 @@ namespace ns3
 		rxQp->m_ecn_source.total++;
 		rxQp->m_milestone_rx = m_ack_interval;
 
-
-    if (rxQp->m_flow_id < 0) {
-        FlowIDNUMTag fit;
-        if (p->PeekPacketTag(fit)) {
-            rxQp->m_flow_id = fit.GetId();
-						rxQp->m_sack.socketId = fit.GetId();
-        }else{
-					std::cout << "Rx cannot find the flow id" << std::endl;
-					exit(1);
-				}
-    }
+		Ipv4SmartFlowProbeTag probeTag;
+		bool findProPacket = p->PeekPacketTag(probeTag);
+		if (rxQp->m_flow_id < 0)
+		{
+			FlowIDNUMTag fit;
+			if (p->PeekPacketTag(fit))
+			{
+				rxQp->m_flow_id = fit.GetId();
+				rxQp->m_sack.socketId = fit.GetId();
+			}
+			else if (findProPacket)
+			{
+				NS_LOG_INFO("Node " << m_node->GetId() << " HW Receive ProbePacket" << "Drop");
+				return 1;
+			}
+			else
+			{
+				std::cout << "Rx cannot find the flow id" << std::endl;
+				exit(1);
+			}
+		}
 
 		bool isEnableCnp = false;
 		int x = ReceiverCheckSeq(ch.udp.seq, rxQp, payload_size, isEnableCnp);
