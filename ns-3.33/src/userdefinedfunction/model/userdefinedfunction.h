@@ -777,6 +777,7 @@ namespace ns3
   {
     // std::map<Ptr<Node>, Ipv4Address> svNode2Addr;
     std::map<Ipv4Address, Ptr<Node>> addr2node;
+    std::map<Ipv4Address, uint32_t> ip2NodeId;
     std::map<uint32_t, est_entry_t> paraMap;
     std::map<uint32_t, ecn_para_entry_t> ecnParas;
     uint32_t rdmaNicRateInGbps;
@@ -867,6 +868,7 @@ namespace ns3
     bool enablePfc;
     bool enableTest;
     bool enableIrn;
+    bool enableIrnOptimized;
 
     uint64_t qlenMonitorIntervalInNs;
     std::string qlenMonitorFileName;
@@ -887,6 +889,7 @@ namespace ns3
     std::string lbsolution;
     std::string topoName;
     std::string kvCacheAlg;
+    std::string irnMode;
     uint32_t jobNum;
     uint32_t numOfFinishedJob;
     uint32_t testPktNum;
@@ -1354,6 +1357,16 @@ namespace ns3
                                                       uint16_t startAppPort, double loadFactor, std::map<uint16_t, uint32_t> &port2flowSize);
 
   std::map<uint16_t, uint32_t> PickTopFlows(const std::map<uint16_t, uint32_t> &port2flowSize, double ratio);
+  std::vector<PathData> load_PIT_from_file(std::string pitFile);
+  std::vector<std::vector<std::string> > read_content_as_string(std::ifstream &fh);
+  void cal_metadata_on_PIT_from_laps(global_variable_t *varMap, std::vector<PathData> &paths);
+  void install_routing_entries_based_on_single_pit_entry_for_laps(global_variable_t *varMap, PathData &pit);
+  std::vector <pstEntryData> load_PST_from_file(std::string pstFile);
+  void install_routing_entries_based_on_single_pst_entry_for_laps(global_variable_t *varMap, pstEntryData &pst);
+  std::map<Ipv4Address, uint32_t> Calulate_SMT_for_laps(NodeContainer nodes);
+  void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer nodes, std::map<Ipv4Address, uint32_t> &ip2nodeId);
+
+
 
 }
 #endif /* USERDEFINEDFUNCTION_H */

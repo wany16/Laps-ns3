@@ -87,6 +87,7 @@ public:
 	void RecoverQueue(uint32_t i);
 	void EnqueueHighPrioQ(Ptr<Packet> p);
 	void CleanHighPrio(TracedCallback<Ptr<const Packet>, uint32_t> dropCb);
+  	int GetNextQindexOnHostForLaps(bool paused[]);
 
 	TracedCallback<Ptr<const Packet>, uint32_t> m_traceRdmaEnqueue;
 	TracedCallback<Ptr<const Packet>, uint32_t> m_traceRdmaDequeue;
@@ -141,7 +142,6 @@ public:
    */
   void ConnectWithoutContext(const CallbackBase& callback);
   void DisconnectWithoutContext(const CallbackBase& callback);
-
   bool Attach (Ptr<QbbChannel> ch);
 
    virtual Ptr<Channel> GetChannel (void) const;
@@ -219,8 +219,7 @@ public:
 	void RdmaEnqueueHighPrioQ(Ptr<Packet> p);
   LB_Solution m_lbSolution;
   uint32_t testcount = 0;
-  bool LbPacketTransmitStart(Ptr<E2ESrcOutPackets> &srcOutEntryPtr, bool Isack);
-  bool ApplyLoadBalancingSolution(uint32_t qIndex, Ptr<E2ESrcOutPackets> &srcOutEntryPtr);
+  void DequeueAndTransmitOnSrcHostForLAPS();
   // callback rdma.hw laps routing
   typedef Callback<Ptr<RdmaSmartFlowRouting>> RdmaGetE2ELapsLBouting;
   RdmaGetE2ELapsLBouting m_rdmaGetE2ELapsLBouting;
@@ -239,9 +238,19 @@ public:
   typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t, Time> RdmaLBPktSent;
   RdmaLBPktSent m_rdmaLbPktSent;
 
+  // callback for set rto
+  typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t, Time> RtoSet;
+  RtoSet m_rtoSetCb;
+
   Ptr<RdmaEgressQueue> GetRdmaQueue();
   void TakeDown(); // take down this device
   void UpdateNextAvail(Time t);
+	void UpdateNxtDequeueAndTransmitTimeOnSrcHostForLaps();
+	Ptr<E2ESrcOutPackets> GetTransmitQpContentOnSrcHostForLaps(int32_t qpFlowIndex);
+	void AddPathTagOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry);
+  void UpdatePathTagOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry);
+	bool TransmitStartOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry);
+
 
   TracedCallback<Ptr<const Packet>, Ptr<RdmaQueuePair>> m_traceQpDequeue; // the trace for printing dequeue
 };

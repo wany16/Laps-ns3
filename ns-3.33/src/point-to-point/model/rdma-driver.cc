@@ -2,6 +2,8 @@
 
 namespace ns3 {
 
+	NS_LOG_COMPONENT_DEFINE("RdmaDriver");
+
 /***********************
  * RdmaDriver
  **********************/
@@ -62,6 +64,23 @@ void RdmaDriver::SetRdmaHw(Ptr<RdmaHw> rdma){
 }
 
 void RdmaDriver::AddQueuePair(uint64_t size, uint16_t pg, Ipv4Address sip, Ipv4Address dip, uint16_t sport, uint16_t dport, uint32_t win, uint64_t baseRtt, int32_t flowId, Callback<void> notifyAppFinish){
+	NS_LOG_FUNCTION(this << "timeInNs " << Simulator::Now().GetNanoSeconds()
+											 << " flowId "  		<< flowId
+											 << "size "     		<< size 
+											 << " pg "       		<< pg
+											 << " sip " 				<< sip
+											 << " dip " 				<< dip
+											 << " sport " 			<< sport
+											 << " dport " 			<< dport
+											 << " winInBytes " 	<< win
+											 << " rttInNs "    	<< baseRtt
+									);
+	if (CongestionControlMode::CC_LAPS == m_rdma->m_cc_mode)
+	{
+		m_rdma->AddQueuePairForLaps(size, pg, sip, dip, sport, dport, win, baseRtt, flowId, notifyAppFinish);
+		return ;
+	}
+	
 	m_rdma->AddQueuePair(size, pg, sip, dip, sport, dport, win, baseRtt, flowId, notifyAppFinish);
 }
 

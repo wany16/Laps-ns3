@@ -28,6 +28,86 @@ namespace ns3
 
     NS_LOG_COMPONENT_DEFINE("Ipv4SmartFlowTag");
 
+
+    AckPathTag::AckPathTag()
+    {
+        NS_LOG_FUNCTION(this);
+    }
+
+    AckPathTag::~AckPathTag()
+    {
+        NS_LOG_FUNCTION(this);
+    }
+
+    void AckPathTag::SetPathId(uint32_t pid)
+    {
+        m_pathId = pid;
+        return;
+    }
+    void AckPathTag::SetFlowId(uint32_t fid)
+    {
+        m_flowId = fid;
+        return;
+    }
+     
+     
+    uint32_t AckPathTag::GetPathId(void) const
+    {
+        return m_pathId;
+    }
+     
+    uint32_t AckPathTag::GetFlowId(void) const
+    {
+        return m_flowId;
+    }
+    TypeId AckPathTag::GetTypeId(void)
+    {
+        static TypeId tid = TypeId("ns3::AckPathTag")
+                                .SetParent<Tag>()
+                                .SetGroupName("Internet")
+                                .AddConstructor<AckPathTag>();
+        return tid;
+    }
+
+    TypeId AckPathTag::GetInstanceTypeId(void) const
+    {
+        return GetTypeId();
+    }
+
+    uint32_t AckPathTag::GetSerializedSize(void) const
+    {
+        NS_LOG_FUNCTION(this);
+        return sizeof(uint32_t) + sizeof(uint32_t);
+    }
+
+    void AckPathTag::Serialize(TagBuffer i) const
+    {
+        NS_LOG_FUNCTION(this << &i);
+        i.WriteU32(m_pathId);
+        i.WriteU32(m_flowId);
+        return;
+    }
+
+    void AckPathTag::Deserialize(TagBuffer i)
+    {
+        NS_LOG_FUNCTION(this << &i);
+        m_pathId = i.ReadU32();
+        m_flowId = i.ReadU32();
+        return;
+    }
+
+    void AckPathTag::Print(std::ostream &os) const
+    {
+        NS_LOG_FUNCTION(this << &os);
+        os << "pathid: " << m_pathId;
+        os << ", flowId: " << m_flowId;
+        os << "\n";
+        return;
+    }
+
+
+
+
     Ipv4SmartFlowProbeTag::Ipv4SmartFlowProbeTag() : m_direction(PROBE_PKT_DIRECTION_FOR_UNFILLED)
     {
         NS_LOG_FUNCTION(this);

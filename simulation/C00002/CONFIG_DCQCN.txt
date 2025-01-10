@@ -3,7 +3,7 @@ enablePfc true
 enableQcn true
 enableQlenMonitor false
 enablePfcMonitor false
-enableFctMonitor false
+enableFctMonitor true
 enableQbbTrace false
 enableKvCache false
 enableWindow true
@@ -17,10 +17,8 @@ enableSampleFeedback false
 enableRateBound true
 enableAckHigherPrio true
 enableTest false
-enableIrn false
-enableIrnOptimized true
-ccMode Laps
-irnMode NACK
+enableIrn true
+ccMode Dcqcn_mlx
 lbsName ecmp
 intMulti 1
 alphaResumeIntervalInUs 1
@@ -38,7 +36,7 @@ dctcpRateAiInMbps 1000
 targetUtilization 0.95
 pintLogBase 1.01
 pfcPauseTimeInUs 5
-traceNodeIds 8
+traceNodeIds 3
 alphaShiftInLog 3
 ecnParaMap 100 400 1600 0.8 400 1600 6400 0.8 25 100 400 0.8 10 40 160 0.8 1 4 16 0.8
 pintProbTresh 65536
@@ -56,7 +54,16 @@ simStartTimeInSec 0
 simEndTimeInSec 1
 flowLunchEndTimeInSec 0.01
 fileIdx A00083-test-DCTCP_CDF-Ring-rps-0.5
-topoFileName /file-in-ctr/inputFiles/A00083-test/TOPO.txt
-outputFileDir /file-in-ctr/outputFiles/A00083-test/
-inputFileDir /file-in-ctr/inputFiles/A00083-test/
-topoFileName /file-in-ctr/inputFiles/A00083-test/TOPO.txt
+topoFileName /file-in-ctr/inputFiles/C00002/fat_tree_4-8-8-16_topology.txt
+outputFileDir /file-in-ctr/outputFiles/C00002/
+inputFileDir /file-in-ctr/inputFiles/C00002/
+
+
+appStartPort 6666
+kvCacheType 1
+incastKvCachePara 1 60 1000 64000000 400000
+broadcastKvCachePara 1 60 8000 160000 8000 240000
+roundNum 60
+notifySizeInByte 1000
+attentionSizeInByte 64000000
+roundDelayInNs 400000

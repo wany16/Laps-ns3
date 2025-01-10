@@ -16,12 +16,12 @@
 #include "ns3/ptr.h"
 #include "ns3/boolean.h"
 #include "ns3/nstime.h"
-// #include "ns3/userdefinedfunction.h"
 #include "ns3/event-id.h" // conga
 #include "ns3/object.h"
 #include "common-user-model.h"
-// #include "ns3/smartFlow-goldenStru.h"
 #include "rdma-queue-pair.h"
+#include <random>
+
 
 #define DEFAULT_PATH_ID 999999
 #define DEFAULT_PATH_INDEX 999999999
@@ -32,7 +32,7 @@
 #define PROBE_RANDOM_STRATEGY 2
 #define PROBE_PATH_EXPIRED_TIME_IN_NANOSECOND 1000000
 #define PROBE_DEFAULT_INTERVAL_IN_NANOSECOND 1000000
-#define PROBE_DEFAULT_PKT_SIZE_IN_BYTE 32
+#define PROBE_DEFAULT_PKT_SIZE_IN_BYTE 0
 
 #define PIGGY_BACK_SMALL_LATENCY_FIRST_STRATEGY 0
 #define PIGGY_BACK_SMALL_GENT_TIME_FIRST_STRATEGY 1
@@ -64,18 +64,25 @@ namespace ns3
   class E2ESrcOutPackets : public SimpleRefCount<E2ESrcOutPackets>
   {
   public:
-    Ptr<Packet> dataPacket = Create<Packet>();
-    Ptr<Packet> probePacket = Create<Packet>();
-    bool Isprobe = false;
-    Ptr<RdmaQueuePair> lastQp;
-    bool Isack;
+    Ptr<Packet> dataPacket = NULL;
+    Ptr<Packet> probePacket = NULL;
+    Ptr<Packet> ackPacket = NULL;
+    uint64_t latencyForDataPktInNs = 0;
+    uint32_t pidForDataPkt = 0;
+    
+    bool isData = false;
+    bool isProbe = false;
+    bool isAck = false;
+
+    Ptr<RdmaQueuePair> lastQp = NULL;
     E2ESrcOutPackets(Ptr<Packet> dataPacket, bool Isprobe, Ptr<Packet> probePacket)
     {
       this->dataPacket = dataPacket;
       this->probePacket = probePacket;
-      this->Isprobe = Isprobe;
+      this->isProbe = Isprobe;
+
     }
-    E2ESrcOutPackets() : dataPacket(Create<Packet>()), probePacket(Create<Packet>()), Isprobe(false) {}
+    E2ESrcOutPackets() : dataPacket(NULL), probePacket(NULL), ackPacket(NULL), isData(false), isProbe(false), isAck(false), lastQp(NULL) {}
   };
 
   class RdmaSmartFlowRouting : public Object
@@ -88,13 +95,16 @@ namespace ns3
     virtual ~RdmaSmartFlowRouting();
     static std::vector<probeInfoEntry> m_prbInfoTable;
     static std::map<std::string, reorder_entry_t> m_reorderTable;
+    static double laps_alpha;
+    static std::uniform_real_distribution<double> rndGen;
+    static std::default_random_engine generator;
 
   public:
     static TypeId GetTypeId(void);
     // virtual Ptr<Ipv4Route> RouteOutput (Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif, Socket::SocketErrno &sockerr);
     // virtual bool RouteInput  (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev, UnicastForwardCallback ucb, MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb);
     // Ptr<Ipv4Route> ConstructIpv4Route (uint32_t port, Ipv4Address &destAddress);
-    void RouteInput(Ptr<Packet> p, CustomHeader ch);
+    bool RouteInput(Ptr<Packet> p, CustomHeader ch);
     void RouteOutput(Ptr<Packet> p, CustomHeader ch, Ptr<E2ESrcOutPackets> &SrcOutEntry); // E2E LB input
     bool e2eLBSrc_output_packet(Ptr<E2ESrcOutPackets> &SrcOutEntry);
 
@@ -107,6 +117,8 @@ namespace ns3
     Ipv4SmartFlowProbeTag construct_probe_tag_by_path_id(uint32_t expiredPathId);
     bool exist_path_tag(Ptr<Packet> packet, Ipv4SmartFlowPathTag &pathTag);
     bool exist_probe_tag(Ptr<Packet> packet, Ipv4SmartFlowProbeTag &probeTag);
+    bool exist_ack_tag(Ptr<Packet> packet, AckPathTag &ackTag);
+
     uint32_t forward_normal_packet(Ptr<Packet> &p, CustomHeader &ch, uint32_t srcToRId, uint32_t dstToRId, uint32_t pg, Ptr<E2ESrcOutPackets> &SrcOutEntry);
     // uint32_t forward_probe_packet(Ptr<Packet> pkt, std::vector<PathData *> &forwardPitEntries, PathData *bestPitEntry, const Ipv4Header &header, UnicastForwardCallback ucb, Ipv4Address dstServerAddr);
     uint32_t forward_probe_packet_optimized(Ptr<Packet> pkt, std::vector<PathData *> &forwardPitEntries, CustomHeader &ch, uint32_t pg, Ptr<E2ESrcOutPackets> &SrcOutEntry);
@@ -178,6 +190,13 @@ namespace ns3
     void update_PIT_by_probe_tag(Ipv4SmartFlowProbeTag &probeTag);
     void update_PIT_after_adding_path_tag(PathData *forwardPitEntry);
     void update_PST_after_adding_path_tag(pstEntryData *pstEntry, PathData *forwardPitEntry);
+    bool insert_entry_to_PIT(PathData &pitEntry);
+    bool insert_entry_to_PST(pstEntryData &pstEntry);
+    bool insert_entry_to_SMT(hostIp2SMT_entry_t &smtEntry);
+
+    std::vector<double> CalPathWeightBasedOnDelay(const std::vector<PathData *> paths);
+    uint32_t GetPathBasedOnWeight(const std::vector<double> & weights);
+
 
     // void add_conga_tag_by_pit_entry(Ptr<Packet> packet, PathData *pitEntry);
     // void update_PIT_by_conga_tag(Ipv4SmartFlowCongaTag &congaTag);
@@ -186,7 +205,7 @@ namespace ns3
     // uint32_t UpdateLocalDre(const Ipv4Header &header, Ptr<Packet> packet, uint32_t port);
 
     void SetSwitchInfo(bool isToR, uint32_t switch_id);
-    void SetServerInfo(uint32_t server_node_id);
+    void SetNode(Ptr<Node> node);
     bool IsE2ELb(void);
 
     // void DreEvent();
@@ -200,6 +219,11 @@ namespace ns3
     typedef Callback<void, Ptr<Packet>, CustomHeader &> SwitchSendToDevCallback;
     void SetSwitchSendCallback(SwitchSendCallback switchSendCallback);                // set callback
     void SetSwitchSendToDevCallback(SwitchSendToDevCallback switchSendToDevCallback); // set callback
+
+    void RouteOutputForAckPktOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry);
+    void RouteOutputForDataPktOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry);
+    PathData * CheckProbePathAmoungPitEntries(std::vector<PathData *> & pitEntries);
+
 
   private:
     // callback
@@ -216,8 +240,8 @@ namespace ns3
     std::map<HostId2PathSeleKey, pdt_entry_t> m_pathDecTbl;
 
     uint32_t m_nodeId;
-    uint32_t m_server_node_id;
     uint32_t m_switch_id;
+    Ptr<Node> m_node;
     uint32_t m_probeStrategy;
     uint32_t m_pathExpiredTimeThld;
     uint32_t m_pathSelNum;
