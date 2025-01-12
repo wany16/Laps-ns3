@@ -761,25 +761,14 @@ namespace ns3 {
 		if (!m_linkUp) return; // if link is down, return
 		if (m_txMachineState == BUSY) return;	// Quit if channel busy
 		Ptr<Packet> p;
-		NS_LOG_INFO("----------------MyNode:" << m_node->GetId());
+		// NS_LOG_INFO("----------------MyNode:" << m_node->GetId());
 
 		if (m_node->GetNodeType() == NODE_TYPE_OF_SERVER)
 		{													// for netdevice in host, has 8 virtual queues
 			int qIndex = m_rdmaEQ->GetNextQindex(m_paused); // the index of the qp (NOT queue or virtual queue) to send next
 			if (qIndex != int(QINDEX_OF_NONE_PACKET_IN_SERVER))
 			{ // exist packet to send
-				if (m_lbSolution == LB_Solution::LB_E2ELAPS)
-				{
-					std::cout << "----------------ServerNode:" << m_node->GetId() << " ,Qbbdevice application LB_E2ELAPS" << std::endl;
-					NS_LOG_INFO("Qbbdevice application LB_E2ELAPS");
-					// Ptr<E2ESrcOutPackets> srcOutEntryPtr = new E2ESrcOutPackets();
-					Ptr<E2ESrcOutPackets> srcOutEntryPtr = Create<E2ESrcOutPackets>();
-					NS_LOG_INFO("Qbbdevice111111 application LB_E2ELAPS");
-					ApplyLoadBalancingSolution(qIndex, srcOutEntryPtr);
-					LbPacketTransmitStart(srcOutEntryPtr, false);
-					return;
-				}
-				else if (m_lbSolution == LB_Solution::LB_PLB)
+				if (m_lbSolution == LB_Solution::LB_PLB)
 				{
 					PLB_LBSolution(qIndex);
 					return;
@@ -802,15 +791,6 @@ namespace ns3 {
 					// update for the next avail time
 					m_rdmaPktSent(lastQp, p, m_tInterframeGap);
 				}
-				
-				Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex); // no ack packet in the highest priority queue, so to process the qIndex-th queue, to dequeue a packet in a RR manner
-				p = m_rdmaEQ->DequeueQindex(qIndex);
-				// transmit
-				m_traceQpDequeue(p, lastQp);
-				TransmitStart(p);
-				// update for the next avail time
-				m_rdmaPktSent(lastQp, p, m_tInterframeGap);
-				
 			}
 			else // no packet to send
 			{ 
