@@ -165,7 +165,7 @@ namespace ns3
     RrsEntryInfo GetRrsRouteEntry(const Ipv4Address dip) const;
     DrillEntryInfo GetDrillRouteEntry(const Ipv4Address dip) const;
     CandidatePortEntry GetLetFlowRouteEntry(const Ipv4Address dip) const;
-
+    bool reach_the_last_hop_of_path_tag(CongaTag congaTag);
     uint32_t CalculateQueueLength(uint32_t interface);
     uint32_t GetDrillEgressPort(const Ipv4Address dip);
     uint32_t GetLetFlowEgressPort(const Ipv4Address dip, std::string flowId);
@@ -220,12 +220,13 @@ namespace ns3
     static std::map<uint32_t, std::map<uint32_t, std::map<uint32_t, uint32_t>>> m_ecmpPortInf; // map from nodeid to port to flowid,flowidCount (ECMP select port)
     static std::map<uint32_t, std::map<uint32_t, uint32_t>> m_rrsPortInf;                      // map from nodeid to port to packetCount (RRS select port)
     static std::map<uint32_t, std::map<uint32_t, FlowPortInfo>> m_PortInf;
-
+    static std::map<uint32_t,std::map<uint64_t, std::string>>congaoutinfo;
     static uint32_t GetOutPortFromPath(const uint32_t &path, const uint32_t &hopCount); // decode outPort from path, given a hop's order
     bool GetIsToRSwitch();
     uint32_t GetSwitchId();
     static void SetOutPortToPath(uint32_t &path, const uint32_t &hopCount, const uint32_t &outPort); // encode outPort to path,,hopcount <=sizeof(path)=4
     uint32_t GetNormalEcmpPort(Ptr<Packet> p, CustomHeader &ch);
+    uint32_t GetCongaBestPath(HostId2PathSeleKey forwarPstKey, uint32_t nSample);
     static uint32_t nFlowletTimeout;
     // map from nodeid to port to packetCount��packetsize
     // for approximate calc in PINT
@@ -237,6 +238,8 @@ namespace ns3
     uint32_t QuantizingX(uint32_t outPort, uint32_t X); // X is bytes here and we quantizing it to 0 - 2^Q
     uint32_t GetBestPath(uint32_t dstTorId, uint32_t nSample);
     std::map<Ipv4Address, CandidatePortEntry> m_congaIp2ports;
+
+    static RoutePath routePath;
     /* SET functions */
     void SetConstants(Time dreTime, Time agingTime, uint32_t quantizeBit, double alpha); // not set flowlet time
     void SetSwitchInfo(bool isToR, uint32_t switch_id);
@@ -247,6 +250,8 @@ namespace ns3
     EventId m_agingEvent;
     void DreEvent();
     void AgingEvent();
+    
+
 
     // topological info (should be initialized in the beginning)
     std::map<uint32_t, std::set<uint32_t>> m_congaRoutingTable;                // routing table (ToRId -> pathId) (stable)

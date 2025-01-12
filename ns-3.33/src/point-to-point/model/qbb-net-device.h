@@ -41,6 +41,8 @@
 #define NODE_TYPE_OF_SERVER 0
 
 
+
+
 namespace ns3 {
 
   enum L3ProtType {
@@ -228,6 +230,10 @@ public:
   //  callback for processing packet in RDMA
   typedef Callback<int, Ptr<Packet>, CustomHeader &> RdmaReceiveCb;
   RdmaReceiveCb m_rdmaReceiveCb;
+
+  typedef Callback<uint32_t, std::string> PlbTableDataCb;
+  PlbTableDataCb m_plbTableDataCb;
+  bool PLB_LBSolution(int qIndex);
   // callback for link down
   typedef Callback<void, Ptr<QbbNetDevice>> RdmaLinkDownCb;
   RdmaLinkDownCb m_rdmaLinkDownCb;

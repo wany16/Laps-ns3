@@ -31,7 +31,7 @@
 #include "ns3/uinteger.h"
 #include "ns3/double.h"
 #include "ns3/ipv4-smartflow-tag.h"
-
+#include "ns3/random-variable-stream.h"
 namespace ns3
 {
 
@@ -257,7 +257,8 @@ namespace ns3
         std::map<Ipv4Address, hostIp2SMT_entry_t> m_vmVtepMapTbl; // SMT
         std::map<HostId2PathSeleKey, pstEntryData> m_pathSelTbl;  // PDT
         std::map<uint32_t, PathData> m_nexthopSelTbl;             // PIT
-        std::map<HostId2PathSeleKey, pdt_entry_t> m_pathDecTbl;
+        std::map<HostId2PathSeleKey, pdt_entry_t> m_pathDecTbl;   //
+        std::vector<PathData *> batch_lookup_PIT(std::vector<uint32_t> &pids);
         uint32_t install_SMT(std::map<Ipv4Address, hostIp2SMT_entry_t> &vmt);
         void set_SMT(std::map<Ipv4Address, hostIp2SMT_entry_t> &vmVtepMapTbl);
         hostIp2SMT_entry_t *lookup_SMT(const Ipv4Address &serverAddr);
@@ -284,5 +285,43 @@ namespace ns3
         static std::map<uint32_t, std::vector<Ipv4Address>> ToRSwitchId2hostIp;
     };
 
+//******PLB*******//
+#define IDLE_REHASH_ROUNDS 3
+#define PLB_REHASH_ROUNDS 12
+#define PLB_SUSPEND_RTO_SEC 60
+
+    struct PlbEntry
+    {
+        uint32_t congested_rounds;
+        uint32_t pkts_in_flight;
+        uint32_t randomNum = 0;
+        Time pause_until = Seconds(0);
+    };
+    struct PlbRecordEntry
+    {
+        uint32_t congested_rounds;
+        uint32_t pkts_in_flight;
+        uint32_t randomNum = 1;
+        uint32_t pause_untilInSec;
+        std::string flowID;
+    };
+
+    class PlbRehashTag : public Tag
+    {
+    public:
+        PlbRehashTag();
+
+        void SetRandomNum(uint32_t num);
+        uint32_t GetRandomNum();
+        static TypeId GetTypeId(void);
+        virtual TypeId GetInstanceTypeId(void) const;
+        virtual uint32_t GetSerializedSize(void) const;
+        virtual void Serialize(TagBuffer i) const;
+        virtual void Deserialize(TagBuffer i);
+        virtual void Print(std::ostream &os) const;
+
+    private:
+        uint32_t randomNum;
+    };
 }
 #endif

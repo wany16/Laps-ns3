@@ -439,7 +439,7 @@ namespace ns3
         {
             NS_LOG_INFO(PARSE_FIVE_TUPLE(ch)
                         << "\t--> new connection with flowkey:" << tx_md.pkt_flowkey);
-            tx_md.flagExpired == true;
+            tx_md.flagExpired = true;
         }
 
         /** ACTIVE: if expired or stabilized, reset timer. Otherwise, check timeout */

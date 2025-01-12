@@ -8,7 +8,7 @@
 #include "qbb-net-device.h"
 #include <unordered_map>
 #include "pint.h"
-
+#include "common-user-model.h"
 namespace ns3
 {
 
@@ -138,11 +138,7 @@ namespace ns3
 		uint32_t m_cnt_cnpByOoo;
 		uint32_t m_cnt_Cnp;
 
-
-
-		
-		std::unordered_map<uint32_t, bool> m_manualDropSeqMap={{2000, true},{3000, true},{9000,true},{19000,true}};
->>>>>>> 372aa1a8b1e523547becdfc0acbc342505f1de79
+		std::unordered_map<uint32_t, bool> m_manualDropSeqMap = {{2000, true}, {3000, true}, {9000, true}, {19000, true}};
 
 		// the Mellanox's version of alpha update:
 		// every fixed time slot, update alpha.
@@ -192,6 +188,14 @@ namespace ns3
 		 *********************/
 		DataRate m_dctcp_rai;
 		void HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+		std::map<std::string, PlbEntry> m_plbtable;
+		PlbEntry *lookup_PlbEntry(std::string flowId);
+		void PlbUpdateState(Ptr<RdmaQueuePair> qp);
+		void plbCheckRehash(Ptr<RdmaQueuePair> qp);
+		void plb_update_state_upon_rto(Ptr<RdmaQueuePair> qp);
+		uint32_t GetFlowIdRehashNum(std::string flowId);
+
+		static std::map<uint32_t, std::map<uint32_t, PlbRecordEntry>> m_plbRecordOutInf; // nodeid->flowID
 
 		/*********************
 		 * HPCC-PINT

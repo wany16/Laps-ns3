@@ -6,7 +6,7 @@
 #include <ns3/simulator.h>
 #include "ns3/ppp-header.h"
 #include "rdma-queue-pair.h"
-
+#include "common-user-model.h"
 namespace ns3
 {
 
@@ -105,6 +105,12 @@ void RdmaQueuePair::SetFlowId(int32_t v) {
     m_flow_id = v;
     m_irn.m_sack.socketId = v;
 
+}
+std::string RdmaQueuePair::GetStringHashValueFromQp()
+{
+
+	std::string stringhash = ipv4Address2string(sip) + "#" + ipv4Address2string(dip) + "#" + std::to_string(sport); // srcPort=dstPort
+	return stringhash;
 }
 
 	void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish)

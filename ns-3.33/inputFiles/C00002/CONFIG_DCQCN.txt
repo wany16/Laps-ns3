@@ -41,7 +41,7 @@ alphaShiftInLog 3
 ecnParaMap 100 400 1600 0.8 400 1600 6400 0.8 25 100 400 0.8 10 40 160 0.8 1 4 16 0.8
 pintProbTresh 65536
 pktPayloadSizeInByte 1000
-mmuSwBufferSizeInMB 10
+mmuSwBufferSizeInMB 1
 flowGroupPrio 3
 defaultPktSizeInByte 1048
 rdmaAppStartPort 1111

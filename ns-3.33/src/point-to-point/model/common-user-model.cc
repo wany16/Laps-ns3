@@ -5,23 +5,6 @@ namespace ns3
 
     NS_LOG_COMPONENT_DEFINE("CommonUserModel");
 
-    std::string GetStringHashValueFromCustomHeader(const CustomHeader &ch)
-    {
-        uint16_t port = 0;
-        if (ch.l3Prot == 0x6) // TCP
-            port = ch.tcp.sport;
-        else if (ch.l3Prot == 0x11) // UDP
-            port = ch.udp.sport;
-        else if (ch.l3Prot == 0xFC || ch.l3Prot == 0xFD) // ACK or NACK
-            port = ch.ack.sport;
-        else
-        {
-            std::cout << "Error in GetStringHashValueFromCustomHeader() for UNKOWN header type" << std::endl;
-            return "";
-        }
-        std::string stringhash = std::to_string(ch.sip) + "#" + std::to_string(ch.dip) + "#" + std::to_string(port); // srcPort=dstPort
-        return stringhash;
-    }
     RoutePath::RoutePath()
     {
         m_pathSelTbl.clear();
@@ -60,6 +43,24 @@ namespace ns3
         {
             return &(it->second);
         }
+    }
+
+    std::string GetStringHashValueFromCustomHeader(const CustomHeader &ch)
+    {
+        uint16_t port = 0;
+        if (ch.l3Prot == 0x6) // TCP
+            port = ch.tcp.sport;
+        else if (ch.l3Prot == 0x11) // UDP
+            port = ch.udp.sport;
+        else if (ch.l3Prot == 0xFC || ch.l3Prot == 0xFD) // ACK or NACK
+            port = ch.ack.sport;
+        else
+        {
+            std::cout << "Error in GetStringHashValueFromCustomHeader() for UNKOWN header type" << std::endl;
+            return "";
+        }
+        std::string stringhash = std::to_string(ch.sip) + "#" + std::to_string(ch.dip) + "#" + std::to_string(port);
+        return stringhash;
     }
     std::string ipv4Address2string(Ipv4Address addr)
     {
@@ -185,6 +186,20 @@ namespace ns3
         // NS_LOG_INFO ("m_nexthopSelTbl size " << m_nexthopSelTbl.size());
         return;
     }
+
+    std::vector<PathData *> RoutePath::batch_lookup_PIT(std::vector<uint32_t> &pids)
+    {
+        // NS_LOG_INFO ("############ Fucntion: batch_lookup_PIT() ############");
+        std::vector<PathData *> pitEntries;
+        pitEntries.clear();
+        uint32_t pathNum = pids.size();
+        for (uint32_t i = 0; i < pathNum; i++)
+        {
+            PathData *curPitEntry = lookup_PIT(pids[i]);
+            pitEntries.push_back(curPitEntry);
+        }
+        return pitEntries;
+    }
     PathData *RoutePath::lookup_PIT(uint32_t pieKey)
     {
         // NS_LOG_INFO ("############ Fucntion: lookup_PIT() ############");
@@ -202,5 +217,45 @@ namespace ns3
             return &(it->second);
         }
     }
+    PlbRehashTag::PlbRehashTag() : randomNum(0) {}
 
+    TypeId PlbRehashTag::GetTypeId(void)
+    {
+        static TypeId tid = TypeId("ns3::PlbRehashTag").SetParent<Tag>().AddConstructor<PlbRehashTag>();
+        return tid;
+    }
+    TypeId PlbRehashTag::GetInstanceTypeId(void) const { return GetTypeId(); }
+
+    uint32_t PlbRehashTag::GetSerializedSize(void) const
+    {
+        return sizeof(randomNum);
+    }
+
+    void PlbRehashTag::Serialize(TagBuffer i) const
+    {
+        i.WriteU32(randomNum);
+        return;
+    }
+
+    void PlbRehashTag::Deserialize(TagBuffer i)
+    {
+        uint32_t randomNum = i.ReadU32();
+        return;
+    }
+
+    void PlbRehashTag::SetRandomNum(uint32_t num)
+    {
+        randomNum = num;
+        return;
+    }
+
+    uint32_t PlbRehashTag::GetRandomNum() { return randomNum; }
+
+    void PlbRehashTag::Print(std::ostream &os) const
+    {
+
+        os << "randomNum: " << randomNum;
+        os << std::endl;
+        return;
+    }
 }

@@ -88,6 +88,7 @@ int main(int argc, char *argv[])
     cmd.AddValue("rdmaAppStartPort", "minimal port for rdma client.", varMap.appStartPort);
     cmd.AddValue("enableQbbTrace", "trace the packet event on node's all Qbb netdevices.", varMap.enableQbbTrace);
     cmd.AddValue("testPktNum", "The number of packets to test.", varMap.testPktNum);
+    cmd.AddValue("enableFlowCongestTest", "creat network congestion Test", varMap.enableFlowCongestTest);
     cmd.Parse(argc, argv);
     update_EST(varMap.paraMap, "loadRatio", varMap.loadRatio);
 
@@ -109,8 +110,13 @@ int main(int argc, char *argv[])
     config_switch(&varMap);
     std::cout << "-------------------------------Install The Application----------------------------------------" << std::endl;
     // install_rdma_client_on_node(&varMap, 20, 24);
-    install_rdma_client_on_node(&varMap, 20, 32, 1, 200000000, varMap.appStartPort);
-    // node_install_rdma_application(&varMap);
+    // install_rdma_client_on_node(&varMap, 20, 21, 1, 2000000000, varMap.appStartPort);
+    // install_rdma_client_on_node(&varMap, 20, 30, 1, 2000000000, varMap.appStartPort + 1);
+    install_rdma_client_on_node(&varMap, 5, 7, 1, 200000000, varMap.appStartPort);
+    // install_rdma_client_on_node(&varMap, 5, 8, 1, 20000000000, varMap.appStartPort + 1);
+    // install_rdma_client_on_node(&varMap, 6, 8, 1, 20000000000, varMap.appStartPort + 2);
+    // install_rdma_client_on_node(&varMap, 6, 7, 1, 20000000000, varMap.appStartPort + 3);
+    //  node_install_rdma_application(&varMap);
     std::cout << "-------------------------------Monitor The queue Len----------------------------------------" << std::endl;
     monitor_special_port_qlen(&varMap, 0, 1, 0);
     std::cout << "-------------------------------Monitor The qBB Device----------------------------------------" << std::endl;
@@ -120,6 +126,8 @@ int main(int argc, char *argv[])
     NS_LOG_INFO("Run Simulation.");
     Simulator::Run();
     save_egress_ports_loadinfo(&varMap);
+    // save_PLB_outinfo(&varMap);
+    save_Conga_outinfo(&varMap);
     sim_finish(&varMap);
     Simulator::Destroy();
     std::cout << "-------------------------------Finish The Simulation----------------------------------------" << std::endl;

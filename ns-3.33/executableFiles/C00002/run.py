@@ -85,14 +85,14 @@ parser.add_argument("--configFileName",
                     default="CONFIG_DCQCN.txt",
                     help="defaultFileName, by default CONFIG.txt")
 parser.add_argument("--topoFileName",
-                    default="fat_tree_4-8-8-16_topology.txt",
-                    help="defaultFileName, by default fat_tree_topology.txt")
+                    default="TOPO_S5_H4.txt",
+                    help="defaultFileName, by default TOPO_S5_H4.txt/fat_tree_4-8-8-16_topology.txt")
 parser.add_argument("--pitFileName",
-                    default="PIT.txt",
-                    help="defaultFileName, by default fat_tree_topology_PIT.txt")
+                    default="PIT_S5_H4_L10_1.txt",
+                    help="defaultFileName, by default PIT_S5_H4_L10.txt/fat_tree_topology_PIT.txt")
 parser.add_argument("--pstFileName",
-                    default="PST.txt",
-                    help="defaultFileName, by default fat_tree_topology_PST.txt")
+                    default="PST_S5_H4_L10_1.txt",
+                    help="defaultFileName, by default PST_S5_H4_L10.txt/fat_tree_topology_PST.txt")
 parser.add_argument("--smtFileName",
                     default="SMT.txt",
                     help="defaultFileName, by default fat_tree_topology_SMT.txt")
@@ -101,10 +101,10 @@ parser.add_argument("--simStartTimeInSec",
                     default="0",
                     help="simulation start time")
 parser.add_argument("--simEndTimeInSec",
-                    default="0.5",
+                    default="6",
                     help="simulation end time")
 parser.add_argument("--flowLunchEndTimeInSec",
-                    default="0.1",
+                    default="5",
                     help="flow end time")
 parser.add_argument("--qlenMonitorIntervalInNs",
                     default="100000",
@@ -124,7 +124,7 @@ parser.add_argument(
     "--PS",
     default="30",
     help="Physical Server 30 is DCTCP_CDF',29 is RPC_CDF,28 is VL2_CDF")
-parser.add_argument("--ccMode", default="Dcqcn_mlx",  help="congestion control algorithm")
+parser.add_argument("--ccMode", default="Dctcp",  help="congestion control algorithm")
 parser.add_argument("--screenDisplayInNs", default="10000000",  help="screen display interval in Ns")
 parser.add_argument("--enablePfcMonitor", default="true",  help="trace Pfc packets or not ")
 parser.add_argument("--enableFctMonitor", default="true",  help="trace Fct or not")
@@ -194,7 +194,7 @@ patternNameMap = {'Ring': 1, 'all2all': 0.032, 'Reduce': 0.333}
 onePatternNameMap = {'Ring': 1}
 allLbsNameList = ['drill', 'letflow', 'ecmp','laps','conweave','conga']
 loadratioList = ['0.5']
-lbsNameList = ['e2elaps']
+lbsNameList = ['conga']
 
 
 def runBigSimTest():
@@ -229,7 +229,7 @@ def runBigSimTest():
                 --enableQbbTrace={}\
                 --rdmaAppStartPort={}\
                 --testPktNum={}\
-                --workloadFile={} --patternFile={}"\
+                --workloadFile={} --patternFile={}\
                 --SMTFile={} --PITFile={} --PSTFile={}"\
                 '.format(mainFileName, fileIdx, vm_outputFiles_path,
                          vm_inputFiles_path,
@@ -254,6 +254,7 @@ def runBigSimTest():
 
 
 def runLBSimTest():
+    enableFlowCongestTest=True
     # Ring
     for patternName, patternLoadRatioShift in onePatternNameMap.items():
         # 0.7
@@ -286,7 +287,8 @@ def runLBSimTest():
                 --rdmaAppStartPort={}\
                 --testPktNum={}\
                 --workloadFile={} --patternFile={}\
-                --SMTFile={} --PITFile={} --PSTFile={}"\
+                --SMTFile={} --PITFile={} --PSTFile={}\
+                --enableFlowCongestTest={}"\
                 '.format(mainFileName, fileIdx, vm_outputFiles_path,
                          vm_inputFiles_path,
                          vm_inputFiles_path + args.topoFileName,
@@ -304,7 +306,8 @@ def runLBSimTest():
                          args.rdmaAppStartPort,
                          args.testPktNum,
                          workloadFile,patternFile,
-                         vm_inputFiles_path + args.smtFileName,vm_inputFiles_path + args.pitFileName,vm_inputFiles_path + args.pstFileName)
+                         vm_inputFiles_path + args.smtFileName,vm_inputFiles_path + args.pitFileName,vm_inputFiles_path + args.pstFileName,
+                         enableFlowCongestTest)
                 print(Line_command)
                 os.system(Line_command)
 

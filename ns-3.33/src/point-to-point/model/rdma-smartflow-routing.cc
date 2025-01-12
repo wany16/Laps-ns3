@@ -1070,13 +1070,21 @@ namespace ns3
     void RdmaSmartFlowRouting::receive_probe_packet(Ipv4SmartFlowProbeTag &probeTag)
     {
         NS_LOG_INFO("############ Fucntion: receive_probe_packet() ############");
-        /*if (m_pathSelStrategy == PATH_SELECTION_CONGA_STRATEGY) {
-            std::cout<< "un expected probe packet in conga" << std::endl;
-            return ;
-        }*/
-
         update_PIT_by_probe_tag(probeTag);
         return;
+    }
+    Ptr<Packet> RdmaSmartFlowRouting::reply_probe_info(Ptr<Packet> &p, CustomHeader &ch)
+    {
+        Ipv4SmartFlowProbeTag probeTag;
+        p->PeekPacketTag(probeTag);
+        Ptr<Packet> replyPacket = construct_reply_probe_packet(p, ch);
+        uint32_t pid = probeTag.GetPathId();
+        PathData *pitEntry = lookup_PIT(pid);
+        std::vector<PathData *> feedBackPitEntries;
+        feedBackPitEntries.push_back(pitEntry);
+        add_latency_tag_by_pit_entries(p, feedBackPitEntries);
+        update_PIT_after_piggybacking(feedBackPitEntries);
+        return replyPacket;
     }
 
     void RdmaSmartFlowRouting::update_path_tag(Ptr<Packet> &packet, Ipv4SmartFlowPathTag &pathTag)
@@ -1133,6 +1141,36 @@ namespace ns3
         Ipv4Header ipHeader;
         ipHeader.SetSource(Ipv4Address(ch.sip));
         ipHeader.SetDestination(Ipv4Address(ch.dip));
+        ipHeader.SetProtocol(0x11); // UDP protocol number
+        ipHeader.SetPayloadSize(probePacket->GetSize());
+        ipHeader.SetTtl(64);
+        ipHeader.SetTos(0);
+        ipHeader.SetIdentification(50);
+        probePacket->AddHeader(ipHeader);
+
+        // 添加 PppHeader
+        PppHeader ppp;
+        ppp.SetProtocol(0x0021); // EtherToPpp(0x800), see point-to-point-net-device.cc
+        probePacket->AddHeader(ppp);
+
+        return probePacket;
+    }
+    Ptr<Packet> RdmaSmartFlowRouting::construct_reply_probe_packet(Ptr<Packet> &pkt, CustomHeader &ch)
+    {
+        Ptr<Packet> probePacket = Create<Packet>(PROBE_DEFAULT_PKT_SIZE_IN_BYTE);
+        // 添加 SeqTsHeader
+        SeqTsHeader seqTs;
+        seqTs.SetSeq(0); // 设置初始序列号
+        probePacket->AddHeader(seqTs);
+        // 添加 UdpHeader
+        UdpHeader udpHeader;
+        udpHeader.SetDestinationPort(ch.udp.dport); //
+        udpHeader.SetSourcePort(ch.udp.sport);      //
+        probePacket->AddHeader(udpHeader);
+
+        Ipv4Header ipHeader;
+        ipHeader.SetSource(Ipv4Address(ch.dip));
+        ipHeader.SetDestination(Ipv4Address(ch.sip));
         ipHeader.SetProtocol(0x11); // UDP protocol number
         ipHeader.SetPayloadSize(probePacket->GetSize());
         ipHeader.SetTtl(64);
@@ -1371,7 +1409,7 @@ namespace ns3
     uint32_t RdmaSmartFlowRouting::get_the_path_length_by_path_id(const uint32_t pathId, PathData *&pitEntry)
     {
         // NS_LOG_INFO ("############ Fucntion: get_the_path_length_by_path_id() ############");
-        pitEntry = lookup_PIT(pathId);
+        PathData *pitEntry = lookup_PIT(pathId);
         return pitEntry->portSequence.size();
     }
 
@@ -1504,13 +1542,15 @@ namespace ns3
             else
             {
                 NS_LOG_INFO("There is too Many available forwarding paths, so to select " << m_pathSelNum << " paths");
+                rndPathIdStartValue = std::rand() % (forwardPathNum - m_pathSelNum + 1);
                 for (uint32_t i = 0; i < m_pathSelNum; i++)
                 {
-                    uint32_t rndPathIdx = std::rand() % forwardPathNum;
-                    // std::cout << "The " << i << "-th path index is " << rndPathIdx << std::endl;
-                    uint32_t rndPathId = forwardPstEntry->paths[rndPathIdx];
+                    // uint32_t rndPathIdx = std::rand() % forwardPathNum;
+                    //  std::cout << "The " << i << "-th path index is " << rndPathIdx << std::endl;
+                    uint32_t rndPathId = forwardPstEntry->paths[rndPathIdStartValue];
                     PathData *rndPitEntry = lookup_PIT(rndPathId);
                     forwardPitEntries.push_back(rndPitEntry);
+                    rndPathIdStartValue++;
                 }
             }
             NS_LOG_INFO("forward PIT Entries");

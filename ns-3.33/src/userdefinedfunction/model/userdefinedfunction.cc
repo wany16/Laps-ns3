@@ -123,19 +123,23 @@ namespace ns3
       if (curNode->GetNodeType() == SERVER_NODE_TYPE)
       { // is server node
         auto ipv4addr = curNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+        routeSettings::hostIp2IdMap[ipv4addr] = curNode->GetId();
+        update_EST(varMap->paraMap, "hostIp2IdMap: " + ipv4Address_to_string(ipv4addr), curNode->GetId());
         for (std::map<Ptr<Node>, std::vector<edge_t>>::iterator it = varMap->edges[curNode].begin(); it != varMap->edges[curNode].end(); ++it)
         {
           // host-switch link
           if (it->first->GetNodeType() == SWITCH_NODE_TYPE)
           {
             routeSettings::hostIp2SwitchId[ipv4addr] = it->first->GetId();
+
             update_EST(varMap->paraMap, "hostIp2SwitchId: " + ipv4Address_to_string(ipv4addr), it->first->GetId());
             routeSettings::ToRSwitchId2hostIp[it->first->GetId()].push_back(ipv4addr);
           }
         }
       }
     }
-    std::cout << map_to_string<Ipv4Address, uint32_t>(routeSettings::hostIp2SwitchId) << std::endl;
+    std::cout << ":hostIp2IdMap: " << map_to_string<Ipv4Address, uint32_t>(routeSettings::hostIp2IdMap) << std::endl;
+    std::cout << ":hostIp2SwitchId: " << map_to_string<Ipv4Address, uint32_t>(routeSettings::hostIp2SwitchId) << std::endl;
     return;
   }
   void record_save_addr_on_single_node(Ptr<Node> node, std::map<Ipv4Address, Ptr<Node>> &addr2node, std::map<uint32_t, est_entry_t> &paraMap)
@@ -459,7 +463,7 @@ namespace ns3
     Ptr<Node> srcnode = varMap->allNodes.Get(srcNodeId);
     NS_ASSERT_MSG(srcnode->GetNodeType() == SERVER_NODE_TYPE, "Error in installing rdma on wrong source node");
     Ptr<Node> dstnode = varMap->allNodes.Get(dstNodeId);
-    NS_ASSERT_MSG(dstnode->GetNodeType() == SERVER_NODE_TYPE, "Error in installing rdma on wrong source node");
+    NS_ASSERT_MSG(dstnode->GetNodeType() == SERVER_NODE_TYPE, "Error in installing rdma on wrong dst node");
 
     // 获取源节点的第一个接口的IPv4地址
     Ptr<Ipv4> srcipv4_1 = srcnode->GetObject<Ipv4>();
@@ -1496,10 +1500,38 @@ namespace ns3
     read_SMT_from_file(varMap->smtFile, SMT);
     read_PIT_from_file(varMap->pitFile, PIT);
     read_hostId_PST_Path_from_file(varMap, PST);
-
     uint32_t nodeId = sw->GetSwitchId();
+    std::cout << varMap->lbsName << std::endl;
+    if (varMap->lbsName == "laps" || varMap->lbsName == "e2elaps")
+    {
+
+      uint32_t pitsize = sw->m_mmu->m_SmartFlowRouting->install_PIT(PIT[nodeId]);
+      std::cout << "nodeId " << nodeId << " finished install_PIT_from_swnode" << nodeId << " size " << pitsize << std::endl;
+      uint32_t pstsize = sw->m_mmu->m_SmartFlowRouting->install_PST(PST[nodeId]);
+      std::cout << "nodeId " << nodeId << " finished install_PST_from_swnode" << nodeId << " size " << pstsize << std::endl;
+    }
+    else if (varMap->lbsName == "conweave")
+    {
+      uint32_t pitsize = sw->m_mmu->m_ConWeaveRouting->routePath.install_PIT(PIT[nodeId]);
+      std::cout << "nodeId " << nodeId << " finished install_PIT_from_swnode" << nodeId << " size " << pitsize << std::endl;
+      uint32_t pstsize = sw->m_mmu->m_ConWeaveRouting->routePath.install_PST(PST[nodeId]);
+      std::cout << "nodeId " << nodeId << " finished install_PST_from_swnode" << nodeId << " size " << pstsize << std::endl;
+      uint32_t smtsize = sw->m_mmu->m_ConWeaveRouting->routePath.install_SMT(SMT);
+      std::cout << "nodeId " << nodeId << " finished install_SMT_from_swnode" << nodeId << " size " << smtsize << std::endl;
+    }
+    else if (varMap->lbsName == "conga")
+    {
+      /* code */
+      uint32_t pitsize = sw->routePath.install_PIT(PIT[nodeId]);
+      std::cout << "nodeId " << nodeId << " finished install_PIT_from_swnode" << nodeId << " size " << pitsize << std::endl;
+      uint32_t pstsize = sw->routePath.install_PST(PST[nodeId]);
+      std::cout << "nodeId " << nodeId << " finished install_PST_from_swnode" << nodeId << " size " << pstsize << std::endl;
+    }
+
+    /*
     uint32_t pitsize = sw->m_mmu->m_SmartFlowRouting->install_PIT(PIT[nodeId]);
     pitsize = sw->m_mmu->m_ConWeaveRouting->routePath.install_PIT(PIT[nodeId]);
+
     std::cout << "nodeId " << nodeId << " finished install_PIT_from_swnode" << nodeId << " size " << pitsize << std::endl;
     uint32_t pstsize = sw->m_mmu->m_SmartFlowRouting->install_PST(PST[nodeId]);
     pstsize = sw->m_mmu->m_ConWeaveRouting->routePath.install_PST(PST[nodeId]);
@@ -1507,6 +1539,7 @@ namespace ns3
     uint32_t smtsize = sw->m_mmu->m_SmartFlowRouting->install_SMT(SMT);
     smtsize = sw->m_mmu->m_ConWeaveRouting->routePath.install_SMT(SMT);
     std::cout << "nodeId " << nodeId << " finished install_SMT_from_swnode" << nodeId << " size " << smtsize << std::endl;
+    */
     return;
   }
 
@@ -1875,6 +1908,58 @@ namespace ns3
     }
     return;
   }
+  void save_PLB_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save PLB outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-plbRecordOutInf.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = RdmaHw::m_plbRecordOutInf.begin(); it != RdmaHw::m_plbRecordOutInf.end(); ++it)
+    {
+      uint32_t nodeid = it->first;
+      for (auto m_record_timeInMilliSec = it->second.begin(); m_record_timeInMilliSec != it->second.end(); ++m_record_timeInMilliSec)
+      {
+        // std::string swid_poid = "nodeID: " + to_string(nodeid) + ",portIdx: " + to_string(portinfo->first);
+        uint32_t curTimeInMilliSec = m_record_timeInMilliSec->first;
+        PlbRecordEntry plbOutInfo = m_record_timeInMilliSec->second;
+        fprintf(file, "nodeID:%d TimeInMilliSec:%u flowId:%s congested_rounds:%d pkts_in_flight:%d pause_untilInSec:%u randomNum:%u\n", nodeid, curTimeInMilliSec, plbOutInfo.flowID.c_str(), plbOutInfo.congested_rounds, plbOutInfo.pkts_in_flight, plbOutInfo.pause_untilInSec, plbOutInfo.randomNum);
+      }
+    }
+    fflush(file);
+    return;
+  }
+
+  void save_Conga_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save conga outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-CongaRecordOutInf.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = SwitchNode::congaoutinfo.begin(); it != SwitchNode::congaoutinfo.end(); ++it)
+    {
+      uint32_t nodeid = it->first;
+      std::map<uint64_t, std::string> outInfoMap = it->second;
+      for (auto m_record_timeInMilliSec = outInfoMap.begin(); m_record_timeInMilliSec != outInfoMap.end(); ++m_record_timeInMilliSec)
+      {
+        // std::string swid_poid = "nodeID: " + to_string(nodeid) + ",portIdx: " + to_string(portinfo->first);
+        uint64_t curTimeInMilliSec = m_record_timeInMilliSec->first;
+        std::string outinfo = m_record_timeInMilliSec->second;
+        fprintf(file, "nodeID:%d TimeInMilliSec:%u OutInfo:%s\n", nodeid, curTimeInMilliSec, outinfo.c_str());
+      }
+    }
+    fflush(file);
+    return;
+  }
   // void print_mac_address_for_single_node(Ptr<Node> curNode){
   //   Ptr<Ipv4> curIpv4 = curNode->GetObject<Ipv4> ();
   //   uint32_t intfCnt = curIpv4->GetNInterfaces ();
@@ -2058,6 +2143,7 @@ namespace ns3
     chl.srcNodeIdx = std::atoi(s[1].c_str());
     chl.dstNodeIdx = std::atoi(s[2].c_str());
     chl.widthInGbps = std::atoi(s[3].c_str());
+    chl.widthInMbps = std::atoi(s[3].c_str());
     chl.delayInUs = std::atoi(s[4].c_str());
     return chl;
   }
@@ -2110,7 +2196,15 @@ namespace ns3
     qbb.SetChannelAttribute("Delay", StringValue(delayStr));
     return qbb;
   }
-
+  QbbHelper set_QBB_Test_attribute(uint32_t rate, uint32_t latency)
+  {
+    QbbHelper qbb;
+    std::string rateStr = to_string(rate) + "Mbps";
+    std::string delayStr = to_string(latency) + "us";
+    qbb.SetDeviceAttribute("DataRate", StringValue(rateStr));
+    qbb.SetChannelAttribute("Delay", StringValue(delayStr));
+    return qbb;
+  }
   void add_QBB_channels(global_variable_t *varMap) {
     NS_LOG_FUNCTION(varMap->channels.size());
     std::map<Ptr<Node>, std::map<Ptr<Node>, std::vector<edge_t>>> &edges = varMap->edges;
@@ -2124,11 +2218,30 @@ namespace ns3
       Ptr<Node> srcNode = allNodes.Get(srcNodeIdx);
       uint32_t dstNodeIdx = channelEntry.dstNodeIdx;
       Ptr<Node> dstNode = allNodes.Get(dstNodeIdx);
-      QbbHelper qbb = set_QBB_attribute(channelEntry.widthInGbps, channelEntry.delayInUs);
+      QbbHelper qbb;
+      if (varMap->enableFlowCongestTest)
+      {
+        qbb = set_QBB_Test_attribute(channelEntry.widthInMbps, channelEntry.delayInUs);
+      }
+      else
+      {
+        qbb = set_QBB_attribute(channelEntry.widthInGbps, channelEntry.delayInUs);
+      }
+      // QbbHelper qbb = set_QBB_attribute(channelEntry.widthInGbps, channelEntry.delayInUs);
       NetDeviceContainer d = qbb.Install(srcNode, dstNode);
       if (i == 0) {
-        update_EST(varMap->paraMap, "channelWidthInGbps:", channelEntry.widthInGbps);
-        NS_LOG_INFO("channelWidthInGbps : " << channelEntry.widthInGbps);
+        if (varMap->enableFlowCongestTest)
+        {
+          update_EST(varMap->paraMap, "channelWidthInMbps:", channelEntry.widthInGbps);
+          NS_LOG_INFO("enableFlowCongestTest channelWidthInMbps : " << channelEntry.widthInGbps);
+        }
+        else
+        {
+          update_EST(varMap->paraMap, "channelWidthInGbps:", channelEntry.widthInGbps);
+          NS_LOG_INFO("channelWidthInGbps : " << channelEntry.widthInGbps);
+        }
+        // update_EST(varMap->paraMap, "channelWidthInGbps:", channelEntry.widthInGbps);
+        // NS_LOG_INFO("channelWidthInGbps : " << channelEntry.widthInGbps);
         update_EST(varMap->paraMap, "channelDelayInUs:", channelEntry.delayInUs);
         NS_LOG_INFO("channelDelayInUs : " << channelEntry.delayInUs);
         update_EST(varMap->paraMap, "enablePfcMonitor", boolToString(varMap->enablePfcMonitor));
@@ -2172,9 +2285,64 @@ namespace ns3
     Ptr<Node> node = varMap->svNodes.Get(0);
     return DynamicCast<QbbNetDevice>(node->GetDevice(1))->GetDataRate().GetBitRate() / 1000000000;
   }
+  uint64_t get_nic_rate_In_Mbps(global_variable_t *varMap)
+  {
+    Ptr<Node> node = varMap->svNodes.Get(0);
+    return DynamicCast<QbbNetDevice>(node->GetDevice(1))->GetDataRate().GetBitRate() / 1000000;
+  }
 
+  void config_switch_mmu_flowCongest_test(global_variable_t *varMap)
+  {
+    NodeContainer &swNodes = varMap->swNodes;
+    std::map<uint32_t, ecn_para_entry_t> &ecnParaMap = varMap->ecnParas;
+    uint64_t nicRateInMbps = get_nic_rate_In_Mbps(varMap);
+    uint32_t node_num = swNodes.GetN();
+    for (uint32_t nodeIdx = 0; nodeIdx < node_num; nodeIdx++)
+    {
+      Ptr<SwitchNode> swNode = DynamicCast<SwitchNode>(swNodes.Get(nodeIdx));
+      NS_ASSERT_MSG(swNode, "Error in config_mmu_switch on non-Switch node");
+      // uint32_t swNodeId = swNode->GetId();
+      for (uint32_t nicIdx = 1; nicIdx < swNode->GetNDevices(); nicIdx++)
+      {
+        Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(swNode->GetDevice(nicIdx));
+        NS_ASSERT_MSG(dev != NULL, "Non-Qbb Netdevice");
+        // set ecn
+        uint64_t rateInBit = dev->GetDataRate().GetBitRate();
+        uint32_t rateInMbps = rateInBit / 1000000;
+        NS_ASSERT_MSG(varMap->ecnParaMap.find(rateInMbps) != varMap->ecnParaMap.end(), "Unknwon ECN parameters for ports");
+        swNode->m_mmu->ConfigEcn(nicIdx, varMap->ecnParaMap[rateInMbps].kminInKb / 10, ecnParaMap[rateInMbps].kmaxInKb / 10, ecnParaMap[rateInMbps].pmax);
+        // set pfc
+        uint64_t delayInNs = DynamicCast<QbbChannel>(dev->GetChannel())->GetDelay().GetNanoSeconds();
+        uint32_t headroomInByte = rateInBit / 1000000 * delayInNs / 8 * 2 + 2 * varMap->defaultPktSizeInByte; // 8是指byte
+        swNode->m_mmu->ConfigHdrm(nicIdx, headroomInByte);
+
+        // set pfc alpha, proportional to link bw, larger bw indicates large utilization
+        swNode->m_mmu->pfc_a_shift[nicIdx] = varMap->alphaShiftInLog;
+        while (rateInMbps > nicRateInMbps && swNode->m_mmu->pfc_a_shift[nicIdx] > 0)
+        {
+          swNode->m_mmu->pfc_a_shift[nicIdx]--;
+          rateInMbps /= 2;
+        }
+
+        if ((nodeIdx == 0) && (nicIdx == 1))
+        {
+          update_EST(varMap->paraMap, "EcnParameters", varMap->ecnParaMap[rateInMbps].toStrinng());
+          NS_LOG_INFO("EcnParameters : " << varMap->ecnParaMap[rateInMbps].toStrinng());
+          update_EST(varMap->paraMap, "headroomInByte", headroomInByte);
+          NS_LOG_INFO("headroomInByte : " << headroomInByte);
+        }
+      }
+      swNode->m_mmu->ConfigNPort(swNode->GetNDevices() - 1);
+      swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024);
+      swNode->m_mmu->node_id = swNode->GetId();
+      if (nodeIdx == 0)
+      {
+        update_EST(varMap->paraMap, "mmuSwBufferSizeInMB", varMap->mmuSwBufferSizeInMB);
+        NS_LOG_INFO("mmuSwBufferSizeInMB : " << varMap->mmuSwBufferSizeInMB);
+      }
+    }
+  }
   void config_switch_mmu(global_variable_t *varMap)  {
-
 
     NodeContainer &swNodes = varMap->swNodes;
     std::map<uint32_t, ecn_para_entry_t> &ecnParaMap = varMap->ecnParas;
@@ -2183,7 +2351,7 @@ namespace ns3
     for (uint32_t nodeIdx = 0; nodeIdx < node_num; nodeIdx++)  {
       Ptr<SwitchNode> swNode = DynamicCast<SwitchNode>(swNodes.Get(nodeIdx));
       NS_ASSERT_MSG(swNode, "Error in config_mmu_switch on non-Switch node");
-      uint32_t swNodeId = swNode->GetId();
+      // uint32_t swNodeId = swNode->GetId();
       for (uint32_t nicIdx = 1; nicIdx < swNode->GetNDevices(); nicIdx++)  {
         Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(swNode->GetDevice(nicIdx));
         NS_ASSERT_MSG(dev != NULL, "Non-Qbb Netdevice");
@@ -2238,7 +2406,7 @@ namespace ns3
           Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(curNode);
           sw->SetSwitchInfo(true, curNodeId);
         }
-        if (varMap->lbsName == "laps" || varMap->lbsName == "conweave" || varMap->lbsName == "e2elaps")
+        if (varMap->lbsName == "laps" || varMap->lbsName == "conweave" || varMap->lbsName == "e2elaps" || varMap->lbsName == "conga")
         {
           install_LB_table(varMap, curNode);
         }
@@ -2384,7 +2552,15 @@ namespace ns3
   }
   void config_switch(global_variable_t *varMap)
   {
-    config_switch_mmu(varMap);
+    if (varMap->enableFlowCongestTest)
+    {
+      config_switch_mmu_flowCongest_test(varMap);
+    }
+    else
+    {
+      config_switch_mmu(varMap);
+    }
+
     set_switch_cc_para(varMap);
     config_switch_lb(varMap);
     return;
@@ -2520,9 +2696,9 @@ namespace ns3
 
         // create and install RdmaDriver
 
-        NS_LOG_INFO("Is E2E laps");
         if (varMap->lbsName == "e2elaps")
         {
+          NS_LOG_INFO("Is E2E laps ,server instal LB_table");
           server_instal_LB_table(varMap, rdmaHw, svNode->GetId());
         }
         Ptr<RdmaDriver> rdma = CreateObject<RdmaDriver>();
@@ -2700,7 +2876,7 @@ std::string boolToString (bool m_value) {
   void install_routing_entries(global_variable_t *varMap) {
     NS_LOG_FUNCTION(varMap->allNodes.GetN() << varMap->swNodes.GetN() << varMap->svNodes.GetN());
     std::map<Ptr<Node>, std::map<Ptr<Node>, std::vector<Ptr<Node>>>> &nextHop = varMap->nextHop;       // srcNode   dstNode   adjacentNodes ：   6         20       [0 1]
-    uint64_t entryCntSw = 0;
+    // uint64_t entryCntSw = 0;
     for (auto i = nextHop.begin(); i != nextHop.end(); i++) {
       Ptr<Node> node = i->first; // srcNode
       auto &table = i->second;
@@ -3363,7 +3539,11 @@ std::string boolToString (bool m_value) {
       Config::SetDefault("ns3::RdmaHw::E2ELb", StringValue(varMap->lbsName));
       Config::SetDefault("ns3::RdmaSmartFlowRouting::enabledE2ELb", BooleanValue(true));
     }
-
+    if (varMap->lbsName == "plb")
+    {
+      Config::SetDefault("ns3::QbbNetDevice::QbbE2ELb", StringValue(varMap->lbsName));
+      Config::SetDefault("ns3::RdmaHw::E2ELb", StringValue(varMap->lbsName));
+    }
     Config::SetDefault("ns3::SwitchNode::FlowletTimeout", TimeValue(MicroSeconds(varMap->flowletTimoutInUs)));
     NS_LOG_INFO("SwitchNode::FlowletTimeoutInUs : " << varMap->flowletTimoutInUs);
     update_EST(varMap->paraMap, "SwitchNode::FlowletTimeoutInUs", varMap->flowletTimoutInUs);

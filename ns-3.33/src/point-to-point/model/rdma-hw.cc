@@ -21,6 +21,7 @@ namespace ns3
 	// bool RdmaHw::isIrnEnabled = false;
 	NS_OBJECT_ENSURE_REGISTERED(RdmaHw);
 	NS_LOG_COMPONENT_DEFINE("RdmaHw");
+	std::map<uint32_t, std::map<uint32_t, PlbRecordEntry>> RdmaHw::m_plbRecordOutInf;
 	TypeId RdmaHw::GetTypeId(void)
 	{
 		static TypeId tid = TypeId("ns3::RdmaHw")
@@ -188,7 +189,8 @@ namespace ns3
 								.AddAttribute("E2ELb", "E2E Load balancing algorithm.",
 											  EnumValue(LB_Solution::LB_NONE),
 											  MakeEnumAccessor(&RdmaHw::m_lbSolution),
-											  MakeEnumChecker(LB_Solution::LB_E2ELAPS, "e2elaps"));
+											  MakeEnumChecker(LB_Solution::LB_E2ELAPS, "e2elaps",
+															  LB_Solution::LB_PLB, "plb"));
 		return tid;
 	}
 
@@ -223,6 +225,7 @@ namespace ns3
 			dev->m_rdmaPktSent = MakeCallback(&RdmaHw::PktSent, this);
 			dev->m_rdmaLbPktSent = MakeCallback(&RdmaHw::LBPktSent, this);
 			dev->m_rdmaGetE2ELapsLBouting = MakeCallback(&RdmaHw::GetE2ELapsLBouting, this);
+			dev->m_plbTableDataCb = MakeCallback(&RdmaHw::GetFlowIdRehashNum, this);
 			dev->m_lbSolution = m_lbSolution;
 			// config NIC
 			dev->m_rdmaEQ->m_rdmaGetNxtPkt = MakeCallback(&RdmaHw::GetNxtPacket, this);
@@ -264,10 +267,14 @@ namespace ns3
 		qp->SetVarWin(m_var_win);
     qp->SetFlowId(flowId);
 		qp->SetAppNotifyCallback(notifyAppFinish);
+		// PLB init
+		std::string flowIdHash = qp->GetStringHashValueFromQp();
+		m_plbtable[flowIdHash].congested_rounds = 0;
 
-    if (Irn::isIrnEnabled) {
-        qp->m_irn.m_bdp = win;
-    }
+		if (Irn::isIrnEnabled)
+		{
+			qp->m_irn.m_bdp = win;
+		}
 
 		// add qp
 		uint32_t nic_idx = GetNicIdxOfQp(qp);
@@ -431,7 +438,7 @@ namespace ns3
 			}
 			else if (findProPacket)
 			{
-				NS_LOG_INFO("Node " << m_node->GetId() << " HW Receive ProbePacket" << "Drop");
+				NS_LOG_INFO("Node " << m_node->GetId() << " HW Receive ProbePacket " << "Drop");
 				return 1;
 			}
 			else
@@ -584,28 +591,28 @@ namespace ns3
     if (qp->IsFinished()) {
         return;
     }
+	//plb_update_state_upon_rto(qp);
+	uint32_t nic_idx = GetNicIdxOfQp(qp);
+	Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
 
-    uint32_t nic_idx = GetNicIdxOfQp(qp);
-    Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
+	if (Irn::isTrnOptimizedEnabled)
+	{
+		qp->RecoverQueueUponTimeout();
+		dev->TriggerTransmit();
+		return;
+	}
 
-		if (Irn::isTrnOptimizedEnabled)
-		{
-			qp->RecoverQueueUponTimeout();
-    	dev->TriggerTransmit();
-			return ;
-		}
+	// IRN: disable timeouts when PFC is enabled to prevent spurious retransmissions
+	if (Irn::isIrnEnabled && dev->IsPfcEnabled())
+		return;
+	if (m_cnt_timeout.find(qp->m_flow_id) == m_cnt_timeout.end())
+		m_cnt_timeout[qp->m_flow_id] = 0;
+	m_cnt_timeout[qp->m_flow_id]++;
 
-    // IRN: disable timeouts when PFC is enabled to prevent spurious retransmissions
-    if (Irn::isIrnEnabled && dev->IsPfcEnabled()) return;
-    if (m_cnt_timeout.find(qp->m_flow_id) == m_cnt_timeout.end())
-        m_cnt_timeout[qp->m_flow_id] = 0;
-    m_cnt_timeout[qp->m_flow_id]++;
-
-
-		
-    if (Irn::isIrnEnabled) qp->m_irn.m_recovery = true;
-    RecoverQueue(qp);
-    dev->TriggerTransmit();
+	if (Irn::isIrnEnabled)
+		qp->m_irn.m_recovery = true;
+	RecoverQueue(qp);
+	dev->TriggerTransmit();
 }
 
 	int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch)
@@ -759,8 +766,12 @@ namespace ns3
 			HandleAckTimely(qp, p, ch);
 		}
 		else if (m_cc_mode == CongestionControlMode::DCTCP)
-		{
-			HandleAckDctcp(qp, p, ch);
+		{   
+			if (m_lbSolution==LB_Solution::PLB){
+				PLBHandleAckDctcp(qp, p, ch);
+			}else{
+			    HandleAckDctcp(qp, p, ch);
+			}
 		}
 		else if (m_cc_mode == CongestionControlMode::HPCC_PINT)
 		{
@@ -780,7 +791,18 @@ namespace ns3
 			Ptr<E2ESrcOutPackets> srcOutEntry;
 			m_E2ErdmaSmartFlowRouting->RouteOutput(p, ch, srcOutEntry);
 			NS_LOG_INFO("E2ELaps receive info finished update table");
+			Ipv4SmartFlowProbeTag probeTag;
+			bool isServerNode = (m_node->GetNodeType() == NODE_TYPE_OF_SERVER);
+			if (p->PeekPacketTag(probeTag) && isServerNode && false)
+			{
+				Ptr<Packet> replyPacket = m_E2ErdmaSmartFlowRouting->reply_probe_info(p, ch);
+				// server only have one NIC
+				uint32_t nic_idx = 1;
+				m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(replyPacket);
+				m_nic[nic_idx].dev->TriggerTransmit();
+			}
 		}
+
 		if (ch.l3Prot == L3ProtType::UDP)
 		{ // UDP
 			ReceiveUdp(p, ch);
@@ -1203,6 +1225,7 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 	{
 		return m_E2ErdmaSmartFlowRouting;
 	}
+
 	void RdmaHw::PktSent(Ptr<RdmaQueuePair> qp, Ptr<Packet> pkt, Time interframeGap)
 	{
 		qp->lastPktSize = pkt->GetSize();
@@ -1706,6 +1729,189 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 	{
 	}
 
+	void RdmaHw::plb_update_state_upon_rto(Ptr<RdmaQueuePair> qp)
+	{
+		NS_LOG_INFO("*****plb_update_state_upon_rto******");
+		std::string flowId = qp->GetStringHashValueFromQp();
+		PlbEntry *plb_entry = lookup_PlbEntry(flowId);
+		Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
+		uint32_t pauseTimeInseconds = x->GetValue(0, PLB_SUSPEND_RTO_SEC) + PLB_SUSPEND_RTO_SEC; //(1-2)*PLB_SUSPEND_RTO_SEC
+		plb_entry->pause_until = Simulator::Now() + Seconds(pauseTimeInseconds);
+		/* Reset PLB state upon RTO, since an RTO causes a PlbRehash call
+		 * that may switch this connection to a path with completely different
+		 * congestion characteristics.
+		 */
+		plb_entry->congested_rounds = 0;
+	}
+	void RdmaHw::plbCheckRehash(Ptr<RdmaQueuePair> qp)
+	{
+		NS_LOG_INFO("*****plbCheckRehash******");
+		Time now = Simulator::Now();
+		std::string flowId = qp->GetStringHashValueFromQp();
+		NS_LOG_INFO("stringhash is " << flowId << "Nowtime: " << now.GetSeconds());
+		PlbEntry *plb_entry = lookup_PlbEntry(flowId);
+		bool can_idle_rehash = (plb_entry->congested_rounds >= IDLE_REHASH_ROUNDS) && (qp->GetOnTheFly() == 0);
+		bool can_force_rehash = plb_entry->congested_rounds >= PLB_REHASH_ROUNDS;
+		bool IsNotPause = !(plb_entry->pause_until.GetSeconds() && 1);
+		NS_LOG_INFO("plb_entry->pause_until.GetSeconds(): " << plb_entry->pause_until.GetSeconds());
+		if (plb_entry->pause_until.GetSeconds() && (now.GetSeconds() >= plb_entry->pause_until.GetSeconds()))
+		{
+			IsNotPause = true;
+			plb_entry->pause_until = Seconds(0);
+		}
+		NS_LOG_INFO("PLB status: " << "can_idle_rehash: " << can_idle_rehash << " can_force_rehash: " << can_force_rehash << " IsNotPause: " << IsNotPause);
+		NS_LOG_INFO("can_idle_rehash: plb_entry->congested_rounds: " << plb_entry->congested_rounds << " qp->GetOnTheFly(): " << qp->GetOnTheFly());
+		PlbRecordEntry record_outinfo;
+		record_outinfo.flowID = flowId;
+		record_outinfo.congested_rounds = plb_entry->congested_rounds;
+		record_outinfo.pkts_in_flight = qp->GetOnTheFly();
+		//IsNotPause = true;
+		if (IsNotPause && (can_idle_rehash || can_force_rehash))
+		{
+			Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable>();
+			// qp->flowRandNum = x->GetValue(0, 65536);
+			plb_entry->randomNum = x->GetValue(0, 65536);
+			plb_entry->congested_rounds = 0;
+			NS_LOG_INFO("UpdateRehash,randomNum: " << plb_entry->randomNum);
+			record_outinfo.randomNum=plb_entry->randomNum;
+		}
+		m_plbRecordOutInf[m_node->GetId()][now.GetMilliSeconds()] = record_outinfo;
+		return;
+	}
+	uint32_t RdmaHw::GetFlowIdRehashNum(std::string flowId)
+	{
+		// NS_LOG_INFO ("############ Fucntion: lookup_PLB() ############");
+
+		std::map<std::string, PlbEntry>::iterator it;
+		it = m_plbtable.find(flowId);
+		if (it == m_plbtable.end())
+		{
+			size_t last_hash_pos = flowId.find_last_of('#');
+			if (last_hash_pos == std::string::npos)
+			{
+				throw std::invalid_argument("No '#' found in the string.");
+			}
+			std::string portNumberStr = flowId.substr(last_hash_pos + 1);
+			int portNumber = std::stoi(portNumberStr);
+			// FLOW START PORT NUM IS 666
+			if (portNumber > 665)
+			{
+				std::cout << "Error in lookup_PLB() since Cannot match any entry in PLB TABLE for the Key: (";
+				std::cout << flowId;
+			}
+
+			return 0;
+		}
+		else
+		{
+			return it->second.randomNum;
+		}
+	}
+
+	PlbEntry *RdmaHw::lookup_PlbEntry(std::string flowId)
+	{
+		// NS_LOG_INFO ("############ Fucntion: lookup_PLB() ############");
+
+		std::map<std::string, PlbEntry>::iterator it;
+		it = m_plbtable.find(flowId);
+		if (it == m_plbtable.end())
+		{
+			// std::cout << "Error in lookup_PLB() since Cannot match any entry in PLB TABLE for the Key: (";
+			// std::cout << flowId;
+			NS_LOG_INFO("******cannt find any entry flowId: " << flowId);
+			return 0;
+		}
+		else
+		{
+			return &(it->second);
+		}
+	}
+	void RdmaHw::PlbUpdateState(Ptr<RdmaQueuePair> qp)
+	{
+		NS_LOG_INFO("******PlbUpdateState******" << std::endl);
+		std::string flowId = qp->GetStringHashValueFromQp();
+		NS_LOG_INFO("stringhash is " << flowId << std::endl);
+		PlbEntry *plb_entry = lookup_PlbEntry(flowId);
+		NS_LOG_INFO("qp->dctcp.m_ecnCnt: " << qp->dctcp.m_ecnCnt << " ,qp->dctcp.m_batchSizeOfAlpha: " << qp->dctcp.m_batchSizeOfAlpha);
+		double frac = std::min(1.0, double(qp->dctcp.m_ecnCnt) / qp->dctcp.m_batchSizeOfAlpha);
+		if (frac >= 0.5)
+		{
+			plb_entry->congested_rounds += 1;
+		}
+		else
+		{
+			plb_entry->congested_rounds = 0;
+		}
+		return;
+	}
+
+    /**********************
+	 * PLB_DCTCP
+	 *********************/
+	void RdmaHw::PLBHandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch)
+	{
+		uint32_t ack_seq = ch.ack.seq;
+		uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
+		bool new_batch = false;
+
+		// update alpha
+		qp->dctcp.m_ecnCnt += (cnp > 0);
+		if (ack_seq > qp->dctcp.m_lastUpdateSeq)
+		{ // if full RTT feedback is ready, do alpha update
+#if PRINT_LOG
+			printf("%lu %s %08x %08x %u %u [%u,%u,%u] %.3lf->", Simulator::Now().GetTimeStep(), "alpha", qp->sip.Get(), qp->dip.Get(), qp->sport, qp->dport, qp->dctcp.m_lastUpdateSeq, ch.ack.seq, qp->snd_nxt, qp->dctcp.m_alpha);
+#endif
+			new_batch = true;
+			if (qp->dctcp.m_lastUpdateSeq == 0)
+			{ // first RTT
+				qp->dctcp.m_lastUpdateSeq = qp->snd_nxt;
+				qp->dctcp.m_batchSizeOfAlpha = qp->snd_nxt / m_mtu + 1;
+			}
+			else
+			{
+				PlbUpdateState(qp);
+				plbCheckRehash(qp);
+				double frac = std::min(1.0, double(qp->dctcp.m_ecnCnt) / qp->dctcp.m_batchSizeOfAlpha);
+				qp->dctcp.m_alpha = (1 - m_g) * qp->dctcp.m_alpha + m_g * frac;
+				qp->dctcp.m_lastUpdateSeq = qp->snd_nxt;
+				qp->dctcp.m_ecnCnt = 0;
+				qp->dctcp.m_batchSizeOfAlpha = (qp->snd_nxt - ack_seq) / m_mtu + 1;
+#if PRINT_LOG
+				printf("%.3lf F:%.3lf", qp->dctcp.m_alpha, frac);
+#endif
+			}
+#if PRINT_LOG
+			printf("\n");
+
+#endif
+		}
+
+		// check cwr exit
+		if (qp->dctcp.m_caState == 1)
+		{
+			if (ack_seq > qp->dctcp.m_highSeq)
+				qp->dctcp.m_caState = 0;
+		}
+
+		// check if need to reduce rate: ECN and not in CWR
+		if (cnp && qp->dctcp.m_caState == 0)
+		{
+#if PRINT_LOG
+			printf("%lu %s %08x %08x %u %u %.3lf->", Simulator::Now().GetTimeStep(), "rate", qp->sip.Get(), qp->dip.Get(), qp->sport, qp->dport, qp->m_rate.GetBitRate() * 1e-9);
+#endif
+			qp->m_rate = std::max(m_minRate, qp->m_rate * (1 - qp->dctcp.m_alpha / 2));
+#if PRINT_LOG
+			printf("%.3lf\n", qp->m_rate.GetBitRate() * 1e-9);
+#endif
+			qp->dctcp.m_caState = 1;
+			qp->dctcp.m_highSeq = qp->snd_nxt;
+		}
+
+		// additive inc
+		if (qp->dctcp.m_caState == 0 && new_batch)
+			qp->m_rate = std::min(qp->m_max_rate, qp->m_rate + m_dctcp_rai);
+	}
+
 	/**********************
 	 * DCTCP
 	 *********************/
@@ -1730,6 +1936,8 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 			}
 			else
 			{
+				PlbUpdateState(qp);
+				plbCheckRehash(qp);
 				double frac = std::min(1.0, double(qp->dctcp.m_ecnCnt) / qp->dctcp.m_batchSizeOfAlpha);
 				qp->dctcp.m_alpha = (1 - m_g) * qp->dctcp.m_alpha + m_g * frac;
 				qp->dctcp.m_lastUpdateSeq = qp->snd_nxt;
@@ -1741,6 +1949,7 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 			}
 #if PRINT_LOG
 			printf("\n");
+
 #endif
 		}
 

@@ -228,7 +228,8 @@ namespace ns3 {
 								.AddAttribute("QbbE2ELb", "E2E Load balancing algorithm.",
 											  EnumValue(LB_Solution::LB_NONE),
 											  MakeEnumAccessor(&QbbNetDevice::m_lbSolution),
-											  MakeEnumChecker(LB_Solution::LB_E2ELAPS, "e2elaps"));
+											  MakeEnumChecker(LB_Solution::LB_E2ELAPS, "e2elaps",
+															  LB_Solution::LB_PLB, "plb"));
 
 		return tid;
 	}
@@ -365,6 +366,94 @@ namespace ns3 {
 
 		return Isack;
 	}
+	bool QbbNetDevice::PLB_LBSolution(int qIndex)
+	{
+		NS_LOG_INFO("******PLB add Rehashtag******");
+		bool Isack;
+		Ptr<Packet> p;
+		PlbRehashTag plbtag;
+		// extract customheader
+		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header |
+						CustomHeader::L4_Header);
+		if (qIndex == QINDEX_OF_ACK_PACKET_IN_SERVER)
+		{
+			p = m_rdmaEQ->DequeueQindex(qIndex);
+			if (p->PeekHeader(ch) > 0)
+			{
+				NS_LOG_INFO("QbbNetDevice::ApplyLoadBalancingSolution Extracted CustomHeader:");
+			}
+			std::string stringhash = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(ch.l3Prot); // srcPort=dstPort
+			NS_LOG_INFO("stringhash is " << stringhash);
+			uint32_t randNum = m_plbTableDataCb(stringhash);
+			plbtag.SetRandomNum(randNum);
+			p->AddPacketTag(plbtag);
+			m_traceDequeue(p, 0);
+			TransmitStart(p);
+			Isack = true;
+			return Isack;
+		}
+		Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex);
+		p = m_rdmaEQ->DequeueQindex(qIndex);
+		if (p->PeekHeader(ch) > 0)
+		{
+			NS_LOG_INFO("QbbNetDevice::ApplyLoadBalancingSolution Extracted CustomHeader:");
+		}
+		std::string stringhash = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(ch.l3Prot);
+		NS_LOG_INFO("stringhash is " << stringhash);
+		uint32_t randNum = m_plbTableDataCb(stringhash);
+		plbtag.SetRandomNum(randNum);
+		p->AddPacketTag(plbtag);
+		m_traceQpDequeue(p, lastQp);
+		TransmitStart(p);
+		m_rdmaPktSent(lastQp, p, m_tInterframeGap);
+		Isack = false;
+		return Isack;
+	}
+
+	/*bool QbbNetDevice::PLB_LBSolution(int qIndex)
+	{
+		NS_LOG_INFO("******PLB add Rehashtag******")
+		bool Isack;
+		Ptr<Packet> p;
+		// extract customheader
+		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header |
+						CustomHeader::L4_Header);
+		PlbRehashTag plbtag;
+		if (qIndex == QINDEX_OF_ACK_PACKET_IN_SERVER)
+		{
+			p = m_rdmaEQ->DequeueQindex(qIndex);
+			if (p->PeekHeader(ch) > 0)
+			{
+				NS_LOG_INFO("QbbNetDevice::ApplyLoadBalancingSolution Extracted CustomHeader:");
+			}
+
+			m_traceDequeue(p, 0);
+			TransmitStart(p);
+			Isack = true;
+			return Isack;
+		}
+		// extract customheader
+		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header |
+						CustomHeader::L4_Header);
+		if (p->PeekHeader(ch) > 0)
+		{
+			NS_LOG_INFO("QbbNetDevice::ApplyLoadBalancingSolution Extracted CustomHeader:");
+		}
+
+		std::string stringhash = ipv4Address2string(sip) + "#" + ipv4Address2string(dip) + "#" + std::to_string(sport); // srcPort=dstPort
+
+		Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex);
+		p = m_rdmaEQ->DequeueQindex(qIndex);
+		uint32_t randNum = lastQp->flowRandNum;
+		PlbRehashTag plbtag;
+		plbtag.SetRandomNum(randNum);
+		p->AddPacketTag(plbtag);
+		m_traceQpDequeue(p, lastQp);
+		TransmitStart(p);
+		m_rdmaPktSent(lastQp, p, m_tInterframeGap);
+		Isack = false;
+		return Isack;
+	}*/
 
 	void
 	QbbNetDevice::DequeueAndTransmit(void)
@@ -374,10 +463,7 @@ namespace ns3 {
 		if (m_txMachineState == BUSY) return;	// Quit if channel busy
 		Ptr<Packet> p;
 		NS_LOG_INFO("----------------MyNode:" << m_node->GetId());
-		if (m_node->GetId() == 18)
-		{
-			NS_LOG_INFO("MyNode is 18" << " testcount:" << testcount);
-		}
+
 		if (m_node->GetNodeType() == NODE_TYPE_OF_SERVER)
 		{													// for netdevice in host, has 8 virtual queues
 			int qIndex = m_rdmaEQ->GetNextQindex(m_paused); // the index of the qp (NOT queue or virtual queue) to send next
@@ -392,10 +478,15 @@ namespace ns3 {
 					NS_LOG_INFO("Qbbdevice111111 application LB_E2ELAPS");
 					ApplyLoadBalancingSolution(qIndex, srcOutEntryPtr);
 					LbPacketTransmitStart(srcOutEntryPtr, false);
+					return;
+				}
+				else if (m_lbSolution == LB_Solution::LB_PLB)
+				{
+					PLB_LBSolution(qIndex);
+					return;
 				}
 				else
 				{
-
 					if (qIndex == QINDEX_OF_ACK_PACKET_IN_SERVER)
 					{																 // exist ack packets in the highest priority queue
 						p = m_rdmaEQ->DequeueQindex(QINDEX_OF_ACK_PACKET_IN_SERVER); // get the actual packet to send
@@ -472,7 +563,7 @@ namespace ns3 {
 
 			if (p != 0)
 			{
-				NS_LOG_INFO("SwNode:" << m_node->GetId() << "UID is " << p->GetUid() << ")");
+				// NS_LOG_INFO("SwNode:" << m_node->GetId() << " UID is " << p->GetUid() << ")");
 				m_snifferTrace(p);
 				m_promiscSnifferTrace(p);
 				Ipv4Header h;

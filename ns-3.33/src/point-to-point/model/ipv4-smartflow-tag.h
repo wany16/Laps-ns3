@@ -76,16 +76,17 @@ namespace ns3
 
     struct PathData
     {
-        uint32_t pid;
+        uint32_t pid=UINT32_MAX;
         uint32_t priority;
         std::vector<uint32_t> portSequence;
         std::vector<uint32_t> nodeIdSequence;
         uint32_t latency;
         uint32_t theoreticalSmallestLatencyInNs;
-        uint32_t pathDre;
+        uint32_t pathDre = UINT32_MAX;
         Time tsGeneration;
         Time tsProbeLastSend;
         Time tsLatencyLastSend;
+        Time  updateTime;
         Time _invalidTime = Seconds(0); // for conweave route
         void print()
         {

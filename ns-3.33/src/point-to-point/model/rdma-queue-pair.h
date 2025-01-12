@@ -128,6 +128,8 @@ public:
 	int32_t m_flow_id; // conweave
 	Time m_timeout; // conweave
 
+	//bool enablePLBHash //PLB
+    uint32_t flowRandNum=0; //PLB
 	Irn m_irn;
 	// static bool isIrnEnabled;
 
@@ -247,17 +249,17 @@ public:
 	void SetVarWin(bool v);
 	void SetAppNotifyCallback(Callback<void> notifyAppFinish);
   void SetFlowId(int32_t v);
-
-	uint64_t GetBytesLeft();
-	uint32_t GetHash(void);
-	void Acknowledge(uint64_t ack);
-	void ResumeQueue();
-	void RecoverQueue();
-	void RecoverQueueUponTimeout();
-	uint64_t GetOnTheFly();
-	bool IsWinBound();
-	uint64_t GetWin(); // window size calculated from m_rate
-	bool IsFinished();
+  std::string GetStringHashValueFromQp();
+  uint64_t GetBytesLeft();
+  uint32_t GetHash(void);
+  void Acknowledge(uint64_t ack);
+  void ResumeQueue();
+  void RecoverQueue();
+  void RecoverQueueUponTimeout();
+  uint64_t GetOnTheFly();
+  bool IsWinBound();
+  uint64_t GetWin(); // window size calculated from m_rate
+  bool IsFinished();
   inline bool IsFinishedConst() const { return snd_una >= m_size; }
 
 	uint64_t HpGetCurWin(); // window size calculated from hp.m_curRate, used by HPCC

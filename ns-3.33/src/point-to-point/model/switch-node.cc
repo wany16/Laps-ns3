@@ -24,6 +24,8 @@ namespace ns3
 	std::map<uint32_t, std::map<uint32_t, std::map<uint32_t, uint32_t>>> SwitchNode::m_ecmpPortInf;
 	std::map<uint32_t, std::map<uint32_t, uint32_t>> SwitchNode::m_rrsPortInf;
 	std::map<uint32_t, std::map<uint32_t, SwitchNode::FlowPortInfo>> SwitchNode::m_PortInf;
+	RoutePath SwitchNode::routePath;
+	std::map<uint32_t, std::map<uint64_t, std::string>> SwitchNode::congaoutinfo;
 	// LB_Solution SwitchNode::lbSolution = LB_Solution::NONE;
 	uint32_t SwitchNode::GetHashValueFromCustomHeader(const CustomHeader &ch)
 	{
@@ -245,6 +247,85 @@ namespace ns3
 			m_outPort2BitRateMap[outPort] = bitRate;
 		}
 	}
+	bool SwitchNode::reach_the_last_hop_of_path_tag(CongaTag congaTag)
+	{
+		uint32_t pathId = congaTag.GetPathId();
+		PathData *pitEntry = routePath.lookup_PIT(pathId);
+		uint32_t pathSize = pitEntry->portSequence.size();
+		uint32_t hopIdx = congaTag.GetHopCount() + 1;
+		if (hopIdx == pathSize - 2)
+		{
+			NS_LOG_INFO("Reaching the Dst ToR");
+			return true;
+		}
+		else
+		{
+			NS_LOG_INFO("Is " << hopIdx << "/" << (pathSize - 2) << " hops");
+			return false;
+		}
+	}
+	uint32_t SwitchNode::GetCongaBestPath(HostId2PathSeleKey forwarPstKey, uint32_t nSample)
+	{
+		pstEntryData *PstEntry = routePath.lookup_PST(forwarPstKey);
+		std::vector<PathData *> forwardPitEntries;
+		if (PstEntry->pathNum < nSample)
+		{
+			forwardPitEntries = routePath.batch_lookup_PIT(PstEntry->paths);
+		}
+		else
+		{
+			uint32_t rndPathIdStartValue = std::rand() % (PstEntry->pathNum - nSample + 1);
+			for (uint32_t i = 0; i < nSample; i++)
+			{
+				// uint32_t rndPathIdx = std::rand() % forwardPathNum;
+				//  std::cout << "The " << i << "-th path index is " << rndPathIdx << std::endl;
+				uint32_t rndPathId = PstEntry->paths[rndPathIdStartValue];
+				PathData *rndPitEntry = routePath.lookup_PIT(rndPathId);
+				forwardPitEntries.push_back(rndPitEntry);
+				rndPathIdStartValue++;
+			}
+		}
+
+		std::vector<uint32_t> candidatePaths;
+		uint32_t minCongestion = CONGA_NULL;
+		uint32_t roundIdx = 0;
+		for (auto it = forwardPitEntries.begin(); it != forwardPitEntries.end(); ++it)
+		{
+			PathData *curPitEntry = *it;
+			// no info means good
+			uint32_t localCongestion = 0;
+			uint32_t remoteCongestion = 0;
+
+			auto outPort = GetOutPortFromPath(curPitEntry->pid, 0);
+			auto innerDre = m_DreMap.find(outPort);
+			if (innerDre != m_DreMap.end())
+			{
+				localCongestion = QuantizingX(outPort, innerDre->second);
+			}
+
+			// remote congestion
+			remoteCongestion = curPitEntry->pathDre;
+			// get maximum of congestion (local, remote)
+			uint32_t CurrCongestion = std::max(localCongestion, remoteCongestion);
+			NS_LOG_INFO("GetCongaBestPath" << " roundIdx " << roundIdx << " minCongestion " << minCongestion << " localCongestion " << localCongestion << "remoteCongestion" << remoteCongestion << "\n");
+			// filter the best path
+			if (minCongestion > CurrCongestion)
+			{
+				minCongestion = CurrCongestion;
+				candidatePaths.clear();
+				candidatePaths.push_back(curPitEntry->pid); // best
+			}
+			else if (minCongestion == CurrCongestion)
+			{
+				candidatePaths.push_back(curPitEntry->pid); // equally good
+			}
+			NS_LOG_INFO("GetCongaBestPath" << " roundIdx " << roundIdx << " CurrCongestion" << CurrCongestion << "/n");
+			roundIdx++;
+		}
+		assert(candidatePaths.size() > 0 && "candidatePaths has no entry");
+		return candidatePaths[std::rand() % candidatePaths.size()]; // randomly choose the best path
+	}
+
 	// minimize the maximum link utilization
 	uint32_t SwitchNode::GetBestPath(uint32_t dstToRId, uint32_t nSample)
 	{
@@ -323,7 +404,9 @@ namespace ns3
 
 	uint32_t SwitchNode::GetOutPortFromPath(const uint32_t &path, const uint32_t &hopCount)
 	{
-		return ((uint8_t *)&path)[hopCount];
+		PathData *PitEntry = routePath.lookup_PIT(path);
+
+		return PitEntry->portSequence[hopCount + 1]; // Is e2e path,Set hopnum+1
 	}
 
 	void SwitchNode::SetOutPortToPath(uint32_t &path, const uint32_t &hopCount,
@@ -380,20 +463,17 @@ namespace ns3
 	void SwitchNode::AgingEvent()
 	{
 		auto now = Simulator::Now();
-		auto itr = m_congaToLeafTable.begin(); // always non-empty
-		for (; itr != m_congaToLeafTable.end(); ++itr)
+		auto itr = routePath.m_nexthopSelTbl.begin(); // always non-empty
+		for (; itr != routePath.m_nexthopSelTbl.end(); ++itr)
 		{
-			auto innerItr = (itr->second).begin();
-			for (; innerItr != (itr->second).end(); ++innerItr)
+
+			if (now - (itr->second).updateTime > m_agingTime)
 			{
-				if (now - (innerItr->second)._updateTime > m_agingTime)
-				{
-					(innerItr->second)._ce = 0;
-				}
+				(itr->second).pathDre = 0;
 			}
 		}
 
-		auto itr2 = m_congaFromLeafTable.begin();
+		/*auto itr2 = m_congaFromLeafTable.begin();
 		while (itr2 != m_congaFromLeafTable.end())
 		{
 			auto innerItr2 = (itr2->second).begin();
@@ -409,7 +489,7 @@ namespace ns3
 				}
 			}
 			++itr2;
-		}
+		}*/
 
 		auto itr3 = m_congaflowletTable.begin();
 		while (itr3 != m_congaflowletTable.end())
@@ -456,12 +536,14 @@ namespace ns3
 		assert(routeSettings::hostIp2SwitchId.find(Ipv4Address(ch.dip)) !=
 			   routeSettings::hostIp2SwitchId.end()); // Misconfig of Settings::hostIp2SwitchId - dip" //user.cc is not finished
 		uint32_t srcToRId = routeSettings::hostIp2SwitchId[Ipv4Address(ch.sip)];
-		uint32_t dstToRId = routeSettings::hostIp2SwitchId[Ipv4Address(ch.dip)];
+		uint32_t srcHostId = routeSettings::hostIp2IdMap[Ipv4Address(ch.sip)];
 
+		uint32_t dstHostId = routeSettings::hostIp2IdMap[Ipv4Address(ch.dip)];
+		uint32_t dstToRId = routeSettings::hostIp2SwitchId[Ipv4Address(ch.dip)];
+		NS_LOG_INFO("srcHostId" << srcHostId << " dstHostId " << dstHostId);
 		/** FILTER: Quickly filter intra-pod traffic */
 		if (srcToRId == dstToRId)
 		{ // do normal routing (only one path)
-			// code
 			auto it = m_congaIp2ports.find(Ipv4Address(ch.dip));
 			CandidatePortEntry portEntries = m_congaIp2ports[Ipv4Address(ch.dip)];
 			if (it == m_congaIp2ports.end())
@@ -470,12 +552,9 @@ namespace ns3
 			}
 			else
 			{
-
 				selectedPort = portEntries.ports[rand() % portEntries.ports.size()];
 				NS_LOG_INFO("NodeID:" << GetId() << " srcToRId == dstToRId,SELECT PORT:" << selectedPort);
 			}
-			// congaoutinfo.congatag = congaTag;
-			// congaoutinfo.port = selectedPort;
 			return selectedPort;
 		}
 
@@ -488,115 +567,73 @@ namespace ns3
 		std::string flowid = GetStringHashValueFromCustomHeader(ch);
 
 		// get CongaTag from packet
-
+		std::ostringstream oss;
 		bool found = p->PeekPacketTag(congaTag);
+		if (!found)
+		{ // sender-side
+			HostId2PathSeleKey reversePstKey(dstHostId, srcHostId);
+			pstEntryData *reversePstEntry = routePath.lookup_PST(reversePstKey);
+			uint32_t forwardPathNum = reversePstEntry->pathNum;
+			uint32_t rndPathIdx = std::rand() % forwardPathNum;
+			uint32_t rndPathId = reversePstEntry->paths[rndPathIdx];
+			PathData *rndPiggyBackPitEntry = routePath.lookup_PIT(rndPathId);
+			congaTag.SetHopCount(0);						 // hopCount
+			congaTag.SetFbPathId(rndPiggyBackPitEntry->pid); // path
+			congaTag.SetFbMetric(rndPiggyBackPitEntry->pathDre);
 
-		if (m_isToR)
-		{ // ToR switch
-			if (!found)
-			{ // sender-side
-				/*---- add piggyback info to CongaTag ----*/
-				auto fbItr = m_congaFromLeafTable.find(dstToRId);
-				NS_ASSERT_MSG(fbItr != m_congaFromLeafTable.end(),
-							  "dstToRId cannot be found in FromLeafTable");
-				auto innerFbItr = (fbItr->second).begin();
-				if (!(fbItr->second).empty())
-				{
-					std::advance(innerFbItr,
-								 rand() % (fbItr->second).size()); // uniformly-random feedback
-					// set values to new CongaTag
-					congaTag.SetHopCount(0);					  // hopCount
-					congaTag.SetFbPathId(innerFbItr->first);	  // path
-					congaTag.SetFbMetric(innerFbItr->second._ce); // ce
-				}
-				else
-				{
-					// empty (nothing to feedback) then set a dummy
-					congaTag.SetHopCount(0);		  // hopCount
-					congaTag.SetFbPathId(CONGA_NULL); // path
-					congaTag.SetFbMetric(CONGA_NULL); // ce
-				}
+			/*---- choosing outPort ----*/
+			struct CongaFlowlet *flowlet = NULL;
+			auto flowletItr = m_congaflowletTable.find(flowid);
+			uint32_t selectedPath;
+			HostId2PathSeleKey forwarPstKey(srcHostId, dstHostId);
+			// 1) when flowlet already exists
+			if (flowletItr != m_congaflowletTable.end())
+			{
+				flowlet = flowletItr->second;
+				assert(flowlet != NULL &&
+					   "Impossible in normal cases - flowlet is not correctly registered");
 
-				/*---- choosing outPort ----*/
-				struct CongaFlowlet *flowlet = NULL;
-				auto flowletItr = m_congaflowletTable.find(flowid);
-				uint32_t selectedPath;
-
-				// 1) when flowlet already exists
-				if (flowletItr != m_congaflowletTable.end())
-				{
-					flowlet = flowletItr->second;
-					assert(flowlet != NULL &&
-						   "Impossible in normal cases - flowlet is not correctly registered");
-
-					if (now - flowlet->activeTime <= m_flowletTimeout)
-					{ // no timeout
-						// update flowlet info
-						flowlet->activeTime = now;
-						flowlet->nPackets++;
-
-						// update/measure CE of this outPort and add CongaTag
-						selectedPath = flowlet->PathId;
-						selectedPort = GetOutPortFromPath(selectedPath, 0); // sender switch is 0th hop
-						uint32_t X = UpdateLocalDre(p, ch, selectedPort);	// update
-						uint32_t localCe = QuantizingX(selectedPort, X);	// quantize  //user.cc is not finished
-						congaTag.SetCe(localCe);
-						congaTag.SetPathId(selectedPath);
-
-						p->AddPacketTag(congaTag);
-						NS_LOG_INFO("SenderToR:" << m_switch_id << "Flowlet exists" << "/n"
-												 << "Path/CE/outPort Path" << selectedPath << " CE"
-												 << congaTag.GetCe() << " Port" << selectedPort << " FbPath/Metric FbPath"
-												 << congaTag.GetFbPathId() << " Metric" << congaTag.GetFbMetric() << " Time"
-												 << now);
-
-						// DoSwitchSend(p, ch, GetOutPortFromPath(selectedPath, congaTag.GetHopCount()),ch.udp.pg);
-
-						//  GetOutPortFromPath(selectedPath, congaTag.GetHopCount());
-						// congaoutinfo.congatag = congaTag;
-						// congaoutinfo.port = selectedPort;
-						return selectedPort;
-					}
-
-					/*---- Flowlet Timeout ----*/
-					// NS_LOG_INFO("Flowlet expires, calculate the new port");
-					selectedPath = GetBestPath(dstToRId, 4);
-					SwitchNode::nFlowletTimeout++;
-
+				if (now - flowlet->activeTime <= m_flowletTimeout)
+				{ // no timeout
 					// update flowlet info
-					flowlet->activatedTime = now;
 					flowlet->activeTime = now;
 					flowlet->nPackets++;
-					flowlet->PathId = selectedPath;
 
-					// update/add CongaTag
-					selectedPort = GetOutPortFromPath(selectedPath, 0);
-					uint32_t X = UpdateLocalDre(p, ch, selectedPort); // update
-					uint32_t localCe = QuantizingX(selectedPort, X);  // quantize
+					// update/measure CE of this outPort and add CongaTag
+					selectedPath = flowlet->PathId;
+					selectedPort = GetOutPortFromPath(selectedPath, 0); // sender switch is 0th hop
+					uint32_t X = UpdateLocalDre(p, ch, selectedPort);	// update
+					uint32_t localCe = QuantizingX(selectedPort, X);	// quantize
 					congaTag.SetCe(localCe);
 					congaTag.SetPathId(selectedPath);
-					congaTag.SetHopCount(0);
 
 					p->AddPacketTag(congaTag);
-					NS_LOG_INFO("SenderToR" << m_switch_id << "Flowlet exists & Timeout" << "/n"
-											<< "Path/CE/outPort Path" << selectedPath << " CE"
-											<< congaTag.GetCe() << " Port" << selectedPort << " FbPath/Metric FbPath"
-											<< congaTag.GetFbPathId() << " Metric" << congaTag.GetFbMetric() << " Time" << now);
-					// DoSwitchSend(p, ch, outPort, ch.udp.pg);
-					//  return outPort;
+					oss << "SenderToR: " << m_switch_id << " Flowlet exists " << ""
+						<< "Path/CE/outPort Path " << selectedPath << " CE "
+						<< congaTag.GetCe() << " Port " << selectedPort << " FbPath/Metric FbPath "
+						<< congaTag.GetFbPathId() << " Metric " << congaTag.GetFbMetric() << " Time "
+						<< now;
 
+					// DoSwitchSend(p, ch, GetOutPortFromPath(selectedPath, congaTag.GetHopCount()),ch.udp.pg);
+					NS_LOG_INFO(oss.str());
+					congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+					//  GetOutPortFromPath(selectedPath, congaTag.GetHopCount());
 					// congaoutinfo.congatag = congaTag;
 					// congaoutinfo.port = selectedPort;
 					return selectedPort;
 				}
-				// 2) flowlet does not exist, e.g., first packet of flow
-				selectedPath = GetBestPath(dstToRId, 4);
-				struct CongaFlowlet *newFlowlet = new CongaFlowlet;
-				newFlowlet->activeTime = now;
-				newFlowlet->activatedTime = now;
-				newFlowlet->nPackets = 1;
-				newFlowlet->PathId = selectedPath;
-				m_congaflowletTable[flowid] = newFlowlet;
+				/*---- Flowlet Timeout ----*/
+				// NS_LOG_INFO("Flowlet expires, calculate the new port");
+
+				// selectedPath = GetBestPath(dstToRId, 4);
+				selectedPath = GetCongaBestPath(forwarPstKey, 4);
+				SwitchNode::nFlowletTimeout++;
+
+				// update flowlet info
+				flowlet->activatedTime = now;
+				flowlet->activeTime = now;
+				flowlet->nPackets++;
+				flowlet->PathId = selectedPath;
 
 				// update/add CongaTag
 				selectedPort = GetOutPortFromPath(selectedPath, 0);
@@ -604,83 +641,86 @@ namespace ns3
 				uint32_t localCe = QuantizingX(selectedPort, X);  // quantize
 				congaTag.SetCe(localCe);
 				congaTag.SetPathId(selectedPath);
+				congaTag.SetHopCount(0);
 
 				p->AddPacketTag(congaTag);
-				NS_LOG_INFO("SenderToR" << m_switch_id << "Flowlet does not exist" << "/n"
-										<< "Path/CE/outPort Path" << selectedPath << " CE"
-										<< congaTag.GetCe() << " Port" << selectedPort << " FbPath/Metric FbPath"
-										<< congaTag.GetFbPathId() << " Metric" << congaTag.GetFbMetric() << " Time" << now);
-				// DoSwitchSend(p, ch, GetOutPortFromPath(selectedPath, congaTag.GetHopCount()),ch.udp.pg);
-				//  return GetOutPortFromPath(selectedPath, congaTag.GetHopCount());
-
-				// congaoutinfo.congatag = congaTag;
-				// congaoutinfo.port = selectedPort;
+				oss << "SenderToR " << m_switch_id << " Flowlet exists & Timeout" << " "
+					<< "Path/CE/outPort Path " << selectedPath << " CE "
+					<< congaTag.GetCe() << " Port " << selectedPort << " FbPath/Metric FbPath "
+					<< congaTag.GetFbPathId() << " Metric " << congaTag.GetFbMetric() << " Time " << now;
+				NS_LOG_INFO(oss.str());
+				congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
 				return selectedPort;
 			}
+
+			// 2) flowlet does not exist, e.g., first packet of flow
+			selectedPath = GetCongaBestPath(forwarPstKey, 4);
+
+			struct CongaFlowlet *newFlowlet = new CongaFlowlet;
+			newFlowlet->activeTime = now;
+			newFlowlet->activatedTime = now;
+			newFlowlet->nPackets = 1;
+			newFlowlet->PathId = selectedPath;
+			m_congaflowletTable[flowid] = newFlowlet;
+
+			// update/add CongaTag
+			selectedPort = GetOutPortFromPath(selectedPath, 0);
+			uint32_t X = UpdateLocalDre(p, ch, selectedPort); // update
+			uint32_t localCe = QuantizingX(selectedPort, X);  // quantize
+			congaTag.SetCe(localCe);
+			congaTag.SetPathId(selectedPath);
+
+			p->AddPacketTag(congaTag);
+			oss << "SenderToR" << m_switch_id << " Flowlet does not exist " << "/n"
+				<< " Path/CE/outPort Path " << selectedPath << " CE "
+				<< congaTag.GetCe() << " Port " << selectedPort << " FbPath/Metric FbPath "
+				<< congaTag.GetFbPathId() << " Metric " << congaTag.GetFbMetric() << " Time " << now;
+			NS_LOG_INFO(oss.str());
+			congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+
+			return selectedPort;
+		}
+		else if (reach_the_last_hop_of_path_tag(congaTag) == true)
+		{ // receiver-side
+
 			/*---- receiver-side ----*/
 			// update CongaToLeaf table
 			auto toLeafItr = m_congaToLeafTable.find(srcToRId);
+
 			assert(toLeafItr != m_congaToLeafTable.end() && "Cannot find srcToRId from ToLeafTable");
 			auto innerToLeafItr = (toLeafItr->second).find(congaTag.GetFbPathId());
+
+			HostId2PathSeleKey reversePstKey(dstHostId, srcHostId);
+			// pstEntryData *reversePstEntry = routePath.lookup_PST(reversePstKey);
+			//  uint32_t forwardPathNum = reversePstEntry->pathNum;
+			//  PathData *rndPiggyBackPitEntry = routePath.lookup_PIT(rndPathId);
+
 			if (congaTag.GetFbPathId() != CONGA_NULL &&
 				congaTag.GetFbMetric() != CONGA_NULL)
 			{ // if valid feedback
-				if (innerToLeafItr == (toLeafItr->second).end())
-				{ // no feedback so far, then create
-					OutpathInfo outpathInfo;
-					outpathInfo._ce = congaTag.GetFbMetric();
-					outpathInfo._updateTime = now;
-					(toLeafItr->second)[congaTag.GetFbPathId()] = outpathInfo;
-				}
-				else
-				{ // update statistics
-					(innerToLeafItr->second)._ce = congaTag.GetFbMetric();
-					(innerToLeafItr->second)._updateTime = now;
-				}
+				PathData *feedBackPitEntry = routePath.lookup_PIT(congaTag.GetFbPathId());
+				feedBackPitEntry->pathDre = congaTag.GetFbMetric();
+				feedBackPitEntry->updateTime = now;
 			}
 
-			// update CongaFromLeaf table
-			auto fromLeafItr = m_congaFromLeafTable.find(srcToRId);
-			assert(fromLeafItr != m_congaFromLeafTable.end() &&
-				   "Cannot find srcToRId from FromLeafTable");
-			auto innerfromLeafItr = (fromLeafItr->second).find(congaTag.GetPathId());
-			if (innerfromLeafItr == (fromLeafItr->second).end())
-			{ // no data sent so far, then create
-				FeedbackInfo feedbackInfo;
-				feedbackInfo._ce = congaTag.GetCe();
-				feedbackInfo._updateTime = now;
-				(fromLeafItr->second)[congaTag.GetPathId()] = feedbackInfo;
-			}
-			else
-			{ // update feedback
-				(innerfromLeafItr->second)._ce = congaTag.GetCe();
-				(innerfromLeafItr->second)._updateTime = now;
-			}
-
+			PathData *curPitEntry = routePath.lookup_PIT(congaTag.GetPathId());
+			curPitEntry->pathDre = congaTag.GetCe();
+			curPitEntry->updateTime = now;
+			uint32_t hopCount = congaTag.GetHopCount() + 1;
+			selectedPort = GetOutPortFromPath(congaTag.GetPathId(), hopCount);
 			// remove congaTag from header
 			p->RemovePacketTag(congaTag);
-			NS_LOG_INFO("ReceiverToR" << m_switch_id << "/n" << " Path/CE Path" << congaTag.GetPathId()
-									  << " CE" << congaTag.GetCe() << " FbPath/Metric FbPath"
-									  << congaTag.GetFbPathId() << " Metric" << congaTag.GetFbMetric() << " Time" << now);
-			// DoSwitchSendToDev(p, ch);
-			//  return CONGA_NULL;  // does not matter (outPort number is only 1)
+			oss << "ReceiverToR " << m_switch_id << " " << " Path/CE Path " << congaTag.GetPathId()
+				<< " CE" << congaTag.GetCe() << " FbPath/Metric FbPath "
+				<< congaTag.GetFbPathId() << " Metric " << congaTag.GetFbMetric() << " Time " << now;
 
-			auto it = m_congaIp2ports.find(Ipv4Address(ch.dip));
-			CandidatePortEntry portEntries = m_congaIp2ports[Ipv4Address(ch.dip)];
-			if (it == m_congaIp2ports.end())
-			{
-				std::cout << "Error in GetAllCandidateEgressPorts(): found No matched routing entries" << std::endl;
-			}
-			else
-			{
-				selectedPort = portEntries.ports[rand() % portEntries.ports.size()];
-			}
-			// congaoutinfo.congatag = congaTag;
-			// congaoutinfo.port = selectedPort;
+			NS_LOG_INFO(oss.str());
+			congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
 			return selectedPort;
 		}
 		else
-		{ // agg/core switch
+		{
+			// mid switch
 			// extract CongaTag
 			assert(found && "If not ToR (leaf), CongaTag should be found");
 			// get/update hopCount
@@ -688,26 +728,27 @@ namespace ns3
 			congaTag.SetHopCount(hopCount);
 
 			// get outPort
-			selectedPort = GetOutPortFromPath(congaTag.GetPathId(), hopCount);
-			uint32_t X = UpdateLocalDre(p, ch, selectedPort);			// update
-			uint32_t localCe = QuantizingX(selectedPort, X);			// quantize
-			uint32_t congestedCe = std::max(localCe, congaTag.GetCe()); // get more congested link's CE
-			congaTag.SetCe(congestedCe);								// update CE
+			selectedPort = GetOutPortFromPath(congaTag.GetPathId(), hopCount); // getout?
+			uint32_t X = UpdateLocalDre(p, ch, selectedPort);				   // update
+			uint32_t localCe = QuantizingX(selectedPort, X);				   // quantize
+			uint32_t congestedCe = std::max(localCe, congaTag.GetCe());		   // get more congested link's CE
+			congaTag.SetCe(congestedCe);									   // update CE
 
 			// Re-serialize congaTag
 			CongaTag temp_tag;
 			p->RemovePacketTag(temp_tag);
 			p->AddPacketTag(congaTag);
-			NS_LOG_INFO("Agg/CoreSw" << m_switch_id << "/n" << " CE/outPort " << " CE"
-									 << congaTag.GetCe() << " Port" << selectedPort << " FbPath/Metric FbPath"
-									 << congaTag.GetFbPathId() << " Metric" << congaTag.GetFbMetric() << " Time" << now);
-			// DoSwitchSend(p, ch, outPort, ch.udp.pg);
-			//  return outPort;
+			oss << "Agg/CoreSw" << m_switch_id << " " << " CE/outPort " << "localCe " << localCe << " CE "
+				<< congaTag.GetCe() << " Port " << selectedPort << " FbPath/Metric FbPath "
+				<< congaTag.GetFbPathId() << " Metric " << congaTag.GetFbMetric() << " Time " << now;
+
+			NS_LOG_INFO(oss.str());
+			congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
 			return selectedPort;
 		}
-		assert(false && "This should not be occured");
+		assert(false && "not arrive here,CongaTag should be found or not be found");
+		return 0;
 	}
-
 	CandidatePortEntry SwitchNode::GetEcmpRouteEntry(const Ipv4Address dip) const
 	{
 		auto it = m_ecmpRouteTable.find(dip);
@@ -905,6 +946,20 @@ namespace ns3
 			}
 			return egressPort;
 		}
+		case LB_Solution::LB_PLB:
+		{
+			NS_LOG_INFO("Apply Load Balancing Algorithm: " << "PLB-ECMP");
+			PlbRehashTag plbTag;
+			if (!p->PeekPacketTag(plbTag))
+			{
+				NS_LOG_INFO("plbTag Tag does not exit");
+			}
+			uint32_t randNum = plbTag.GetRandomNum();
+			uint32_t flowId = GetHashValueFromCustomHeader(ch);
+			CandidatePortEntry ecmpEntry = GetEcmpRouteEntry(Ipv4Address(ch.dip));
+			uint32_t egressPort = ecmpEntry.ports[(flowId + randNum) % ecmpEntry.ports.size()];
+			return egressPort;
+		}
 		case LB_Solution::LB_DRILL:
 		{
 			NS_LOG_INFO("Apply Load Balancing Algorithm: " << "DRILL");
@@ -953,7 +1008,7 @@ namespace ns3
 		}
 		case LB_Solution::LB_CONGA:
 		{
-			// NS_LOG_INFO("Apply Load Balancing Algorithm: " << "CONGA");
+			NS_LOG_INFO("Apply Load Balancing Algorithm: " << "CONGA");
 			uint32_t egressPort = GetCongaEgressPort(p, ch);
 			return egressPort;
 		}
@@ -1109,6 +1164,7 @@ namespace ns3
 		}
 
 		SendToDevContinue(p, ch);
+		return;
 	}
 
 	void SwitchNode::SendToDevContinue(Ptr<Packet> p, CustomHeader &ch)
@@ -1335,6 +1391,10 @@ namespace ns3
 		if (m_lbSolution == LB_Solution::LB_CONGA)
 		{
 			m_congaIp2ports[dstAddr].ports.push_back(intf_idx);
+		}
+		if (m_lbSolution == LB_Solution::LB_PLB)
+		{
+			m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
 		}
 	}
 

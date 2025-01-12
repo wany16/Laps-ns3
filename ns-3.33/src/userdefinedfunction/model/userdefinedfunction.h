@@ -336,6 +336,7 @@ namespace ns3
     uint32_t srcNodeIdx;
     uint32_t dstNodeIdx;
     uint32_t widthInGbps;
+    uint32_t widthInMbps;
     uint32_t delayInUs;
     std::string queueType; // droptail
     std::string queueSize;
@@ -876,8 +877,11 @@ namespace ns3
 
     struct cdf_table *cdfTable;
     uint64_t screenDisplayInNs;
+
+    bool enableFlowCongestTest; // width Is Mbps,
     // kv_cache_para_t incastKvCacheInfo;
-    std::map<uint32_t, kv_cache_para_t> kvCachePara;
+    std::map<uint32_t, kv_cache_para_t>
+        kvCachePara;
     std::map<uint16_t, kv_cache_para_t *> appPort2kvApp;
     bool enableKvCache;
     std::string inputFileDir;
@@ -990,6 +994,7 @@ namespace ns3
       screenDisplayInNs = 0;
       simStartTimeInSec = 0.0;
       simEndTimeInSec = 0.0;
+      enableFlowCongestTest = false;
       // kv_cache_para_t incastKvCacheInfo;
       kvCachePara.clear();
       appPort2kvApp.clear();
@@ -1149,6 +1154,8 @@ namespace ns3
   void set_QBB_trace(global_variable_t *varMap);
   // void switchportinfoPrint(global_variable_t *varMap, uint32_t nodeId);
   void save_egress_ports_loadinfo(global_variable_t *varMap);
+  void save_Conga_outinfo(global_variable_t *varMap);
+  void save_PLB_outinfo(global_variable_t *varMap);
   void sim_finish(global_variable_t *varMap);
   // void print_nic_info(global_variable_t *varMap);
   void generate_rdma_flows_for_node_pair(global_variable_t *varMap);

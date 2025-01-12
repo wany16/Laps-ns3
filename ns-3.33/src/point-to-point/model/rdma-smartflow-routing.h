@@ -104,6 +104,7 @@ namespace ns3
     std::vector<PathData *> batch_lookup_PIT(std::vector<uint32_t> &pids);
     Ipv4SmartFlowPathTag construct_path_tag(uint32_t selectedPathId);
     Ptr<Packet> construct_probe_packet(Ptr<Packet> &pkt, CustomHeader &ch);
+    Ptr<Packet> construct_reply_probe_packet(Ptr<Packet> &pkt, CustomHeader &ch);
     Ipv4SmartFlowProbeTag construct_probe_tag_by_path_id(uint32_t expiredPathId);
     bool exist_path_tag(Ptr<Packet> packet, Ipv4SmartFlowPathTag &pathTag);
     bool exist_probe_tag(Ptr<Packet> packet, Ipv4SmartFlowProbeTag &probeTag);
@@ -161,6 +162,7 @@ namespace ns3
     void receive_normal_packet(Ptr<Packet> &pkt, Ipv4SmartFlowPathTag &pathTag, PathData *&pitEntry);
     void receive_probe_packet(Ipv4SmartFlowProbeTag &probeTag);
     void record_the_probing_info(uint32_t pathId);
+    Ptr<Packet> reply_probe_info(Ptr<Packet> &p, CustomHeader &ch);
     // void record_reorder_at_dst_tor(Ptr<Packet> &pkt, const Ipv4Header &header);
 
     void set_max_piggyback_path_number(uint32_t piggyLatencyCnt);
