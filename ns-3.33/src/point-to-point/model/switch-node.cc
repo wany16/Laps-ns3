@@ -88,6 +88,7 @@ namespace ns3
 															  CongestionControlMode::DCTCP, "Dctcp",
 															  CongestionControlMode::TIMELY, "Timely",
 															  CongestionControlMode::HPCC, "Hpcc",
+																CongestionControlMode::CC_LAPS, "Laps",
 															  CongestionControlMode::CC_NONE, "None"))
 								.AddAttribute("AckHighPrio",
 											  "Set high priority for ACK/NACK or not",
@@ -147,6 +148,7 @@ namespace ns3
 		m_mmu->m_SmartFlowRouting->SetSwitchSendCallback(MakeCallback(&SwitchNode::DoSwitchSend, this));
 		m_mmu->m_SmartFlowRouting->SetSwitchSendToDevCallback(MakeCallback(&SwitchNode::SendToDevContinue, this));
 		m_mmu->m_SmartFlowRouting->SetSwitchInfo(m_isToR, m_switch_id);
+		m_mmu->m_SmartFlowRouting->SetNode(this);
 
 		// Ptr<ConWeaveRouting> conweaverouting = m_mmu->m_ConWeaveRouting;
 
@@ -1141,30 +1143,22 @@ namespace ns3
 	}
 	void SwitchNode::SendToDev(Ptr<Packet> p, CustomHeader &ch)
 	{
-
 		if (m_lbSolution == LB_Solution::LB_LAPS)
 		{
 			NS_LOG_INFO("Apply Competitor Load Balancing Algorithm:LAPS");
 			m_mmu->m_SmartFlowRouting->RouteInput(p, ch);
-			return;
 		}
-		if (m_lbSolution == LB_Solution::LB_E2ELAPS)
+		else if (m_lbSolution == LB_Solution::LB_E2ELAPS)
 		{
-			NS_LOG_INFO("Apply Competitor Load Balancing Algorithm:E2ELAPS");
-			Ptr<E2ESrcOutPackets> srcOutEntry;
-			m_mmu->m_SmartFlowRouting->RouteOutput(p, ch, srcOutEntry);
-			return;
+			m_mmu->m_SmartFlowRouting->RouteInput(p, ch);
 		}
-
-		if (m_lbSolution == LB_Solution::LB_CONWEAVE)
+		else if (m_lbSolution == LB_Solution::LB_CONWEAVE)
 		{
-			NS_LOG_INFO("Apply Competitor Load Balancing Algorithm:CONWEAVE");
 			m_mmu->m_ConWeaveRouting->RouteInput(p, ch);
-			return;
+		}else
+		{
+			SendToDevContinue(p, ch);
 		}
-
-		SendToDevContinue(p, ch);
-		return;
 	}
 
 	void SwitchNode::SendToDevContinue(Ptr<Packet> p, CustomHeader &ch)
@@ -1412,8 +1406,12 @@ namespace ns3
 
 	void SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p)
 	{
+		
+		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+		ch.getInt = 1; // parse INT header
+		p->PeekHeader(ch);		
 		FlowIdTag t;
-		p->PeekPacketTag(t);
+		NS_ASSERT_MSG(p != 0 && (p->PeekPacketTag(t) || ch.l3Prot == L3ProtType::PFC), "No FlowIdTag found in the packet");
 		if (qIndex != 0)
 		{
 			uint32_t inDev = t.GetFlowId();

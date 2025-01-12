@@ -45,6 +45,7 @@ namespace ns3
 															  CongestionControlMode::DCTCP, "Dctcp",
 															  CongestionControlMode::TIMELY, "Timely",
 															  CongestionControlMode::HPCC, "Hpcc",
+																CongestionControlMode::CC_LAPS, "Laps",
 															  CongestionControlMode::CC_NONE, "None"))
 								.AddAttribute("NACKInterval",
 											  "The NACK Generation interval",
@@ -207,9 +208,8 @@ namespace ns3
 	{
 		if (m_lbSolution == LB_Solution::LB_E2ELAPS)
 		{
-
-			m_E2ErdmaSmartFlowRouting->SetServerInfo(m_node->GetId());
-			NS_LOG_INFO("RDMAHW SET LB_ROUTE NODE ID" << m_node->GetId());
+			NS_ASSERT_MSG(m_E2ErdmaSmartFlowRouting != NULL, "E2ErdmaSmartFlowRouting is NULL");
+			m_E2ErdmaSmartFlowRouting->SetNode(m_node);
 		}
 
 		for (uint32_t i = 0; i < m_nic.size(); i++)
@@ -224,6 +224,7 @@ namespace ns3
 			dev->m_rdmaLinkDownCb = MakeCallback(&RdmaHw::SetLinkDown, this);
 			dev->m_rdmaPktSent = MakeCallback(&RdmaHw::PktSent, this);
 			dev->m_rdmaLbPktSent = MakeCallback(&RdmaHw::LBPktSent, this);
+			dev->m_rtoSetCb = MakeCallback(&RdmaHw::SetTimeoutForLaps, this);
 			dev->m_rdmaGetE2ELapsLBouting = MakeCallback(&RdmaHw::GetE2ELapsLBouting, this);
 			dev->m_plbTableDataCb = MakeCallback(&RdmaHw::GetFlowIdRehashNum, this);
 			dev->m_lbSolution = m_lbSolution;
@@ -265,16 +266,18 @@ namespace ns3
 		qp->SetWin(win);
 		qp->SetBaseRtt(baseRtt);
 		qp->SetVarWin(m_var_win);
-    qp->SetFlowId(flowId);
+        qp->SetFlowId(flowId);
 		qp->SetAppNotifyCallback(notifyAppFinish);
+
 		// PLB init
+		if (m_lbSolution==LB_Solution::PLB)
+		{
 		std::string flowIdHash = qp->GetStringHashValueFromQp();
 		m_plbtable[flowIdHash].congested_rounds = 0;
-
-		if (Irn::isIrnEnabled)
-		{
-			qp->m_irn.m_bdp = win;
-		}
+        }
+    if (Irn::mode == Irn::Mode::IRN_OPT) {
+        qp->m_irn.m_bdp = win;
+    }
 
 		// add qp
 		uint32_t nic_idx = GetNicIdxOfQp(qp);
@@ -286,11 +289,11 @@ namespace ns3
 		DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
 		qp->m_rate = m_bps;
 		qp->m_max_rate = m_bps;
-		if (m_cc_mode == 1)
+		if (m_cc_mode == CongestionControlMode::DCQCN_MLX)
 		{
 			qp->mlx.m_targetRate = m_bps;
 		}
-		else if (m_cc_mode == 3)
+		else if (m_cc_mode == CongestionControlMode::HPCC)
 		{
 			qp->hp.m_curRate = m_bps;
 			if (m_multipleRate)
@@ -299,18 +302,109 @@ namespace ns3
 					qp->hp.hopState[i].Rc = m_bps;
 			}
 		}
-		else if (m_cc_mode == 7)
+		else if (m_cc_mode == CongestionControlMode::TIMELY)
 		{
 			qp->tmly.m_curRate = m_bps;
 		}
-		else if (m_cc_mode == 10)
+		else if (m_cc_mode == CongestionControlMode::HPCC_PINT)
 		{
 			qp->hpccPint.m_curRate = m_bps;
+		}else if (m_cc_mode == CongestionControlMode::CC_LAPS)
+		{
+			qp->laps.m_curRate = m_bps;
+			qp->laps.m_tgtRate = m_bps;
+			qp->laps.m_incStage = 0;
+			qp->laps.m_nxtRateDecTimeInNs = 0;
+			qp->laps.m_nxtRateIncTimeInNs = 0;
 		}
+		else
+		{
+			std::cout << "Unknown CC mode" << std::endl;
+			exit(1);
+		}
+		
 
 		// Notify Nic
 		m_nic[nic_idx].dev->NewQp(qp);
 	}
+
+
+	void RdmaHw::AddQueuePairForLaps(uint64_t size, uint16_t pg, Ipv4Address sip, Ipv4Address dip, uint16_t sport, uint16_t dport, uint32_t win, uint64_t baseRtt, int32_t flowId, Callback<void> notifyAppFinish)
+	{
+		NS_LOG_FUNCTION(this << "timeInNs " << Simulator::Now().GetNanoSeconds()
+											<< " flowId "  		<< flowId
+											<< "size "     		<< size 
+											<< " pg "       		<< pg
+											<< " sip " 				<< sip
+											<< " dip " 				<< dip
+											<< " sport " 			<< sport
+											<< " dport " 			<< dport
+											<< " winInBytes " 	<< win
+											<< " rttInNs "    	<< baseRtt
+											<< " enableVarWin " << m_var_win
+											
+								);
+
+		// create qp
+		NS_ASSERT_MSG(flowId >= 0, "Flow ID should be non-negative");
+		NS_ASSERT_MSG(m_cc_mode == CongestionControlMode::CC_LAPS, "Called only when LAPS is enabled");
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called only when LAPS is enabled");
+
+		Ptr<RdmaQueuePair> qp = CreateObject<RdmaQueuePair>(pg, sip, dip, sport, dport);
+		qp->SetSize(size);
+		qp->SetVarWin(m_var_win);
+    qp->SetFlowId(flowId);
+		qp->SetAppNotifyCallback(notifyAppFinish);
+		qp->m_node_id = m_node->GetId();
+		qp->m_rtoSetCb = MakeCallback(&RdmaHw::SetTimeoutForLaps, this);
+    qp->m_irn.m_bdp = win;
+		qp->m_irn.m_sack.m_outstanding_data.clear();
+		qp->m_irn.m_sack.m_lossy_data.clear();    
+
+		// add qp
+		uint32_t nic_idx = GetNicIdxOfQp(qp);
+		m_nic[nic_idx].qpGrp->AddQp(qp);
+		uint64_t key = GetQpKey(dip.Get(), sport, dport, pg);
+		NS_ASSERT_MSG(m_qpMap.find(key) == m_qpMap.end(), "Flow cannot be initialized twice");
+		m_qpMap[key] = qp;
+        
+		// set init variables
+		DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
+		qp->m_max_rate = m_bps;
+		qp->laps.m_curRate = m_bps;
+		qp->laps.m_tgtRate = m_bps;
+		qp->laps.m_incStage = 0;
+		qp->laps.m_nxtRateDecTimeInNs = 0;
+		qp->laps.m_nxtRateIncTimeInNs = 0;
+		qp->m_cb_getRtoTimeForPath = MakeCallback(&RdmaHw::GetRtoTimeForPath, this);
+		qp->m_cb_cancelRtoForPath = MakeCallback(&RdmaHw::CancelRtoForPath, this);
+        // PLB init
+		if (m_lbSolution==LB_Solution::PLB)
+		{
+		std::string flowIdHash = qp->GetStringHashValueFromQp();
+		m_plbtable[flowIdHash].congested_rounds = 0;
+        }
+		Ipv4Address srcServerAddr = Ipv4Address(sip);
+		Ipv4Address dstServerAddr = Ipv4Address(dip);
+		uint32_t srcHostId = m_E2ErdmaSmartFlowRouting->lookup_SMT(srcServerAddr)->hostId;
+		uint32_t dstHostId = m_E2ErdmaSmartFlowRouting->lookup_SMT(dstServerAddr)->hostId;
+		HostId2PathSeleKey pstKey(srcHostId, dstHostId);
+		pstEntryData *pstEntry = m_E2ErdmaSmartFlowRouting->lookup_PST(pstKey);
+		std::vector<PathData *> pitEntries = m_E2ErdmaSmartFlowRouting->batch_lookup_PIT(pstEntry->paths);
+		NS_ASSERT_MSG(pitEntries.size() > 0, "The pitEntries is empty");
+		std::sort(pitEntries.begin(), pitEntries.end(), [](const PathData* lhs, const PathData* rhs)
+																											{
+																											return lhs->theoreticalSmallestLatencyInNs > rhs->theoreticalSmallestLatencyInNs; // 降序排列
+																											}
+							);
+		qp->laps.m_tgtDelayInNs = pitEntries[0]->theoreticalSmallestLatencyInNs;
+		qp->SetBaseRtt(qp->laps.m_tgtDelayInNs * 2);
+
+		uint64_t winInByte = uint64_t(1.0 * qp->laps.m_tgtDelayInNs * 2 * m_bps.GetBitRate() / 8 / 1000000000lu);
+		qp->SetWin(winInByte);
+		m_nic[nic_idx].dev->NewQp(qp);
+	}
+
 
 	void RdmaHw::DeleteQueuePair(Ptr<RdmaQueuePair> qp)
 	{
@@ -320,25 +414,15 @@ namespace ns3
 		m_qpMap.erase(key);
 	}
 
-	uint64_t RdmaHw::GetRxQpKey(uint32_t dip, uint16_t dport, uint16_t sport,
-                            uint16_t pg) {  // Receiver perspective
-    return ((uint64_t)dip << 32) | ((uint64_t)pg << 16) | ((uint64_t)sport << 16) |
-           (uint64_t)dport;  // srcIP, srcPort
-}
+	uint64_t RdmaHw::GetRxQpKey(uint32_t dip, uint16_t dport, uint16_t sport, uint16_t pg) {  // Receiver perspective
+    return ((uint64_t)dip << 32) | ((uint64_t)pg << 16) | ((uint64_t)sport << 16) | (uint64_t)dport;  // srcIP, srcPort
+   }
 
 	Ptr<RdmaRxQueuePair> RdmaHw::GetRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, bool create)
 	{
 		uint64_t key = GetRxQpKey(dip, dport, sport, pg);
 		auto it_active_qp = m_rxQpMap.find(key);
 		if (it_active_qp != m_rxQpMap.end()) return it_active_qp->second;
-		auto it_complete_qp = m_finishedQpMap.find(key);
-		if (it_complete_qp != m_finishedQpMap.end())
-		{
-			NS_LOG_INFO("FLOW is finished and Data is useless");
-			it_complete_qp->second += 1;
-			return NULL;
-		} 
-
 		if (create)
 		{
 			// create new rx qp
@@ -358,6 +442,26 @@ namespace ns3
 		}
 		return NULL;
 	}
+
+	Ptr<RdmaRxQueuePair> RdmaHw::InitRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, int32_t flowId)
+	{
+		NS_ASSERT_MSG(flowId >= 0, "Flow ID should be non-negative");
+		uint64_t key = GetRxQpKey(dip, dport, sport, pg);
+		NS_ASSERT_MSG(m_rxQpMap.find(key) == m_rxQpMap.end(), "Flow cannot be initialized twice");
+		NS_ASSERT_MSG(m_finishedQpMap.find(key) == m_finishedQpMap.end(), "Flow cannot be initialized after finished");
+
+		Ptr<RdmaRxQueuePair> q = CreateObject<RdmaRxQueuePair>();
+		q->sip = sip;
+		q->dip = dip;
+		q->sport = sport;
+		q->dport = dport;
+		q->m_ecn_source.qIndex = pg;
+		q->m_flow_id = flowId;
+		q->m_sack.socketId = flowId;
+		m_rxQpMap[key] = q;
+		return q;
+	}
+
 	uint32_t RdmaHw::GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q)
 	{
 		auto &v = m_rtTable[q->dip];
@@ -386,19 +490,6 @@ namespace ns3
     NS_LOG_INFO("ecnbits : " << ecnbits);
 		uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
     NS_LOG_INFO("payload_size : " << payload_size);
-
-
-		if (m_manualDropSeqMap.find(ch.udp.seq) != m_manualDropSeqMap.end())
-		{
-			if (m_manualDropSeqMap[ch.udp.seq] == true)
-			{
-				m_manualDropSeqMap[ch.udp.seq] = false;
-				return 1;
-				/* code */
-			}
-			
-			/* code */
-		}
 
 		Ptr<RdmaRxQueuePair> rxQp = GetRxQp(ch.dip, ch.sip, ch.udp.dport, ch.udp.sport, ch.udp.pg, true);
 		if (rxQp == NULL)
@@ -461,7 +552,8 @@ namespace ns3
 			seqh.SetDport(ch.udp.sport);
 			seqh.SetIntHeader(ch.udp.ih);
 
-		if (Irn::isIrnEnabled)
+
+		if (Irn::mode == Irn::Mode::IRN_OPT)
 		{
 			if (x == ReceiverSequenceCheckResult::ACTION_NACK)
 			{
@@ -472,6 +564,19 @@ namespace ns3
 				seqh.SetIrnNackSize(0);
       }
 		}
+		else if (Irn::mode == Irn::Mode::IRN_OPT)
+		{
+			if (x == ReceiverSequenceCheckResult::ACTION_NACK)
+			{
+				seqh.SetIrnNack(ch.udp.seq);
+				seqh.SetIrnNackSize(payload_size);
+			}else {
+				seqh.SetIrnNack((uint16_t) 0);  // NACK without ackSyndrome (ACK) in loss recovery mode
+				seqh.SetIrnNackSize(0);
+      }
+		}
+
+
 		
 
 			if (ecnbits || isEnableCnp){
@@ -488,7 +593,12 @@ namespace ns3
 			Ipv4Header head; // Prepare IPv4 header
 			head.SetDestination(Ipv4Address(ch.sip));
 			head.SetSource(Ipv4Address(ch.dip));
-			head.SetProtocol(x == ReceiverSequenceCheckResult::ACTION_ACK ? L3ProtType::ACK : L3ProtType::NACK); // ack=0xFC nack=0xFD
+			if (Irn::mode == Irn::Mode::IRN_OPT)
+			{
+				head.SetProtocol(L3ProtType::NACK); // ack=0xFC nack=0xFD
+			}else{
+				head.SetProtocol(x == ReceiverSequenceCheckResult::ACTION_ACK ? L3ProtType::ACK : L3ProtType::NACK); // ack=0xFC nack=0xFD
+			}
 			head.SetTtl(64);
 			head.SetPayloadSize(newp->GetSize());
 			head.SetIdentification(rxQp->m_ipid++);
@@ -502,6 +612,181 @@ namespace ns3
 		}
 		return 0;
 	}
+
+bool RdmaHw::checkQpFinishedOnDstHost(const CustomHeader &ch)
+{
+	uint64_t key = GetQpKey(ch.sip, ch.udp.dport, ch.udp.sport, ch.udp.pg);
+	auto it_complete_qp = m_finishedQpMap.find(key);
+	if (it_complete_qp != m_finishedQpMap.end())
+	{
+		it_complete_qp->second += 1;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool RdmaHw::checkRxQpFinishedOnDstHost(const CustomHeader &ch)
+{
+	NS_LOG_FUNCTION(this << "Node=" << m_node->GetId());
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "IRN_OPT or NACK should be enabled");
+	NS_ASSERT_MSG(ch.l3Prot == L3ProtType::UDP, "Not UDP packet");
+	uint64_t key = GetRxQpKey(ch.sip, ch.udp.sport, ch.udp.dport, ch.udp.pg);
+	auto it_complete_qp = m_finishedQpMap.find(key);
+	if (it_complete_qp != m_finishedQpMap.end())
+	{
+		it_complete_qp->second += 1;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+Ptr<Packet> RdmaHw::ConstructAckForUDP(ReceiverSequenceCheckResult state, const CustomHeader &ch, Ptr<RdmaRxQueuePair> rxQp, uint32_t udpPayloadSize)
+{
+
+	NS_LOG_FUNCTION(this << "Node=" << m_node->GetId());	
+	NS_ASSERT_MSG(!(Irn::mode == Irn::Mode::IRN_OPT) || !(Irn::mode == Irn::Mode::IRN), "IRN and IRN_O shouldn't be enabled at the same time");
+	NS_LOG_INFO("Node " << m_node->GetId() << " Reply ACK with " << "ackSeq=" << rxQp->ReceiverNextExpectedSeq << ", nackSeq=" << ch.udp.seq << ", nackLen=" << udpPayloadSize);
+	qbbHeader seqh;
+	Ipv4Header head; // Prepare IPv4 header
+
+	if (Irn::mode == Irn::Mode::NACK)
+	{
+		seqh.SetIrnNack(ch.udp.seq);
+		seqh.SetIrnNackSize(udpPayloadSize);
+		head.SetProtocol(L3ProtType::NACK);
+	}
+	else if (Irn::mode == Irn::Mode::IRN_OPT)
+	{
+		head.SetProtocol(L3ProtType::NACK);
+		if (state == ReceiverSequenceCheckResult::ACTION_NACK)
+		{
+			seqh.SetIrnNack(ch.udp.seq);
+			seqh.SetIrnNackSize(udpPayloadSize);
+		}
+		else if (state == ReceiverSequenceCheckResult::ACTION_ACK || state == ReceiverSequenceCheckResult::ACTION_NACK_PSEUDO)
+		{
+			seqh.SetIrnNack((uint16_t) 0); 
+			seqh.SetIrnNackSize(0);
+		}
+		else
+		{
+			return NULL;
+		}
+	}
+	else if (Irn::mode == Irn::Mode::IRN)
+	{
+		if (state == ReceiverSequenceCheckResult::ACTION_NACK)
+		{
+			seqh.SetIrnNack(ch.udp.seq);
+			seqh.SetIrnNackSize(udpPayloadSize);
+			head.SetProtocol(L3ProtType::NACK); 
+		}
+		else if (state == ReceiverSequenceCheckResult::ACTION_ACK || state == ReceiverSequenceCheckResult::ACTION_NACK_PSEUDO)
+		{
+			seqh.SetIrnNack((uint16_t) 0); 
+			seqh.SetIrnNackSize(0);
+			head.SetProtocol(L3ProtType::ACK);
+		}
+		else
+		{
+			return NULL;
+		}
+	}
+	else if (Irn::mode == Irn::Mode::GBN)
+	{
+			seqh.SetIrnNack((uint16_t) 0); 
+			seqh.SetIrnNackSize(0);
+			head.SetProtocol(L3ProtType::ACK); 
+	}
+	else
+	{
+		NS_ASSERT_MSG(false, "Invalid Irn::mode");
+		return NULL;
+	}
+	
+
+	Ptr<Packet> ackPkt = NULL;
+	if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
+	{
+	 	ackPkt = Create<Packet>(0);
+	}
+	else
+	{
+		ackPkt = Create<Packet>(std::max(60 - 14 - 20 - (int)seqh.GetSerializedSize(), 0));
+	}
+	
+	seqh.SetSeq(rxQp->ReceiverNextExpectedSeq);
+	seqh.SetPG(ch.udp.pg);
+	seqh.SetSport(ch.udp.dport);
+	seqh.SetDport(ch.udp.sport);
+	seqh.SetIntHeader(ch.udp.ih);
+
+	head.SetDestination(Ipv4Address(ch.sip));
+	head.SetSource(Ipv4Address(ch.dip));
+	head.SetTtl(64);
+	head.SetPayloadSize(ackPkt->GetSize());
+	head.SetIdentification(rxQp->m_ipid++);
+
+	ackPkt->AddHeader(seqh);
+	ackPkt->AddHeader(head);
+	AddHeader(ackPkt, 0x800); // Attach PPP header
+	
+	return ackPkt;
+
+}
+
+
+int RdmaHw::ReceiveUdpOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
+{
+	NS_LOG_FUNCTION (this << "Node=" << m_node->GetId());
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "IRN_OPT or NACK should be enabled");
+	NS_ASSERT_MSG(p && ch.l3Prot == L3ProtType::UDP, "Not UDP packet");
+	Ipv4SmartFlowProbeTag probeTag;
+	NS_ASSERT_MSG(!(p->PeekPacketTag(probeTag)), "Probe packet should not be received here");
+	uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
+	NS_LOG_INFO("#Node: " << m_node->GetId() << ", Time:" << Simulator::Now() << ", Receive Packet with Type: DATA" << ", PktId:" << p->GetUid() << ", Size=" << payload_size);
+	if (checkRxQpFinishedOnDstHost(ch))	{ return 1; }
+
+	Ptr<RdmaRxQueuePair> rxQp = GetRxQp(ch.dip, ch.sip, ch.udp.dport, ch.udp.sport, ch.udp.pg, false);
+	if (rxQp == NULL)
+	{
+		FlowIDNUMTag fit;
+		NS_ASSERT_MSG(p->PeekPacketTag(fit), "Rx cannot find the flow id");
+		rxQp = InitRxQp(ch.dip, ch.sip, ch.udp.dport, ch.udp.sport, ch.udp.pg, fit.GetId());
+	}
+	rxQp->m_milestone_rx = m_ack_interval;
+
+	bool isEnableCnp = false;
+	ReceiverSequenceCheckResult x = ReceiverCheckSeq(ch.udp.seq, rxQp, payload_size, isEnableCnp);
+	Ptr<Packet> ackPkt = ConstructAckForUDP(x, ch, rxQp, payload_size);
+	if (Irn::mode == Irn::Mode::NACK)
+	{
+		NS_ASSERT_MSG(ackPkt, "Ack packet should be generated");
+		Ipv4SmartFlowPathTag pathTag;
+		NS_ASSERT_MSG(p->PeekPacketTag(pathTag), "Path tag should be attached on UDP packet");
+		AckPathTag ackTag;
+		ackTag.SetPathId(pathTag.get_path_id());
+		ackTag.SetFlowId(rxQp->m_flow_id);
+		ackPkt->AddPacketTag(ackTag);
+	}
+
+	if (ackPkt)
+	{
+		uint32_t nic_idx = GetNicIdxOfRxQp(rxQp);
+		m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(ackPkt);
+		m_nic[nic_idx].dev->TriggerTransmit();
+	}
+	return 0;
+}
+
+
+
 
 	int RdmaHw::ReceiveCnp(Ptr<Packet> p, CustomHeader &ch)
 	{
@@ -602,18 +887,39 @@ namespace ns3
 		return;
 	}
 
-	// IRN: disable timeouts when PFC is enabled to prevent spurious retransmissions
-	if (Irn::isIrnEnabled && dev->IsPfcEnabled())
-		return;
-	if (m_cnt_timeout.find(qp->m_flow_id) == m_cnt_timeout.end())
-		m_cnt_timeout[qp->m_flow_id] = 0;
-	m_cnt_timeout[qp->m_flow_id]++;
+		if (Irn::mode == Irn::Mode::IRN_OPT)
+		{
+			qp->RecoverQueueUponTimeout();
+    	dev->TriggerTransmit();
+			return ;
+		}
 
-	if (Irn::isIrnEnabled)
-		qp->m_irn.m_recovery = true;
-	RecoverQueue(qp);
-	dev->TriggerTransmit();
+    // IRN: disable timeouts when PFC is enabled to prevent spurious retransmissions
+    if (Irn::mode == Irn::Mode::IRN && dev->IsPfcEnabled()) return;
+    if (m_cnt_timeout.find(qp->m_flow_id) == m_cnt_timeout.end())
+        m_cnt_timeout[qp->m_flow_id] = 0;
+    m_cnt_timeout[qp->m_flow_id]++;
+
+
+		
+    if (Irn::mode == Irn::Mode::IRN) qp->m_irn.m_recovery = true;
+    RecoverQueue(qp);
+    dev->TriggerTransmit();
 }
+
+
+// 	void RdmaHw::HandleTimeoutForLaps(Ptr<RdmaQueuePair> qp) {
+// 		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT, "LAPS should be enabled");
+//     if (qp->IsFinished()) { return; }
+//     uint32_t nic_idx = GetNicIdxOfQp(qp);
+//     Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
+// 		qp->RecoverQueueUponTimeout();
+// 		dev->TriggerTransmit();		
+// }
+
+
+
+
 
 	int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch)
 	{
@@ -647,7 +953,7 @@ namespace ns3
 			std::cout << "ERROR: shouldn't receive ack\n";
 			exit(1);
 		}else	{
-			if (Irn::isTrnOptimizedEnabled && ch.ack.irnNackSize != 0)
+			if (Irn::mode == Irn::Mode::IRN_OPT && ch.ack.irnNackSize != 0)
 			{
 				qp->m_irn.m_sack.sack(ch.ack.irnNack, ch.ack.irnNackSize);
 				qp->m_irn.m_sack.discardUpTo(qp->snd_una);
@@ -663,23 +969,7 @@ namespace ns3
 				qp->Acknowledge(goback_seq);
 			}
 
-			if (Irn::isTrnOptimizedEnabled)
-			{
-					// handle NACK
-					NS_ASSERT(ch.l3Prot == L3ProtType::NACK); // no pure ack in Irn
-					// for bdp-fc calculation update m_irn_maxAck
-					// qp->m_irn.m_highest_ack = seq > qp->m_irn.m_highest_ack ? seq : qp->m_irn.m_highest_ack;
-					// if (ch.ack.irnNackSize != 0) qp->m_irn.m_sack.sack(ch.ack.irnNack, ch.ack.irnNackSize);
-					// uint32_t firstSackSeq, firstSackLen;
-					// if (qp->m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen)) {
-					// 		if (qp->snd_una == firstSackSeq) { qp->snd_una += firstSackLen;	}
-					// }
-					// qp->m_irn.m_sack.discardUpTo(qp->snd_una);
-					// if (qp->snd_nxt < qp->snd_una) { qp->snd_nxt = qp->snd_una;	}
-					// if (qp->irn.m_sack.IsEmpty())  { //
-					// if (qp->m_irn.m_recovery && qp->snd_una >= qp->m_irn.m_recovery_seq) { qp->m_irn.m_recovery = false; }
-			}
-			else if (Irn::isIrnEnabled) {
+			if (Irn::mode == Irn::Mode::IRN) {
 					// handle NACK
 					NS_ASSERT(ch.l3Prot == L3ProtType::NACK); // no pure ack in Irn
 					// for bdp-fc calculation update m_irn_maxAck
@@ -726,10 +1016,10 @@ namespace ns3
 				qp->m_retransmit = Simulator::Schedule(qp->GetRto(m_mtu), &RdmaHw::HandleTimeout, this, qp, qp->GetRto(m_mtu));
     }
 		
-		if(Irn::isTrnOptimizedEnabled){
+		if(Irn::mode == Irn::Mode::IRN_OPT){
 
 		}
-    else if (Irn::isIrnEnabled)
+    else if (Irn::mode == Irn::Mode::IRN)
 		{
 			if (ch.ack.irnNackSize != 0) {						
 					if (!qp->m_irn.m_recovery) {
@@ -776,16 +1066,108 @@ namespace ns3
 		else if (m_cc_mode == CongestionControlMode::HPCC_PINT)
 		{
 			HandleAckHpPint(qp, p, ch);
+		}else if (m_cc_mode == CongestionControlMode::CC_LAPS)
+		{
+			HandleAckLaps(qp, p, ch);
 		}
+
+		
 		// ACK may advance the on-the-fly window, allowing more packets to send
 		dev->TriggerTransmit();
 		return 0;
 	}
 
+
+	int RdmaHw::ReceiveAckForLaps(Ptr<Packet> p, CustomHeader &ch)
+	{
+		NS_LOG_FUNCTION(this);
+		NS_ASSERT_MSG(p && ch.l3Prot == L3ProtType::NACK, "Not NACK packet");
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "TRN_OPTIMIZED should be enabled");
+		NS_ASSERT_MSG(m_cc_mode == CongestionControlMode::CC_LAPS, "LAPS CC should be enabled");
+		uint16_t qIndex = ch.ack.pg;
+		uint16_t port = ch.ack.dport;
+    uint16_t sport = ch.ack.sport;  // dport for this host (sport of ACK packet)
+		uint32_t seq = ch.ack.seq;
+		uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
+		// int i;
+    uint64_t key = GetQpKey(ch.sip, port, sport, qIndex);
+		Ptr<RdmaQueuePair> qp = GetQp(key);
+		if (qp == NULL)
+		{
+			if (checkQpFinishedOnDstHost(ch))	{ return 1; }
+			std::cerr << "ERROR: " << "node:" << m_node->GetId() << " cannot find the flow \n";
+		}
+
+
+		uint32_t f_pid = 0;
+		if (Irn::mode == Irn::Mode::NACK)
+		{
+			AckPathTag ackTag;
+			NS_ASSERT_MSG(p->PeekPacketTag(ackTag), "Path tag should be attached on ACK packet");
+			f_pid = ackTag.GetPathId();
+			NS_LOG_INFO("#Node " << m_node->GetId() << " receive ACK with ExpSeq=" << seq << ", NackSeq=" << ch.ack.irnNack << ", NackSize=" << ch.ack.irnNackSize << ", PathId=" << f_pid);
+		}
+		
+		if (!m_backto0)
+		{
+			qp->AcknowledgeForLaps(seq, ch.ack.irnNack, ch.ack.irnNackSize,f_pid);
+		}
+		else
+		{
+			uint32_t goback_seq = seq / m_chunk * m_chunk;
+			qp->AcknowledgeForLaps(goback_seq, ch.ack.irnNack, ch.ack.irnNackSize,f_pid);
+		}
+
+		// qp->CheckAndUpdateQpStateForLaps();
+
+		if (qp->IsFinished())
+		{
+			QpComplete(qp);
+			return 0; // ying added;
+		}
+		
+
+    // if (qp->GetOnTheFlyForLaps() > 0) {
+    //     if (qp->m_retransmit.IsRunning()){
+		// 			qp->m_retransmit.Cancel();
+		// 		}
+		// 		qp->m_retransmit = Simulator::Schedule(NanoSeconds(qp->m_baseRtt), &RdmaHw::HandleTimeoutForLaps, this, qp);
+    // }
+		
+
+		HandleAckLaps(qp, p, ch);
+		
+		uint32_t nic_idx = GetNicIdxOfQp(qp);
+		Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
+		dev->TriggerTransmit();
+		return 0;
+	}
+
+	int RdmaHw::ReceiveForLaps(Ptr<Packet> p, CustomHeader &ch)
+	{
+		NS_LOG_FUNCTION(this);
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "IRN_OPT or NACK should be enabled");
+
+		if (ch.l3Prot == L3ProtType::UDP)
+		{
+			ReceiveUdpOnDstHostForLaps(p, ch);
+		}
+		else if (ch.l3Prot == L3ProtType::NACK)
+		{ 
+			ReceiveAckForLaps(p, ch);
+		}
+		else
+		{ 
+			NS_ASSERT_MSG(false, "unknown packet type");
+		}
+		return 0;
+	}
+
+
 	int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch)
 	{
-
-		if (m_lbSolution == LB_Solution::LB_E2ELAPS)
+		NS_LOG_FUNCTION(this);
+		if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
 		{
 			NS_LOG_INFO("E2ELaps receive info update table");
 			Ptr<E2ESrcOutPackets> srcOutEntry;
@@ -803,6 +1185,9 @@ namespace ns3
 			}
 		}
 
+			return ReceiveForLaps(p, ch);
+		}
+		
 		if (ch.l3Prot == L3ProtType::UDP)
 		{ // UDP
 			ReceiveUdp(p, ch);
@@ -812,7 +1197,7 @@ namespace ns3
 			ReceiveCnp(p, ch);
 		}
 		else if (ch.l3Prot == L3ProtType::NACK)
-		{ // NACK
+		{ 
 			ReceiveAck(p, ch);
 		}
 		else if (ch.l3Prot == L3ProtType::ACK)
@@ -894,12 +1279,17 @@ namespace ns3
  * 3. ACTION_NACK_PSEUDO = 6:  NACK but functionality is ACK (indicating all packets are received)
  * Case 1: expected || useless && no block; 
  */
-int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size, bool &cnp) {
-    NS_LOG_FUNCTION (this << "[" << seq << ", " << seq+size << ")");
+ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size, bool &cnp) {
+    NS_LOG_FUNCTION (this << seq << seq+size);
+		if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
+		{
+			return ReceiverCheckSeqForLaps(seq, q, size, cnp);
+		}
+		
     uint32_t expected = q->ReceiverNextExpectedSeq;
     NS_LOG_INFO("expectedSeq=" << expected << ", m_milestone_rx=" << q->m_milestone_rx);
     if (seq == expected || (seq < expected && seq + size >= expected)) { // Receive all or some expected packet.
-        if (Irn::isIrnEnabled) { // 如果开启了IRN，即选择性重传
+        if (Irn::mode == Irn::Mode::IRN) { // 如果开启了IRN，即选择性重传
             if (q->m_milestone_rx < seq + size) { //如果收到了的数据超过了m_milestone_rx，更新m_milestone_rx
                 q->m_milestone_rx = seq + size; // 更新已经收到的最大序列号
             }else{
@@ -956,7 +1346,7 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
             return ReceiverSequenceCheckResult::ACTION_NO_REPLY;
         }
     } else if (seq > expected) {
-        if (Irn::isIrnEnabled) {
+        if (Irn::mode == Irn::Mode::IRN) {
             if (q->m_milestone_rx < seq + size){
                 q->m_milestone_rx = seq + size;
                 NS_LOG_INFO ("Increase m_milestone_rx to " << q->m_milestone_rx);
@@ -994,7 +1384,7 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
         }
     } else {
         NS_LOG_INFO ("Duplicate happens!"); 
-        if (Irn::isIrnEnabled) {
+        if (Irn::mode == Irn::Mode::IRN) {
             NS_LOG_LOGIC ("Using the IRN mechanism.");
             // if (q->ReceiverNextExpectedSeq - 1 == q->m_milestone_rx) {
             // 	return 6; // This generates NACK, but actually functions as an ACK (indicates all
@@ -1025,6 +1415,65 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
                     * to the original request and shall begin responding to the duplicate request
                     * with the logically earlier PSN.
                     */
+    }
+}
+
+
+ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size, bool &cnp) {
+    NS_LOG_FUNCTION (this << seq << seq+size);
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "This function is only for LAPS");
+    NS_LOG_INFO("Node " << m_node->GetId() << " receives data packet with : RecvSeq = " << seq << ", size = " << size);
+		if (Irn::mode == Irn::Mode::NACK)
+		{
+			return ReceiverSequenceCheckResult::ACTION_NACK;
+		}
+		
+		uint32_t expected = q->ReceiverNextExpectedSeq;
+    if (seq == expected || (seq < expected && seq + size >= expected))
+		{
+			q->ReceiverNextExpectedSeq += size - (expected - seq);
+			NS_LOG_INFO ("Node " << m_node->GetId() << " Advance expSeq from " << expected << " to " << q->ReceiverNextExpectedSeq);
+			uint32_t firstSackSeq, firstSackLen;
+			bool isSackExist = q->m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen); // Incremental but non-contiguous blocks.
+			if (isSackExist)
+			{
+				if ((firstSackSeq <= q->ReceiverNextExpectedSeq) && ((firstSackSeq + firstSackLen) >= q->ReceiverNextExpectedSeq) )
+				{
+						q->ReceiverNextExpectedSeq += (firstSackLen - (q->ReceiverNextExpectedSeq - firstSackSeq)); // found bug when q->ReceiverNextExpectedSeq > (sack_seq + sack_len) 
+						NS_LOG_INFO ("Node " << m_node->GetId() << " Advance expSeq from " << expected << " to " << q->ReceiverNextExpectedSeq);
+				}
+			}
+			q->m_sack.discardUpTo(q->ReceiverNextExpectedSeq);
+			if (q->m_sack.IsEmpty())
+			{
+				return ReceiverSequenceCheckResult::ACTION_NACK_PSEUDO; 
+			}
+			else
+			{
+				return ReceiverSequenceCheckResult::ACTION_NACK;  
+			}
+    }
+		else if (seq > expected)
+		{
+			if (q->m_sack.blockExists(seq, size))
+			{
+					return ReceiverSequenceCheckResult::ACTION_NACKED;
+			}
+			q->m_sack.sack(seq, size);
+			NS_ASSERT(q->m_sack.discardUpTo(expected) == 0);
+			return ReceiverSequenceCheckResult::ACTION_NACK;
+        
+    }
+		else
+		{
+			if (q->m_sack.IsEmpty())
+			{
+				return ReceiverSequenceCheckResult::ACTION_NACK_PSEUDO; 
+			}
+			else
+			{
+				return ReceiverSequenceCheckResult::ACTION_NACK;
+			}
     }
 }
 
@@ -1061,7 +1510,7 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 
 	void RdmaHw::RecoverQueue(Ptr<RdmaQueuePair> qp)
 	{
-		if (Irn::isTrnOptimizedEnabled)
+		if (Irn::mode == Irn::Mode::IRN_OPT)
 		{
 			qp->RecoverQueue();
 			return ;
@@ -1193,7 +1642,7 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
     }
 
 
-    // if (Irn::isIrnEnabled) {
+    // if (Irn::mode == Irn::Mode::IRN) {
     //     if (qp->m_irn.m_max_seq < qp->snd_nxt)
 		// 			qp->m_irn.m_max_seq = qp->snd_nxt;
     // }
@@ -1202,25 +1651,99 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 		// qp->snd_nxt += payload_size;
 		// qp->m_ipid++;
 
-	if (Irn::isTrnOptimizedEnabled)
+	if (Irn::mode == Irn::Mode::IRN_OPT)
 	{
 		qp->snd_nxt += payload_size;
 		qp->m_irn.m_max_next_seq = qp->m_irn.m_max_next_seq < qp->snd_nxt ? qp->snd_nxt : qp->m_irn.m_max_next_seq;
 		qp->m_irn.m_max_seq = qp->m_irn.m_max_seq < qp->snd_nxt ? qp->snd_nxt : qp->m_irn.m_max_seq;
 		qp->m_ipid++;
-	}else
+	}
+	else if (Irn::mode == Irn::Mode::IRN)
 	{
-		if (Irn::isIrnEnabled) {
-        if (qp->m_irn.m_max_seq < seq)
-					qp->m_irn.m_max_seq = seq;
-    }
+		if (qp->m_irn.m_max_seq < seq)
+		{
+			qp->m_irn.m_max_seq = seq;
+		}
 		// update state
 		qp->snd_nxt += payload_size;
 		qp->m_ipid++;
 	}
+	else if (Irn::mode == Irn::Mode::NACK)
+	{
+		qp->snd_nxt += payload_size;
+		qp->m_irn.m_max_next_seq = qp->m_irn.m_max_next_seq < qp->snd_nxt ? qp->snd_nxt : qp->m_irn.m_max_next_seq;
+		qp->m_ipid++;
+	}
+	else if (Irn::mode == Irn::Mode::NONE)
+	{
+		qp->snd_nxt += payload_size;
+		qp->m_ipid++;
+	}
+	else
+	{
+		NS_ASSERT_MSG(false, "Unknown IRN mode");
+	}
 		// return
 		return p;
 	}
+
+		void RdmaHw::SetTimeoutForLaps(Ptr<RdmaQueuePair> qp, uint32_t pid, Time timeInNs) 
+	{
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::NACK, "LAPS::NACK should be enabled");
+    if (qp->IsFinished()) { return; }
+		std::pair<uint32_t, uint32_t> key = std::make_pair(qp->m_flow_id, pid);
+		auto it = m_rtoEvents.find(key);
+		if (it != m_rtoEvents.end())
+		{
+			if (it->second.IsRunning ())
+			{
+				NS_LOG_INFO("Cancel the exist timeout event that should be triggered at " << it->second.GetTs());
+				Simulator::Cancel (it->second);
+			}
+			m_rtoEvents[key] = Simulator::Schedule(timeInNs, &RdmaHw::HandleTimeoutForLaps, this, qp, pid);
+			NS_LOG_INFO("Reset a exist timeout event that should be triggered at " <<m_rtoEvents[key].GetTs());
+		}
+		else
+		{
+			m_rtoEvents[key] = Simulator::Schedule(timeInNs, &RdmaHw::HandleTimeoutForLaps, this, qp, pid);
+			NS_LOG_INFO("Initial a new timeout event that should be triggered at " <<m_rtoEvents[key].GetTs());
+		}
+
+	}
+
+	void RdmaHw::CancelRtoForPath(Ptr<RdmaQueuePair> qp, uint32_t pathId)
+	{
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::NACK, "LAPS::NACK should be enabled");
+		std::pair<uint32_t, uint32_t> key = std::make_pair(qp->m_flow_id, pathId);
+		auto it = m_rtoEvents.find(key);
+		NS_ASSERT_MSG(it != m_rtoEvents.end(), "RTO event should exist");
+
+		if (it->second.IsRunning ())
+		{
+			NS_LOG_INFO("Cancel the exist timeout event that should be triggered at " << it->second.GetTs());
+			Simulator::Cancel (it->second);
+		}
+
+	}
+
+
+	Time RdmaHw::GetRtoTimeForPath(uint32_t pathId)
+	{
+		PathData * pitEntry = m_E2ErdmaSmartFlowRouting->lookup_PIT(pathId);
+		NS_ASSERT_MSG(pitEntry != NULL, "PIT entry should exist called by GetRtoTimeForPath");
+		return NanoSeconds(pitEntry->latency * 2);
+	}
+
+	void RdmaHw::HandleTimeoutForLaps(Ptr<RdmaQueuePair> qp, uint32_t pid) 
+	{
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::NACK, "LAPS::NACK should be enabled");
+    if (qp->IsFinished()) { return; }
+    uint32_t nic_idx = GetNicIdxOfQp(qp);
+    Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
+		qp->m_irn.m_sack.handleRto(pid);
+		dev->TriggerTransmit();		
+	}
+
 	Ptr<RdmaSmartFlowRouting> RdmaHw::GetE2ELapsLBouting()
 	{
 		return m_E2ErdmaSmartFlowRouting;
@@ -2045,6 +2568,101 @@ int RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size
 					qp->hpccPint.m_lastUpdateSeq = next_seq; //+ rand() % 2 * m_mtu;
 			}
 		}
+	}
+
+	int64_t RdmaHw::IncreaseRateForLaps(Ptr<RdmaQueuePair> qp, uint64_t nxtIncTimeInNs)
+	{
+		NS_LOG_FUNCTION(this);
+		NS_ASSERT_MSG(qp->laps.m_curRate <= qp->laps.m_tgtRate, "The current rate is larger than the target rate");
+		Time oldSendingTime = Seconds(qp->laps.m_curRate.CalculateTxTime(qp->lastPktSize));
+		if (qp->laps.m_incStage > CcLaps::maxIncStage)
+		{
+			qp->laps.m_tgtRate = qp->laps.m_tgtRate * 2;
+			qp->laps.m_incStage = 0;
+		}
+		qp->laps.m_curRate = 0.5 * (qp->laps.m_curRate + qp->laps.m_tgtRate);
+		qp->laps.m_nxtRateIncTimeInNs = Simulator::Now().GetNanoSeconds() + nxtIncTimeInNs;
+		qp->laps.m_incStage++;
+		Time newSendingTime = Seconds(qp->laps.m_curRate.CalculateTxTime(qp->lastPktSize));
+		int64_t timeGap = newSendingTime.GetNanoSeconds() - oldSendingTime.GetNanoSeconds();
+		NS_ASSERT_MSG(timeGap <= 0, "The timeGap is positive");
+		NS_LOG_INFO("curRateInMbps: " << qp->laps.m_curRate.GetBitRate()/1000000 << " tgtRateInMbps: " << qp->laps.m_tgtRate.GetBitRate()/1000000);
+		return timeGap;
+	}
+
+	int64_t RdmaHw::DecreaseRateForLaps(Ptr<RdmaQueuePair> qp, uint64_t nxtDecTimeInNs)
+	{
+		NS_LOG_FUNCTION(this);
+		NS_ASSERT_MSG(qp->laps.m_curRate <= qp->laps.m_tgtRate, "The current rate is larger than the target rate");
+		qp->laps.m_nxtRateDecTimeInNs = Simulator::Now().GetNanoSeconds() + nxtDecTimeInNs;
+		Time oldSendingTime = Seconds(qp->laps.m_curRate.CalculateTxTime(qp->lastPktSize));
+		qp->laps.m_tgtRate = qp->laps.m_curRate;
+		qp->laps.m_curRate = qp->laps.m_curRate / 2;
+		qp->laps.m_incStage = 0;
+		Time newSendingTime = Seconds(qp->laps.m_curRate.CalculateTxTime(qp->lastPktSize));
+		int64_t timeGap = newSendingTime.GetNanoSeconds() - oldSendingTime.GetNanoSeconds();
+		NS_ASSERT_MSG(timeGap >= 0, "The timeGap is negative");
+		NS_LOG_INFO("curRateInMbps: " << qp->laps.m_curRate.GetBitRate()/1000000 << " tgtRateInMbps: " << qp->laps.m_tgtRate.GetBitRate()/1000000);
+		return timeGap;
+	}
+
+	void RdmaHw::UpdateNxtQpAvailTimeForLaps(Ptr<RdmaQueuePair> qp, int64_t timeGap)
+	{
+		NS_LOG_FUNCTION(this << timeGap);
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "The mode is not IRN_OPT or IRN_OPT");
+		qp->m_nextAvail = qp->m_nextAvail + NanoSeconds(timeGap);;
+		uint32_t nic_idx = GetNicIdxOfQp(qp);
+		m_nic[nic_idx].dev->UpdateNextAvail(qp->m_nextAvail);
+	}
+
+
+	void RdmaHw::UpdateRateForLaps(Ptr<RdmaQueuePair> qp, CustomHeader &ch)
+	{
+		NS_LOG_FUNCTION(this << "flowId" << qp->m_flow_id);
+		Ipv4Address srcServerAddr = Ipv4Address(ch.dip);
+		Ipv4Address dstServerAddr = Ipv4Address(ch.sip);
+		uint32_t srcHostId = m_E2ErdmaSmartFlowRouting->lookup_SMT(srcServerAddr)->hostId;
+		uint32_t dstHostId = m_E2ErdmaSmartFlowRouting->lookup_SMT(dstServerAddr)->hostId;
+		HostId2PathSeleKey pstKey(srcHostId, dstHostId);
+		pstEntryData *pstEntry = m_E2ErdmaSmartFlowRouting->lookup_PST(pstKey);
+		std::vector<PathData *> pitEntries = m_E2ErdmaSmartFlowRouting->batch_lookup_PIT(pstEntry->paths);
+		NS_ASSERT_MSG(pitEntries.size() > 0, "The pitEntries is empty");
+
+		auto maxElement = std::max_element(pitEntries.begin(), pitEntries.end(),
+						[](const PathData* lhs, const PathData* rhs) 
+						{
+								return lhs->latency < rhs->latency;
+						}
+				);
+		uint64_t curMaxDelayInNs = (*maxElement)->latency;
+		uint64_t tgtDelayInNs = qp->laps.m_tgtDelayInNs;
+		uint64_t curTimeInNs = Simulator::Now().GetNanoSeconds();
+
+		if (curMaxDelayInNs > tgtDelayInNs + 80)
+		{
+			if (qp->laps.m_nxtRateDecTimeInNs < curTimeInNs)
+			{
+				NS_LOG_INFO("Decrease rate for LAPS");
+				int64_t timeGap = DecreaseRateForLaps(qp, curMaxDelayInNs*2);
+				UpdateNxtQpAvailTimeForLaps(qp, timeGap);
+			}
+		}
+		else
+		{
+			if (qp->laps.m_nxtRateIncTimeInNs < curTimeInNs)
+			{
+				int64_t timeGap = IncreaseRateForLaps(qp, curMaxDelayInNs*2);
+				UpdateNxtQpAvailTimeForLaps(qp, timeGap);
+			}
+		}
+	}
+
+
+	void RdmaHw::HandleAckLaps(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch)
+	{
+		NS_LOG_FUNCTION(this << "flowId" << qp->m_flow_id);
+		m_E2ErdmaSmartFlowRouting->update_PIT_by_latency_tag(p);
+		UpdateRateForLaps(qp, ch);
 	}
 
 }

@@ -126,6 +126,7 @@ public:
 		  uint32_t irnNack;
 		  uint16_t irnNackSize;
       IntHeader ih;
+      // bool enable_irn;
 	  } ack;
 	  // PauseHeader
 	  struct {

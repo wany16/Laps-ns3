@@ -67,8 +67,80 @@ namespace ns3
         LB_NONE = 10
 
     };
+
+
+template <typename T>
+size_t GetHashValue(std::vector<T> & key)
+{
+    std::string str = "";
+    for (size_t i = 0; i < key.size(); i++)
+    {
+        str = str + "#" + std::to_string(key[i]);
+    }
+    std::hash<std::string> hash_fn;
+    return hash_fn(str);
+}
+
+template <typename T1, typename T2>
+std::string ListToString(const std::list<std::pair<T1, T2>>& d)
+{
+    std::ostringstream oss;
+    for (const auto& item : d) {
+        oss << "(" << item.first << ", " << item.second << "), ";
+    }
+    std::string result = oss.str();
+    if (!result.empty()) {
+        result.pop_back(); // 移除最后一个空格
+        result.pop_back(); // 移除最后一个逗号
+    }
+    else
+    {
+        result = "()";
+    }
+    return result;
+}
+
+
+   struct HostId2PathSeleKey
+    {
+        uint32_t selfHostId;
+        uint32_t dstHostId;
+        HostId2PathSeleKey() : selfHostId(0), dstHostId(0) {}
+        HostId2PathSeleKey(uint32_t &self, uint32_t &dest) : selfHostId(self), dstHostId(dest) {}
+        bool operator<(const HostId2PathSeleKey &other) const
+        {
+            if (this->selfHostId < other.selfHostId)
+            {
+                return true;
+            }
+
+            if (this->selfHostId == other.selfHostId)
+            {
+                return (this->dstHostId < other.dstHostId);
+            }
+            return false;
+        }
+
+        bool operator==(const HostId2PathSeleKey &other) const
+        {
+            return this->selfHostId == other.selfHostId && this->dstHostId == other.dstHostId;
+        }
+
+        void print()
+        {
+            std::cout << "PST_KEY: selfHostId=" << selfHostId << ", ";
+            std::cout << "dstHostId=" << dstHostId << std::endl;
+        }
+        std::string to_string()
+        {
+            std::string str = std::to_string(selfHostId) + "->" + std::to_string(dstHostId);
+            return str;
+        }
+    };
+
     struct pstEntryData
     {
+        HostId2PathSeleKey key;
         uint32_t pathNum;
         uint32_t lastSelectedPathIdx;
         uint32_t lastPiggybackPathIdx;
@@ -85,6 +157,16 @@ namespace ns3
             std::cout << "highestPriorityIdx=" << highestPriorityPathIdx << ", ";
             std::cout << "lastSelectedTimeInNs=" << lastSelectedTimeInNs << ", ";
             std::cout << "Paths=" << vectorTostring(paths) << std::endl;
+        }
+        pstEntryData()
+        {
+            pathNum = 0;
+            lastSelectedPathIdx = 0;
+            lastPiggybackPathIdx = 0;
+            lastSelectedTimeInNs = 0;
+            highestPriorityPathIdx = 0;
+            baseRTTInNs = 0;
+            paths.clear();
         }
     };
     struct probeInfoEntry
@@ -171,37 +253,7 @@ namespace ns3
       }
     };*/
 
-    struct HostId2PathSeleKey
-    {
-        uint32_t selfHostId;
-        uint32_t dstHostId;
-
-        HostId2PathSeleKey(uint32_t &self, uint32_t &dest) : selfHostId(self), dstHostId(dest) {}
-        bool operator<(const HostId2PathSeleKey &other) const
-        {
-            if (this->selfHostId < other.selfHostId)
-            {
-                return true;
-            }
-
-            if (this->selfHostId == other.selfHostId)
-            {
-                return (this->dstHostId < other.dstHostId);
-            }
-            return false;
-        }
-
-        bool operator==(const HostId2PathSeleKey &other) const
-        {
-            return this->selfHostId == other.selfHostId && this->dstHostId == other.dstHostId;
-        }
-
-        void print()
-        {
-            std::cout << "PST_KEY: selfHostId=" << selfHostId << ", ";
-            std::cout << "dstHostId=" << dstHostId << std::endl;
-        }
-    };
+ 
     struct flet_entry_t
     {
         PathData *lastSelectedPitEntry;
@@ -234,6 +286,7 @@ namespace ns3
     };
     struct hostIp2SMT_entry_t
     {
+        Ipv4Address hostIp;
         uint32_t torId;
         uint32_t hostId;
         void print()
@@ -283,6 +336,7 @@ namespace ns3
         static std::map<uint32_t, Ipv4Address> hostId2IpMap;
         static std::map<Ipv4Address, uint32_t> hostIp2SwitchId;
         static std::map<uint32_t, std::vector<Ipv4Address>> ToRSwitchId2hostIp;
+        static std::map<Ipv4Address, uint32_t> ip2IdMap;
     };
 
 //******PLB*******//

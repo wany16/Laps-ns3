@@ -11,6 +11,8 @@ namespace ns3
   std::map<uint32_t, Ipv4Address> routeSettings::hostId2IpMap;
   std::map<Ipv4Address, uint32_t> routeSettings::hostIp2SwitchId;
   std::map<uint32_t, std::vector<Ipv4Address>> routeSettings::ToRSwitchId2hostIp;
+  std::map<Ipv4Address, uint32_t> routeSettings::ip2IdMap;
+
 
   void add_channel_between_two_nodes(Ptr<Node> firstNode, Ptr<Node> secondNode, PointToPointHelper &p2p)
   {
@@ -96,6 +98,7 @@ namespace ns3
     {
       auto addr = ipv4->GetAddress(i, 0).GetLocal();
       addr2node[addr] = node;
+      // routeSettings::ip2IdMap[addr] = node->GetId();
     }
     return;
   }
@@ -525,11 +528,11 @@ namespace ns3
     NS_ABORT_MSG_UNLESS(m->addr2node.find(dstIpAddr) != m->addr2node.end(), "key not save, dstIpAddr " + ipv4Address_to_string(dstIpAddr));
     auto dstNode = m->addr2node[dstIpAddr];
     // std::cout << "qp_finish: " << "srcIpAddr" << ipv4Address_to_string(srcIpAddr) << "dstIpAddr" << ipv4Address_to_string(dstIpAddr) << std::endl;
-    uint64_t baseRttInNs = m->pairRttInNs[srcNode][dstNode];
-    uint64_t bitWdithPerSec = m->pairBwInBitps[srcNode][dstNode];
+    // uint64_t baseRttInNs = m->pairRttInNs[srcNode][dstNode];
+    // uint64_t bitWdithPerSec = m->pairBwInBitps[srcNode][dstNode];
     uint32_t totalBytes = q->m_size + ((q->m_size - 1) / m->defaultPktSizeInByte + 1) * (CustomHeader::GetStaticWholeHeaderSize() - IntHeader::GetStaticSize()); // translate to the minimum bytes required (with header but no INT)
     // std::cout << "srcNodeID: " << srcNode->GetId() << "dstnodeID: " << dstNode->GetId() << ",bitWdithPerSec" << bitWdithPerSec << std::endl;
-    uint64_t baseFctInNs = baseRttInNs + totalBytes * 8000000000lu / bitWdithPerSec;
+    // uint64_t baseFctInNs = baseRttInNs + totalBytes * 8000000000lu / bitWdithPerSec;
 
     fprintf(os, "SIP:%08x DIP:%08x SP:%u DP:%u DataSizeInByte:%lu PktSizeInByte:%u StartTimeInNs:%lu LastTimeInNs:%lu EndTimeInNs:%lu BaseFctInNs:%lu\n",
             q->sip.Get(),
@@ -540,8 +543,9 @@ namespace ns3
             totalBytes,
             q->startTime.GetNanoSeconds(),
             (Simulator::Now() - q->startTime).GetNanoSeconds(),
-            Simulator::Now().GetNanoSeconds(),
-            baseFctInNs);
+            Simulator::Now().GetNanoSeconds()
+            // baseFctInNs
+            );
     // remove rxQp from the receiver
     Ptr<RdmaDriver> rdma = dstNode->GetObject<RdmaDriver>();
     rdma->m_rdma->DeleteRxQp(q->sip.Get(), q->sport, q->dport, q->m_pg);
@@ -1491,13 +1495,37 @@ namespace ns3
     }
     return lineCnt;
   }
+
+  std::vector<std::vector<std::string> > read_content_as_string(std::ifstream &fh)
+  {
+    std::vector<std::vector<std::string>> resLines;
+    resLines.clear();
+    std::string strLine;
+    while (std::getline(fh, strLine))
+    { // 逐行读取文件内容
+      std::istringstream iss(strLine);
+      std::vector<std::string> resline;
+      std::string str;
+      while (iss >> str)
+      {                         // 使用 istringstream 进行逐词解析
+        resline.push_back(str); // 将每个单词加入到结果向量�?
+                                // std::cout << str << std::endl;
+      }
+      if (resline.size() > 0)
+      {
+        resLines.push_back(resline);
+      }
+    }
+    return resLines;
+  }
+
+
   void install_LB_table(global_variable_t *varMap, Ptr<Node> curNode)
   {
     Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(curNode);
     std::map<Ipv4Address, hostIp2SMT_entry_t> SMT;
     std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> PST;
     std::map<uint32_t, std::map<uint32_t, PathData>> PIT;
-    read_SMT_from_file(varMap->smtFile, SMT);
     read_PIT_from_file(varMap->pitFile, PIT);
     read_hostId_PST_Path_from_file(varMap, PST);
     uint32_t nodeId = sw->GetSwitchId();
@@ -1549,7 +1577,7 @@ namespace ns3
     std::ifstream fh_pitFile(pitFile.c_str());
     if (!fh_pitFile.is_open())
     {
-      std::cerr << "read_PIT_from_file() 无法打开文件 " << pitFile << std::endl;
+      std::cerr << "无法打开文件 " << pitFile << std::endl;
       return 0;
     }
     std::vector<std::vector<std::string>> resLines;
@@ -1586,6 +1614,101 @@ namespace ns3
     fh_pitFile.close();
     return pitSize;
   }
+
+  std::vector<PathData> load_PIT_from_file(std::string pitFile)
+  {
+    std::vector<PathData> PIT(0);
+    std::ifstream fh_pitFile(pitFile.c_str());
+    if (!fh_pitFile.is_open())
+    {
+      std::cerr << "无法打开文件 " << pitFile << std::endl;
+      return PIT;
+    }
+    std::vector<std::vector<std::string>> resLines = read_content_as_string(fh_pitFile);
+    std::cout << "reads file: " << pitFile << " about " << resLines.size() << " Lines" << std::endl;
+    fh_pitFile.close();
+
+    for (uint32_t i = 0; i < resLines.size(); i++)
+    {
+      PathData path;
+      path.pid = std::atoi(resLines[i][0].c_str());
+      path.priority = std::atoi(resLines[i][1].c_str());
+      uint32_t pathLength = (resLines[i].size() - 2) / 2;
+      for (uint32_t j = 2; j < pathLength + 2; j++)
+      {
+        uint32_t portIdx = std::atoi(resLines[i][j].c_str());
+        path.portSequence.push_back(portIdx);
+      }
+      for (uint32_t j = 2 + pathLength; j < resLines[i].size(); j++)
+      {
+        uint32_t nodeId = std::atoi(resLines[i][j].c_str());
+        path.nodeIdSequence.push_back(nodeId);
+      }
+      path.print();
+      PIT.push_back(path);
+    }
+    return PIT;
+  }
+
+  std::map<Ipv4Address, uint32_t> Calulate_SMT_for_laps(NodeContainer nodes)
+  {
+    std::map<Ipv4Address, uint32_t> SMT;
+    uint32_t nodeCnt = nodes.GetN();
+    for (uint32_t i = 0; i < nodeCnt; i++)
+    {
+      Ptr<Node> curNode = nodes.Get(i);
+      NS_ASSERT_MSG(SERVER_NODE_TYPE == curNode->GetNodeType(), "Wrong Node Type");
+      Ptr<Ipv4> curIpv4 = curNode->GetObject<Ipv4>();
+      uint32_t intfCnt = curIpv4->GetNInterfaces();
+      for (uint32_t j = 1; j < intfCnt; j++)
+      {
+        Ipv4Address curAddr = curIpv4->GetAddress(j, 0).GetLocal(); // Get the IPv4 address
+        SMT[curAddr] = curNode->GetId();
+      }
+    }
+    return SMT;
+  }
+
+
+  void cal_metadata_on_PIT_from_laps(global_variable_t *varMap, std::vector<PathData> &paths)
+  {
+    uint64_t maxPathDelayInNs = 0, maxBdpInByte = 0;
+    for (size_t i = 0; i < paths.size(); i++)
+    {
+      auto &path = paths[i];
+      auto &ports = path.portSequence;
+      auto &nodes = path.nodeIdSequence;
+      NS_ASSERT_MSG((nodes.size() >= 2) && (ports.size() == nodes.size() - 1), "Wrong PIT Entry");
+      uint64_t sumDelayInNs = 0, minBwInbps = 0x7FFFFFFFFFFFFFFF;
+      for (size_t j = 0; j < ports.size(); j++)
+      {
+        uint32_t devIdx = ports[j];
+        Ptr<Node> node = varMap->allNodes.Get(nodes[j]);
+        uint32_t devCnt = node->GetNDevices();
+        NS_ASSERT_MSG(devCnt > devIdx, "Wrong Device Count");
+        Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(node->GetDevice(devIdx));
+        NS_ASSERT_MSG(dev, "Wrong Device Type");
+        Ptr<QbbChannel> channel = DynamicCast<QbbChannel>(dev->GetChannel());
+        NS_ASSERT_MSG(channel, "Wrong Channel Type");
+        uint64_t channelDelay = channel->GetDelay().GetNanoSeconds();
+        sumDelayInNs += channelDelay;
+        uint64_t rateInbps = dev->GetDataRate().GetBitRate();
+        minBwInbps = std::min(minBwInbps, rateInbps);
+        uint64_t txDelayInNs = uint64_t(1.0 * varMap->defaultPktSizeInByte / (1.0 * rateInbps / 1000000000lu / 8));
+        sumDelayInNs += txDelayInNs;
+      }
+      path.latency = sumDelayInNs;
+      path.theoreticalSmallestLatencyInNs = sumDelayInNs;
+      uint64_t bdpInByte = minBwInbps * sumDelayInNs / 1000000000lu / 8;
+      maxBdpInByte = std::max(maxBdpInByte, bdpInByte);
+      maxPathDelayInNs = std::max(maxPathDelayInNs, sumDelayInNs);
+    }
+
+    varMap->maxRttInNs = maxPathDelayInNs*2;
+    varMap->maxBdpInByte = maxBdpInByte;
+    return;
+  }
+
 
   /*uint32_t read_PST_from_file(std::string pstFile, std::map<uint32_t, std::map<PathSelTblKey, pstEntryData>> &PST)
   {
@@ -1667,6 +1790,41 @@ namespace ns3
     fh_pstFile.close();
     return pstSize;
   }
+
+ std::vector <pstEntryData> load_PST_from_file(std::string pstFile)
+  {
+    std::vector <pstEntryData> PST;
+    std::ifstream fh_pstFile(pstFile.c_str());
+    if (!fh_pstFile.is_open())
+    {
+      std::cerr << "无法打开文件 " << pstFile << std::endl;
+      return PST;
+    }
+    std::vector<std::vector<std::string>> resLines = read_content_as_string(fh_pstFile);
+    std::cout << "reads file: " << pstFile << " about " << resLines.size() << " Lines" << std::endl;
+    fh_pstFile.close();
+
+    for (uint32_t i = 0; i < resLines.size(); i++)
+    {
+      uint32_t srcHostId = std::atoi(resLines[i][0].c_str());
+      uint32_t dstHostId = std::atoi(resLines[i][1].c_str());
+      struct pstEntryData *pstEntry = new pstEntryData();
+      pstEntry->key = HostId2PathSeleKey(srcHostId, dstHostId);
+      pstEntry->pathNum = std::atoi(resLines[i][2].c_str());
+      NS_ASSERT_MSG(pstEntry->pathNum == resLines[i].size() - 3, "Wrong Path Number");
+      pstEntry->highestPriorityPathIdx = 0;
+      pstEntry->baseRTTInNs = 0;
+      pstEntry->paths.clear();
+      for (uint32_t j = 3; j < resLines[i].size(); j++)
+      {
+        pstEntry->paths.push_back(std::atoi(resLines[i][j].c_str()));
+      }
+      PST.push_back(*pstEntry);
+    }
+    return PST;
+  }
+
+
   uint32_t read_SMT_from_file(std::string smtFile, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT)
   {
     // nodeIdx portIdx, addr
@@ -2163,10 +2321,8 @@ namespace ns3
   {
     NS_LOG_FUNCTION(varMap->topoFileName.c_str());
     std::ifstream fh(varMap->topoFileName.c_str());
-    NS_ASSERT_MSG(fh.is_open(), "Error in opening Topology file");
-    NS_LOG_INFO("topoFileName : " << varMap->topoFileName);
-    std::vector<std::vector<std::string>> resLines;
-    read_files_by_line(fh, resLines);
+    NS_ASSERT_MSG(fh.is_open(), "Error in opening Topology file" << varMap->topoFileName);
+    std::vector<std::vector<std::string>> resLines = read_content_as_string(fh);
     fh.close();
 
     varMap->swNodes = create_nodes<SwitchNode>(std::atoi(resLines[0][0].c_str()));
@@ -2562,7 +2718,7 @@ namespace ns3
     }
 
     set_switch_cc_para(varMap);
-    config_switch_lb(varMap);
+    // config_switch_lb(varMap);
     return;
   }
   /*
@@ -2611,9 +2767,10 @@ namespace ns3
 
   void install_rdma_driver(global_variable_t *varMap) {
     NS_LOG_FUNCTION(varMap->svNodes.GetN());
-    Irn::isIrnEnabled = varMap->enableIrn;
-    update_EST(varMap->paraMap, "isIrnEnabled", boolToString(Irn::isIrnEnabled));
-    NS_LOG_INFO("isIrnEnabled : " << boolToString(Irn::isIrnEnabled));
+    Irn::SetMode(varMap->irnMode);
+    update_EST(varMap->paraMap, "irnMode", Irn::GetMode());
+    NS_LOG_INFO("irnMode : " << Irn::GetMode());
+
     NodeContainer &svNodes = varMap->svNodes;
     nic_para_entry_t &nicParas = varMap->nicParas;
     uint32_t svNum = svNodes.GetN();
@@ -2645,7 +2802,7 @@ namespace ns3
         rdmaHw->SetAttribute("RateBound", BooleanValue(nicParas.enableRateBound));
         rdmaHw->SetAttribute("DctcpRateAI", DataRateValue(DataRate(to_data_rate(nicParas.dctcpRateAiInMbps, "Mb/s"))));
         rdmaHw->SetPintSmplThresh(nicParas.pintProbTresh);
-        /*if (svIdx == 0) {
+        if (svIdx == 0) {
           update_EST(varMap->paraMap, "ClampTargetRate", boolToString(nicParas.enableClampTargetRate));
           NS_LOG_INFO("ClampTargetRate : " << boolToString(nicParas.enableClampTargetRate));
           NS_LOG_INFO("AlphaResumIntervalInUs : " << nicParas.alphaResumeIntervalInUs);
@@ -2692,7 +2849,7 @@ namespace ns3
           update_EST(varMap->paraMap, "DctcpRateAiInMbps", nicParas.dctcpRateAiInMbps);
           NS_LOG_INFO("PintProbTresh : " << nicParas.pintProbTresh);
           update_EST(varMap->paraMap, "PintProbTresh", nicParas.pintProbTresh);
-        }*/
+        }
 
         // create and install RdmaDriver
 
@@ -2749,6 +2906,12 @@ namespace ns3
     std::cout << "nodeId " << nodeId << " finished install_SMT_from_servernode" << " size " << smtsize << std::endl;
     return;
   }
+
+
+    // Ptr<RdmaDriver> rdma = node->GetObject<RdmaDriver>();
+
+
+
   bool stringToBool(const std::string &str)
   {
     std::string lowerStr = str;
@@ -2873,10 +3036,108 @@ std::string boolToString (bool m_value) {
     return hostCnt;
   }
 
+   void install_routing_entries_without_Pathtable(global_variable_t *varMap) {
+     NS_LOG_FUNCTION(varMap->allNodes.GetN() << varMap->swNodes.GetN() << varMap->svNodes.GetN());
+     std::map<Ptr<Node>, std::map<Ptr<Node>, std::vector<Ptr<Node>>>> &nextHop = varMap->nextHop;       // srcNode   dstNode   adjacentNodes ：   6         20       [0 1]
+     uint64_t entryCntSw = 0;
+     for (auto i = nextHop.begin(); i != nextHop.end(); i++) {
+       Ptr<Node> node = i->first; // srcNode
+       auto &table = i->second;
+       for (auto j = table.begin(); j != table.end(); j++) {
+         Ptr<Node> dst = j->first;         // The destination node.
+         Ipv4Address dstAddr = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+         std::vector<Ptr<Node>> &nexts = j->second;         // The adjacent nodes towards the dstNode.
+         std::vector<uint32_t> ports; // The egress ports towards the dstNode.
+        for (int k = 0; k < (int)nexts.size(); k++) {
+           Ptr<Node> next = nexts[k];
+           for (uint32_t p = 0; p < varMap->edges[node][next].size(); p++) {
+             uint32_t interface = varMap->edges[node][next][p].nicIdx;
+             ports.push_back(interface);
+             if (node->GetNodeType() == SWITCH_NODE_TYPE) {
+               DynamicCast<SwitchNode>(node)->AddTableEntry(dstAddr, interface);
+             }else if(node->GetNodeType() == SERVER_NODE_TYPE) {
+               node->GetObject<RdmaDriver>()->m_rdma->AddTableEntry(dstAddr, interface);
+             }else {
+               NS_ASSERT_MSG(false, "Error in unknown node type");
+             }
+           }
+         }
+       }
+     }
+   }
+
+void install_routing_entries_based_on_single_pit_entry_for_laps(global_variable_t *varMap, PathData &pit)
+{
+  std::vector<uint32_t> nodes = pit.nodeIdSequence;
+  for (size_t j = 0; j < nodes.size(); j++)
+  {
+    uint32_t nodeIdx = nodes[j];
+    NS_ASSERT_MSG(nodeIdx < varMap->allNodes.GetN(), "Error in nodes.size()");
+    Ptr<Node> node = varMap->allNodes.Get(nodeIdx);
+    if (node->GetNodeType() == SWITCH_NODE_TYPE)
+    {
+      Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(node);
+      NS_ASSERT_MSG(sw, "Error in node type");
+      sw->m_mmu->m_SmartFlowRouting->insert_entry_to_PIT(pit);
+    }
+    else if (node->GetNodeType() == SERVER_NODE_TYPE)
+    {
+      Ptr<RdmaDriver> rdmaDriver = node->GetObject<RdmaDriver>();
+      NS_ASSERT_MSG(rdmaDriver, "unfound rdma driver on server node");
+      rdmaDriver->m_rdma->m_E2ErdmaSmartFlowRouting->insert_entry_to_PIT(pit);
+    }
+    else
+    {
+      NS_ASSERT_MSG(false, "Error in unknown node type");
+    }
+  }
+}
+
+void install_routing_entries_based_on_single_pst_entry_for_laps(global_variable_t *varMap, pstEntryData &pst)
+{
+  HostId2PathSeleKey key = pst.key;
+  uint32_t srcHostId = key.selfHostId;
+  uint32_t dstHostId = key.dstHostId;
+  NS_ASSERT_MSG(srcHostId < varMap->allNodes.GetN() && dstHostId < varMap->allNodes.GetN(), "Error in srcHostId or dstHostId");
+  Ptr<Node> srcNode = varMap->allNodes.Get(srcHostId);
+  Ptr<Node> dstNode = varMap->allNodes.Get(dstHostId);
+  NS_ASSERT_MSG(srcNode->GetNodeType() == SERVER_NODE_TYPE && dstNode->GetNodeType() == SERVER_NODE_TYPE, "Error in node type");
+
+  Ptr<RdmaDriver> rdmaDriver = srcNode->GetObject<RdmaDriver>();
+  NS_ASSERT_MSG(rdmaDriver, "unfound rdma driver on server node");
+  rdmaDriver->m_rdma->m_E2ErdmaSmartFlowRouting->insert_entry_to_PST(pst);
+
+  rdmaDriver = dstNode->GetObject<RdmaDriver>();
+  NS_ASSERT_MSG(rdmaDriver, "unfound rdma driver on server node");
+  rdmaDriver->m_rdma->m_E2ErdmaSmartFlowRouting->insert_entry_to_PST(pst);
+
+  return ;
+}
+
+void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer nodes, std::map<Ipv4Address, uint32_t> &ip2nodeId)
+{
+  for (auto &e : ip2nodeId)
+  {
+    hostIp2SMT_entry_t * smtEntry = new hostIp2SMT_entry_t;
+    smtEntry->hostIp = e.first;
+    smtEntry->hostId = e.second;
+    for (size_t i = 0; i < nodes.GetN(); i++)
+    {
+      Ptr<Node> node = nodes.Get(i);
+      NS_ASSERT_MSG(node->GetNodeType() == SERVER_NODE_TYPE, "Error in node type");
+      Ptr<RdmaDriver> rdmaDriver = node->GetObject<RdmaDriver>();
+      NS_ASSERT_MSG(rdmaDriver, "unfound rdma driver on server node");
+      rdmaDriver->m_rdma->m_E2ErdmaSmartFlowRouting->insert_entry_to_SMT(*smtEntry);
+    }
+  }
+}
+
+
+
   void install_routing_entries(global_variable_t *varMap) {
     NS_LOG_FUNCTION(varMap->allNodes.GetN() << varMap->swNodes.GetN() << varMap->svNodes.GetN());
     std::map<Ptr<Node>, std::map<Ptr<Node>, std::vector<Ptr<Node>>>> &nextHop = varMap->nextHop;       // srcNode   dstNode   adjacentNodes ：   6         20       [0 1]
-    // uint64_t entryCntSw = 0;
+    uint64_t entryCntSw = 0;
     for (auto i = nextHop.begin(); i != nextHop.end(); i++) {
       Ptr<Node> node = i->first; // srcNode
       auto &table = i->second;
@@ -2900,8 +3161,23 @@ std::string boolToString (bool m_value) {
           }
         }
       }
+
+      std::vector<pstEntryData> PST = load_PST_from_file(varMap->pstFile);
+      for (size_t i = 0; i < PST.size(); i++)
+      {
+        install_routing_entries_based_on_single_pst_entry_for_laps(varMap, PST[i]);
+      }
+
+      std::map<Ipv4Address, uint32_t> SMT = Calulate_SMT_for_laps(varMap->svNodes);
+      install_routing_entries_based_on_single_smt_entry_for_laps(varMap->svNodes, SMT);
+    }
+    else
+    {
+      NS_ASSERT_MSG(false, "Error in unknown lbsName");
     }
   }
+
+
   void print_node_routing_tables(global_variable_t *varMap, uint32_t nodeidx)
   {
     NodeContainer allnodes = varMap->allNodes;
@@ -3324,7 +3600,7 @@ std::string boolToString (bool m_value) {
       std::vector<std::string> values(e.begin() + 1, e.end()); // 其余元素字符作为value
       varMap->configMap[key] = values;
     }
-
+    varMap->irnMode = varMap->configMap.find("irnMode") != varMap->configMap.end() ? varMap->configMap["irnMode"][0] : "NONE";
     varMap->enablePfcDynThresh = varMap->configMap.find("enablePfcDynThresh") != varMap->configMap.end() ? stringToBool(varMap->configMap["enablePfcDynThresh"][0]) : true;
     varMap->enableQcn = varMap->configMap.find("enableQcn") != varMap->configMap.end() ? stringToBool(varMap->configMap["enableQcn"][0]) : true;
     varMap->enablePfc = varMap->configMap.find("enablePfc") != varMap->configMap.end() ? stringToBool(varMap->configMap["enablePfc"][0]) : true;
@@ -3345,6 +3621,7 @@ std::string boolToString (bool m_value) {
     varMap->enableAckHigherPrio = varMap->configMap.find("enableAckHigherPrio") != varMap->configMap.end() ? stringToBool(varMap->configMap["enableAckHigherPrio"][0]) : true;
     varMap->enableTest = varMap->configMap.find("enableTest") != varMap->configMap.end() ? stringToBool(varMap->configMap["enableTest"][0]) : false;
     varMap->enableIrn = varMap->configMap.find("enableIrn") != varMap->configMap.end() ? stringToBool(varMap->configMap["enableIrn"][0]) : false;
+    varMap->enableIrnOptimized = varMap->configMap.find("enableIrnOptimized") != varMap->configMap.end() ? stringToBool(varMap->configMap["enableIrnOptimized"][0]) : false;
     varMap->intMulti = varMap->configMap.find("intMulti") != varMap->configMap.end() ? std::stoi(varMap->configMap["intMulti"][0]) : 1;
     varMap->ccMode = varMap->configMap.find("ccMode") != varMap->configMap.end() ? varMap->configMap["ccMode"][0] : "Dcqcn_mlx";
     varMap->lbsName = varMap->configMap.find("lbsName") != varMap->configMap.end() ? varMap->configMap["lbsName"][0] : "ecmp";

@@ -11,6 +11,7 @@
 #include <vector>
 #include <climits> /* for CHAR_BIT */
 #include <ns3/event-id.h>
+#include <random>
 
 #define MAX_RDMA_FLOW_PER_HOST 9120
 #define BITMASK(b) (1 << ((b) % CHAR_BIT))
@@ -35,13 +36,27 @@ enum CcMode {
 };
 
 
+
+struct CcLaps {
+	DataRate m_tgtRate;	//< Target rate
+	DataRate m_curRate;	//< Target rate
+	uint32_t m_incStage{0};	//< Target delay
+	int64_t m_tgtDelayInNs{-1};	//< Target delay
+	uint64_t m_nxtRateDecTimeInNs{0};	//< Next time to decrease rate
+	uint64_t m_nxtRateIncTimeInNs{0};	//< Next time to increase rate
+	static uint64_t maxIncStage;
+};
+
+
 class IrnSackManager {
    private:
     std::list<std::pair<uint32_t, uint32_t>> m_data;
 
    public:
     int socketId{-1};
-
+		std::map <uint32_t, std::list<std::pair<uint32_t, uint16_t> > > m_outstanding_data;
+		std::list <std::pair<uint32_t, uint16_t> > m_lossy_data;
+		void handleRto(uint32_t pid);
     IrnSackManager();
     IrnSackManager(int flow_id);
     void sack(uint32_t seq, uint32_t size);  // put blocks
@@ -49,12 +64,27 @@ class IrnSackManager {
     bool IsEmpty();
     bool blockExists(uint32_t seq, uint32_t size);  // query if block exists inside SACK table
     bool peekFrontBlock(uint32_t *pseq, uint32_t *psize);
+		std::pair<uint32_t, uint16_t> GetAndRemoveFirstLossyData();
+		bool checkNackedBlockAndUpdateSndNxt(uint64_t &snd_nxt);
+		bool checkFirstNackedBlockAndUpdateSndUna(uint64_t &snd_una);
+		bool existLossyData();
     size_t getSackBufferOverhead();  // get buffer overhead
-
+		void appendOutstandingData (uint32_t pid, uint32_t seq, uint16_t size);
+		bool checkOutstandingDataAndUpdateLossyData(uint32_t pid, uint32_t seq);
+		size_t getOutStandingDataSizeForLaps();
+		size_t getLossyDataSize();
     friend std::ostream &operator<<(std::ostream &os, const IrnSackManager &im);
 };
 
 struct Irn{
+		enum Mode
+		{
+			GBN = 0,
+			IRN = 1,
+			IRN_OPT = 2,
+			NACK= 3,
+			NONE = 4
+		};
 		// bool m_enabled;
 		uint32_t m_bdp;          // m_irn_maxAck_
 		uint32_t m_highest_ack{0};  // the so-far max acked-seq, before/during/after entering the recovery mode
@@ -66,6 +96,9 @@ struct Irn{
 		static bool isTrnOptimizedEnabled;
 		static uint32_t reTxThresholdNPackets;
 		static uint32_t reTxThresholdNNanoSeconds;
+		static Irn::Mode mode;
+		static void SetMode(std::string mode);
+		static std::string GetMode();
 
 
 		EventId m_reTxEvent;
@@ -101,6 +134,7 @@ struct Irn{
 
 
 
+
 /******************************
  * add from conweave, 2024/12/10 */
 
@@ -130,6 +164,7 @@ public:
 
 	//bool enablePLBHash //PLB
     uint32_t flowRandNum=0; //PLB
+	uint32_t m_node_id;
 	Irn m_irn;
 	// static bool isIrnEnabled;
 
@@ -182,13 +217,15 @@ public:
 		DataRate m_curRate;
 		uint32_t m_incStage;
 	}hpccPint;
+	
+	CcLaps laps;
 
 
 	Time GetRto(uint32_t mtu) const{
-			if (Irn::isIrnEnabled) {
+			if (Irn::mode == Irn::Mode::IRN) {
 					return m_irn.GetRto(mtu);
 			}
-			else if (Irn::isTrnOptimizedEnabled)
+			else if (Irn::mode == Irn::Mode::IRN_OPT)
 			{
 				return m_irn.GetRto(mtu);
 			}
@@ -197,36 +234,16 @@ public:
 			}
 	}
 
-	inline bool CanIrnTransmit(uint32_t mtu) const {
-		if (!Irn::isIrnEnabled && !Irn::isTrnOptimizedEnabled) {
-				return true;
-		}
-		else if (Irn::isTrnOptimizedEnabled)
-		{
-			uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
-			uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
-			uint64_t byteOnFly = m_irn.GetOnTheFly();
-			bool isBdpAllowed = (byteOnFly + byteTx) < m_irn.m_bdp ? true : false;
-			if (isBdpAllowed) {
-				bool isBdpExceeded = (m_irn.m_highest_ack + m_irn.m_bdp) > snd_nxt ? false : true;
-				return !isBdpExceeded;
-			}
-			return false;
-		}
-		else if(Irn::isIrnEnabled) {
-			uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
-			uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
-			uint64_t byteOnFly = m_irn.GetOnTheFly();
-			bool isBdpAllowed = (byteOnFly + byteTx) < m_irn.m_bdp ? true : false;
-			if (isBdpAllowed) {
-				bool isBdpExceeded = (m_irn.m_highest_ack + m_irn.m_bdp) > snd_nxt ? false : true;
-				return !isBdpExceeded;
-			}
-			return false;
-		}
-	}
+	bool CanIrnTransmit(uint32_t mtu);
 
-
+	// inline bool CanIrnTransmitForLaps(uint32_t mtu) const {
+	// 	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT, "Only TrnOptimized can be enabled");
+	// 	uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
+	// 	uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
+	// 	uint64_t byteOnFly = GetOnTheFlyForLaps();
+	// 	bool isBdpAllowed = (byteOnFly + byteTx) < GetWinForLaps() ? true : false;
+	// 	return isBdpAllowed;
+	// }
 
 
 		uint64_t m_phyTxNPkts{0};
@@ -261,6 +278,24 @@ public:
   uint64_t GetWin(); // window size calculated from m_rate
   bool IsFinished();
   inline bool IsFinishedConst() const { return snd_una >= m_size; }
+	void RecoverQueueLaps();
+	void AcknowledgeForLaps(uint64_t ack, uint32_t sack_seq, uint16_t sack_sz, uint32_t fpid);
+	uint64_t GetOnTheFlyForLaps();
+	uint64_t GetWinForLaps();
+	bool IsWinBoundForLaps();
+		uint64_t GetBytesLeftForLaps();
+	bool CanIrnTransmitForLaps(uint32_t mtu);
+	void CheckAndUpdateQpStateForLaps();
+
+  // callback for set rto
+  typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t, Time> RtoSet;
+  RtoSet m_rtoSetCb;
+
+  typedef Callback<Time, uint32_t> GetRtoTimeForPath;
+  GetRtoTimeForPath m_cb_getRtoTimeForPath;
+
+  typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t> CancelRtoForPath;
+  CancelRtoForPath m_cb_cancelRtoForPath;
 
 	uint64_t HpGetCurWin(); // window size calculated from hp.m_curRate, used by HPCC
 };

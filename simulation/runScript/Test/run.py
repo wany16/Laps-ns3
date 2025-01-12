@@ -95,25 +95,27 @@ update_main_file(dir_ns3_scratch, dir_host_runScript, mainFileName)
 
 parser = argparse.ArgumentParser(description="请输入以下参数")
 parser.add_argument("--configFileName", default="CONFIG_DCQCN-test-00001.txt", help="defaultFileName, by default CONFIG.txt")
-parser.add_argument("--topoFileName", default="TOPO-test-00001.txt",  help="defaultFileName, by default fat_tree_topology.txt")
+parser.add_argument("--topoFileName", default="TOPO_S5_H4_L10.txt",  help="defaultFileName, by default fat_tree_topology.txt")
 parser.add_argument("--simStartTimeInSec", default="0", help="simulation start time")
 parser.add_argument("--simEndTimeInSec", default="0.005",  help="simulation end time")
 parser.add_argument("--flowLunchEndTimeInSec", default="0.001", help="flow end time")
 parser.add_argument("--qlenMonitorIntervalInNs", default="100000", help="Qlen Monitor period In Ns")
-parser.add_argument("--lbsName", default="rps", help="Load balancing algorithm")
+parser.add_argument("--lbsName", default="e2elaps", help="Load balancing algorithm")
 parser.add_argument("--flowletTimoutInUs", default="50", help="The time out of the flowlet in microsecond.")
 parser.add_argument("--loadRatioShift", default="1.0",  help="loadfactorAdjustFacror:Ring ->1,all2all->1/(n-1),Reduce->1/(K-1),n is host num,k is group num.")
 parser.add_argument("--loadratio", default="1",  help="The ratio of the load")
-parser.add_argument("--ccMode", default="Dcqcn_mlx",  help="congestion control algorithm")
+parser.add_argument("--ccMode", default="Laps",  help="congestion control algorithm")
 parser.add_argument("--screenDisplayInNs", default="10000000",  help="screen display interval in Ns")
 parser.add_argument("--enablePfcMonitor", default="true",  help="trace Pfc packets or not ")
 parser.add_argument("--enableFctMonitor", default="true",  help="trace Fct or not")
 parser.add_argument("--enableQlenMonitor", default="false",  help="trace queue length or not")
 parser.add_argument("--rdmaAppStartPort", default="6666",  help="minimal port for rdma client")
 parser.add_argument("--enableQbbTrace", default="true",  help="trace the packet event on node's all Qbb netdevices")
-parser.add_argument("--testPktNum", default="1",  help="The number of packets to test")
+parser.add_argument("--testPktNum", default="4000",  help="The number of packets to test")
 parser.add_argument("--workloadFile", default="DCTCP.txt",  help="The workload file")
 parser.add_argument("--patternFile", default="spine-leaf-2-4-16-Ring.txt",  help="The pattern file")
+parser.add_argument("--pstFile", default="PST_S5_H4_L10.txt",  help="The pstFile file")
+parser.add_argument("--pitFile", default="PIT_S5_H4_L10.txt",  help="The pitFile file")
 args = parser.parse_args()
 
 
@@ -139,7 +141,8 @@ Line_command = '\
     --enableQbbTrace={}\
     --rdmaAppStartPort={}\
     --testPktNum={}\
-    --loadRatio={} --workloadFile={} --patternFile={}"\
+    --loadRatio={} --workloadFile={} --patternFile={}\
+    --PITFile={} --PSTFile={}"\
 '.format(
     mainFileName,
     experimentalName,
@@ -161,7 +164,8 @@ Line_command = '\
     args.testPktNum,
     args.loadratio,
     dir_host_workloads + args.workloadFile,
-    dir_host_patterns + args.patternFile
-)
+    dir_host_patterns + args.patternFile,
+    dir_host_topologies + args.pitFile,
+    dir_host_topologies + args.pstFile)
 print(Line_command)
 os.system(Line_command)

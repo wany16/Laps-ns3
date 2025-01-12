@@ -86,7 +86,7 @@ void CustomHeader::Print (std::ostream &os) const{
 uint32_t CustomHeader::GetSerializedSize (void) const{
 	uint32_t len = 0;
 	if (headerType & L2_Header)
-		len += 14;
+		len += 14; // ppp header
 	if (headerType & L3_Header)
 		len += 5*4;
 	if (headerType & L4_Header){
@@ -333,7 +333,7 @@ uint8_t CustomHeader::GetIpv4EcnBits (void) const{
 }
 
 uint32_t CustomHeader::GetAckSerializedSize(void){
-	return sizeof(ack.sport) + sizeof(ack.dport) + sizeof(ack.flags) + sizeof(ack.pg) + sizeof(ack.seq) + sizeof(ack.irnNackSize) + sizeof(ack.irnNackSize) + IntHeader::GetStaticSize();
+	return sizeof(ack.sport) + sizeof(ack.dport) + sizeof(ack.flags) + sizeof(ack.pg) + sizeof(ack.seq) + sizeof(ack.irnNack) + sizeof(ack.irnNackSize) + IntHeader::GetStaticSize();
 }
 
 uint32_t CustomHeader::GetUdpHeaderSize(void){
@@ -341,7 +341,7 @@ uint32_t CustomHeader::GetUdpHeaderSize(void){
 }
 
 uint32_t CustomHeader::GetStaticWholeHeaderSize(void){
-	return 14 + 20 + GetUdpHeaderSize();
+	return 14 + 20 + GetUdpHeaderSize(); 
 }
 
 } // namespace ns3

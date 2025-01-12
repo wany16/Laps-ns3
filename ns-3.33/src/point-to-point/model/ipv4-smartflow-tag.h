@@ -39,7 +39,6 @@
 
 namespace ns3
 {
-
     template <typename T>
     std::string change2string(T src)
     {
@@ -80,12 +79,12 @@ namespace ns3
         uint32_t priority;
         std::vector<uint32_t> portSequence;
         std::vector<uint32_t> nodeIdSequence;
-        uint32_t latency;
-        uint32_t theoreticalSmallestLatencyInNs;
+        uint32_t latency=0;
+        uint32_t theoreticalSmallestLatencyInNs=0;
         uint32_t pathDre = UINT32_MAX;
-        Time tsGeneration;
-        Time tsProbeLastSend;
-        Time tsLatencyLastSend;
+        Time tsGeneration=Seconds(0);
+        Time tsProbeLastSend=Seconds(0);
+        Time tsLatencyLastSend=Seconds(0);
         Time  updateTime;
         Time _invalidTime = Seconds(0); // for conweave route
         void print()
@@ -102,11 +101,31 @@ namespace ns3
             std::cout << "PortIDs=" << vectorTostring<uint32_t>(portSequence) << " ";
             std::cout << std::endl;
         }
+        std::string toString()
+        {
+            std::string str = "PathId=" + change2string<uint32_t>(pid) + ", ";
+            str = str + "Priority=" + change2string<uint32_t>(priority) + ", ";
+            str = str + "Latency=" + change2string<uint64_t>(latency) + "ns, ";
+            str = str + "ThLatency=" + change2string<uint64_t>(theoreticalSmallestLatencyInNs) + "ns, ";
+            str = str + "GenTime=" + change2string<uint64_t>(tsGeneration.GetNanoSeconds()) + "ns, ";
+            str = str + "PrbTime=" + change2string<uint64_t>(tsProbeLastSend.GetNanoSeconds()) + "ns, ";
+            str = str + "SntTime=" + change2string<uint64_t>(tsLatencyLastSend.GetNanoSeconds()) + "ns, ";
+            str = str + "NodeIDs=" + vectorTostring<uint32_t>(nodeIdSequence) + ", ";
+            str = str + "PortIDs=" + vectorTostring<uint32_t>(portSequence);
+            return str;
+        }
     };
     struct LatencyData
     {
         std::pair<uint32_t, uint32_t> latencyInfo;
         Time tsGeneration;
+        std::string toString()
+        {
+            std::string str = "PathId=" + change2string<uint32_t>(latencyInfo.first) + ", ";
+            str = str + "Latency=" + change2string<uint32_t>(latencyInfo.second) + "ns, ";
+            str = str + "GenTime=" + change2string<uint64_t>(tsGeneration.GetNanoSeconds()) + "ns";
+            return str;
+        }
     };
     class Ipv4SmartFlowProbeTag : public Tag
     {
@@ -131,6 +150,28 @@ namespace ns3
         uint8_t m_direction; // 0: src -> dst, 1: dst -> src
         uint32_t m_pathId;
         Time m_generatedTime;
+    };
+
+    class AckPathTag : public Tag
+    {
+    public:
+        AckPathTag();
+        virtual ~AckPathTag();
+
+        void SetPathId(uint32_t pid);
+        void SetFlowId(uint32_t fid);
+        uint32_t GetPathId(void) const;
+        uint32_t GetFlowId(void) const;
+        static TypeId GetTypeId(void);
+        virtual TypeId GetInstanceTypeId(void) const;
+        virtual uint32_t GetSerializedSize(void) const;
+        virtual void Serialize(TagBuffer i) const;
+        virtual void Deserialize(TagBuffer i);
+        virtual void Print(std::ostream &os) const;
+
+    private:
+        uint32_t m_pathId;
+        uint32_t m_flowId;
     };
 
     class Ipv4SmartFlowPathTag : public Tag

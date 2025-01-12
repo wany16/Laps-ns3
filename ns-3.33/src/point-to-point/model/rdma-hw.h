@@ -19,6 +19,7 @@ namespace ns3
 			TIMELY = 7,
 			HPCC = 3,
 			DCQCN_MLX = 1,
+			CC_LAPS = 9,
 			CC_NONE = 2,
 		};
 
@@ -53,6 +54,9 @@ namespace ns3
 		static TypeId GetTypeId(void);
 		RdmaHw();
 
+		std::map<std::pair<uint32_t, uint32_t>, EventId> m_rtoEvents;
+  	void HandleTimeoutForLaps(Ptr<RdmaQueuePair> qp, uint32_t pid) ;
+		void SetTimeoutForLaps(Ptr<RdmaQueuePair> qp, uint32_t pid, Time timeInNs); 
 
 		void CheckTxCompletedQp(uint16_t sport);
 
@@ -79,7 +83,7 @@ namespace ns3
 		// qp complete callback
 		typedef Callback<void, Ptr<RdmaQueuePair>> QpCompleteCallback;
 		QpCompleteCallback m_qpCompleteCallback;
-	void HandleTimeout(Ptr<RdmaQueuePair> qp, Time rto);
+		void HandleTimeout(Ptr<RdmaQueuePair> qp, Time rto);
 
 		void SetNode(Ptr<Node> node);
 		void Setup(QpCompleteCallback cb);																																					 // setup shared data and callbacks with the QbbNetDevice
@@ -93,17 +97,17 @@ namespace ns3
 		Ptr<RdmaRxQueuePair> GetRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, bool create); // get a rxQp
 		uint32_t GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q);																	// get the NIC index of the rxQp
 		void DeleteRxQp(uint32_t dip, uint16_t dport, uint16_t sport, uint16_t pg);
-
+	Ptr<RdmaRxQueuePair> InitRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, int32_t flowId);
 		int ReceiveUdp(Ptr<Packet> p, CustomHeader &ch);
 		int ReceiveCnp(Ptr<Packet> p, CustomHeader &ch);
 		int ReceiveAck(Ptr<Packet> p, CustomHeader &ch); // handle both ACK and NACK
 		int Receive(Ptr<Packet> p, CustomHeader &ch);	 // callback function that the QbbNetDevice should use when receive packets. Only NIC can call this function. And do not call this upon PFC
 
 		void CheckandSendQCN(Ptr<RdmaRxQueuePair> q);
-		int ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size, bool & cnp);
+		ReceiverSequenceCheckResult ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size, bool & cnp);
 		void AddHeader(Ptr<Packet> p, uint16_t protocolNumber);
 		static uint16_t EtherToPpp(uint16_t protocol);
-
+		Ptr<Packet> ConstructAckForUDP(ReceiverSequenceCheckResult state, const CustomHeader &ch, Ptr<RdmaRxQueuePair> rxQp, uint32_t udpPayloadSize);
 		void RecoverQueue(Ptr<RdmaQueuePair> qp);
 		
 		void QpComplete(Ptr<RdmaQueuePair> qp);
@@ -138,7 +142,10 @@ namespace ns3
 		uint32_t m_cnt_cnpByOoo;
 		uint32_t m_cnt_Cnp;
 
-		std::unordered_map<uint32_t, bool> m_manualDropSeqMap = {{2000, true}, {3000, true}, {9000, true}, {19000, true}};
+
+
+		
+		std::unordered_map<uint32_t, bool> m_manualDropSeqMap={{2000, true},{3000, true},{9000,true},{19000,true}};
 
 		// the Mellanox's version of alpha update:
 		// every fixed time slot, update alpha.
@@ -204,6 +211,28 @@ namespace ns3
 		void SetPintSmplThresh(double p);
 		void HandleAckHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
 		void UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
+
+		/*********************
+		 * LAPS
+		 ********************/
+		void HandleAckLaps(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+		int ReceiveUdpOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch);
+		bool checkQpFinishedOnDstHost(const CustomHeader &ch);
+		ReceiverSequenceCheckResult ReceiverCheckSeqForLaps(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size, bool &cnp);
+		// void HandleTimeoutForLaps(Ptr<RdmaQueuePair> qp);
+	void AddQueuePairForLaps(uint64_t size, uint16_t pg, Ipv4Address sip, Ipv4Address dip, uint16_t sport, uint16_t dport, uint32_t win, uint64_t baseRtt, int32_t flowId, Callback<void> notifyAppFinish);
+	void UpdateRateForLaps(Ptr<RdmaQueuePair> qp, CustomHeader &ch);
+	int ReceiveAckForLaps(Ptr<Packet> p, CustomHeader &ch);
+	int ReceiveForLaps(Ptr<Packet> p, CustomHeader &ch);
+	bool checkRxQpFinishedOnDstHost(const CustomHeader &ch);
+	int64_t IncreaseRateForLaps(Ptr<RdmaQueuePair> qp, uint64_t nxtIncTimeInNs);
+	int64_t DecreaseRateForLaps(Ptr<RdmaQueuePair> qp, uint64_t nxtDecTimeInNs);
+	void UpdateNxtQpAvailTimeForLaps(Ptr<RdmaQueuePair> qp, int64_t timeGap);
+	Time GetRtoTimeForPath(uint32_t pathId);
+	void CancelRtoForPath(Ptr<RdmaQueuePair> qp, uint32_t pathId);
+
+
+
 	};
 
 } /* namespace ns3 */
