@@ -221,6 +221,7 @@ namespace ns3
     static std::map<uint32_t, std::map<uint32_t, uint32_t>> m_rrsPortInf;                      // map from nodeid to port to packetCount (RRS select port)
     static std::map<uint32_t, std::map<uint32_t, FlowPortInfo>> m_PortInf;
     static std::map<uint32_t,std::map<uint64_t, std::string>>congaoutinfo;
+    static std::map<uint32_t, std::map<std::string,std::map<uint64_t,letflowSaveEntry>>> m_letflowTestInf;  // map from nodeid to time to 
     static uint32_t GetOutPortFromPath(const uint32_t &path, const uint32_t &hopCount); // decode outPort from path, given a hop's order
     bool GetIsToRSwitch();
     uint32_t GetSwitchId();

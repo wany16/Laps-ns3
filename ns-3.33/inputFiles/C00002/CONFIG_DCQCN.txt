@@ -4,7 +4,7 @@ enableQcn true
 enableQlenMonitor false
 enablePfcMonitor false
 enableFctMonitor true
-enableQbbTrace false
+enableQbbTrace true
 enableKvCache false
 enableWindow true
 enableUnifiedWindow true
@@ -19,6 +19,7 @@ enableAckHigherPrio true
 enableTest false
 enableIrn true
 ccMode Dcqcn_mlx
+irnMode GBN
 lbsName ecmp
 intMulti 1
 alphaResumeIntervalInUs 1
@@ -36,9 +37,9 @@ dctcpRateAiInMbps 1000
 targetUtilization 0.95
 pintLogBase 1.01
 pfcPauseTimeInUs 5
-traceNodeIds 3
+traceNodeIds 5 8
 alphaShiftInLog 3
-ecnParaMap 100 400 1600 0.8 400 1600 6400 0.8 25 100 400 0.8 10 40 160 0.8 1 4 16 0.8
+ecnParaMap 100 400 1600 0.8 400 1600 6400 0.8 25 100 400 0.8 10 40 160 0.8 1 2 6 0.8 
 pintProbTresh 65536
 pktPayloadSizeInByte 1000
 mmuSwBufferSizeInMB 1

@@ -62,7 +62,11 @@ namespace ns3
 
 		// static bool isIrnEnabled;
 		std::unordered_map<unsigned, unsigned> m_cnt_timeout;
-
+		bool LostPacketTest(uint32_t sepNum, std::string flowId);
+		// bool UpdateLostPacket(uint32_t sepNum,std::string flowId);
+		static std::map<uint32_t, std::map<std::string, std::map<uint64_t, RecordCcmodeOutEntry>>> ccmodeOutInfo; // Record CCMod outinfo:send rate\RTO evente
+		std::map<uint32_t, std::map<std::string, uint32_t>> m_packetLost;										  // node->flowid->packetSeq;
+		static std::map<uint32_t, std::map<std::string, std::map<uint32_t, LostPacketEntry>>> m_lossPacket;		  // QPId->packetSeqNum->lostNum
 		Ptr<Node> m_node;
 		DataRate m_minRate; //< Min sending rate
 		uint32_t m_mtu;
@@ -142,11 +146,11 @@ namespace ns3
 		uint32_t m_cnt_cnpByOoo;
 		uint32_t m_cnt_Cnp;
 
+		// std::unordered_map<uint32_t, bool> m_manualDropSeqMap={{2000, true},{3000, true},{9000,true},{19000,true}};
 
-
-		
-		std::unordered_map<uint32_t, bool> m_manualDropSeqMap={{2000, true},{3000, true},{9000,true},{19000,true}};
-
+		std::unordered_map<uint32_t, bool> m_manualDropSeqMap1 = {{2000, true}};
+		std::unordered_map<uint32_t, bool> m_manualDropSeqMap2 = {{1000, true}, {2000, true}};
+		std::unordered_map<uint32_t, bool> m_manualDropSeqMap3 = {{3000, true}};
 		// the Mellanox's version of alpha update:
 		// every fixed time slot, update alpha.
 		void UpdateAlphaMlx(Ptr<RdmaQueuePair> q);
@@ -201,6 +205,7 @@ namespace ns3
 		void plbCheckRehash(Ptr<RdmaQueuePair> qp);
 		void plb_update_state_upon_rto(Ptr<RdmaQueuePair> qp);
 		uint32_t GetFlowIdRehashNum(std::string flowId);
+		void PLBHandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
 
 		static std::map<uint32_t, std::map<uint32_t, PlbRecordEntry>> m_plbRecordOutInf; // nodeid->flowID
 

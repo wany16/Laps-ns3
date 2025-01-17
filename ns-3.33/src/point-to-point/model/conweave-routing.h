@@ -313,12 +313,12 @@ namespace ns3
         uint32_t GetNumVOQ() { return (uint32_t)m_voqMap.size(); }
         uint32_t GetVolumeVOQ();
         const std::unordered_map<std::string, ConWeaveVOQ> &GetVOQMap() { return m_voqMap; }
-
+        void PrintConweaveTxTable();
         /* main function */
 
         void SendReply(Ptr<Packet> p, CustomHeader &ch, uint32_t flagReply, uint32_t pkt_epoch);
         void SendNotify(Ptr<Packet> p, CustomHeader &ch, uint32_t pathId);
-        void forwardSpeicalPackets(Ptr<Packet> p, CustomHeader &ch, bool foundConWeaveReplyTag, bool foundConWeaveNotifyTag, bool IsSrcToREqualdstToR);
+        void forwardSpeicalPackets(Ptr<Packet> p, CustomHeader &ch, bool foundConWeaveReplyTag, bool foundConWeaveNotifyTag, bool IsSrcToREqualdstToR, bool &IsSend);
         void RouteInput(Ptr<Packet> p, CustomHeader &ch); // core function
         void initializeConweaveTxData(conweaveTxState &txEntry, conweaveTxMeta &tx_md, HostId2PathSeleKey pstKey, CustomHeader &ch);
         void pathSelect(conweaveTxState &txEntry, conweaveTxMeta &tx_md, HostId2PathSeleKey pstKey, CustomHeader &ch);
@@ -329,8 +329,10 @@ namespace ns3
         void updateExpectedToFlushTime(conweaveRxState &rxEntry, conweaveRxMeta &rx_md, CustomHeader &ch);
         void phaseToDisposeVqq(conweaveRxState &rxEntry, conweaveRxMeta &rx_md, CustomHeader &ch);
         void replyLablePacket(conweaveRxMeta &rx_md, Ptr<Packet> p, CustomHeader &ch);
-        void disposeReplyPacket(ConWeaveReplyTag &conweaveReplyTag, CustomHeader &ch, ConWeaveNotifyTag &conweaveNotifyTag, bool foundConWeaveNotifyTag);
+        void disposeReplyPacket(ConWeaveReplyTag &conweaveReplyTag, bool foundConWeaveReplyTag, CustomHeader &ch, ConWeaveNotifyTag &conweaveNotifyTag, bool foundConWeaveNotifyTag);
         void onlyForwardPacket(ConWeaveDataTag &conweaveDataTag, Ptr<Packet> p, CustomHeader &ch);
+        uint32_t get_the_path_length_by_path_id(const uint32_t pathId);
+        bool reach_the_last_hop_of_path_tag(ConWeaveDataTag &conweaveDataTag);
         void DeleteVOQ(std::string flowkey); // used for callback when reorder queue is flushed
         EventId m_agingEvent;
         void AgingEvent(); // aging Tx/RxTableEntry (for cleaning and improve NS-3 simulation)

@@ -213,7 +213,18 @@ namespace ns3
         ret += uint64_t((ip2 & 0x00ffff00) >> 8) + uint64_t((uint32_t)port2 << 16);
         return ret;
     }
-
+    void ConWeaveRouting::PrintConweaveTxTable()
+    {
+        NS_LOG_INFO(" PrintConweaveTxTable ");
+        for (auto it = m_conweaveTxTable.begin(); it != m_conweaveTxTable.end(); it++)
+        {
+            std::string flowId = it->first;
+            conweaveTxState tableEntry = it->second;
+            std::cout << "flowId " << flowId << " epoch " << tableEntry._epoch << " phase " << tableEntry._phase << " activeTime " << tableEntry._activeTime.GetMicroSeconds();
+            std::cout << " _pathId " << tableEntry._pathId << " tailTime " << tableEntry._tailTime.GetMicroSeconds() << " replyTimer " << tableEntry._replyTimer.GetMicroSeconds() << " stabilized" << tableEntry._stabilized << std::endl;
+        }
+        return;
+    }
     uint32_t ConWeaveRouting::DoHash(const uint8_t *key, size_t len, uint32_t seed)
     {
         uint32_t h = seed;
@@ -372,12 +383,13 @@ namespace ns3
         return;
     }
 
-    void ConWeaveRouting::forwardSpeicalPackets(Ptr<Packet> p, CustomHeader &ch, bool foundConWeaveReplyTag, bool foundConWeaveNotifyTag, bool IsSrcToREqualdstToR)
+    void ConWeaveRouting::forwardSpeicalPackets(Ptr<Packet> p, CustomHeader &ch, bool foundConWeaveReplyTag, bool foundConWeaveNotifyTag, bool IsSrcToREqualdstToR, bool &IsSend)
     {
 
         if (ch.l3Prot != 0x11 && ch.l3Prot != 0xFD)
         {
             NS_LOG_INFO(PARSE_FIVE_TUPLE(ch) << "ACK/PFC or other control pkts -> do flow-ECMP. Sw(" << m_switch_id << "),l3Prot:" << ch.l3Prot);
+            IsSend = true;
             DoSwitchSendToDev(p, ch);
             return;
         }
@@ -388,21 +400,33 @@ namespace ns3
 
                 NS_LOG_INFO(PARSE_FIVE_TUPLE(ch)
                             << "[ToR/*PureACK] Sw(" << m_switch_id << "),ACK detected");
+                IsSend = true;
+                DoSwitchSendToDev(p, ch);
+                return;
             }
             /** NOTE: ConWeave's control packets are forwarded with default flow-ECMP */
-            if (!m_isToR)
+            Ipv4Address srcServerAddr = Ipv4Address(ch.sip);
+            Ipv4Address dstServerAddr = Ipv4Address(ch.dip);
+            uint32_t srcToRId = routePath.lookup_SMT(srcServerAddr)->torId;
+            uint32_t dstToRId = routePath.lookup_SMT(dstServerAddr)->torId;
+            if (!((m_switch_id == srcToRId) || (m_switch_id == dstToRId)))
             {
                 NS_LOG_INFO(PARSE_FIVE_TUPLE(ch) << "ConWeave Ctrl Pkts use flow-ECMP at non-ToR switches");
+                IsSend = true;
+                DoSwitchSendToDev(p, ch);
+                return;
             }
-            DoSwitchSendToDev(p, ch);
-            return;
         }
         if (IsSrcToREqualdstToR)
         {
+            /** FILTER: Quickly filter intra-pod traffic */
+            // do normal routing (only one path)
+            NS_LOG_INFO(PARSE_FIVE_TUPLE(ch) << "SrcToREqualdstToR");
+            IsSend = true;
             DoSwitchSendToDev(p, ch);
             return;
         }
-
+        IsSend = false;
         return;
     }
     void ConWeaveRouting::initializeConweaveTxData(conweaveTxState &txEntry, conweaveTxMeta &tx_md, HostId2PathSeleKey pstKey, CustomHeader &ch)
@@ -1061,65 +1085,71 @@ namespace ns3
         if (rx_md.pkt_flagData == ConWeaveDataTag::INIT)
         {
             assert(rx_md.pkt_phase == 0); // sanity check
+            NS_LOG_INFO(" Is INIT label, start send reply");
             SendReply(p, ch, ConWeaveReplyTag::INIT, rx_md.pkt_epoch);
         }
         if (rx_md.pkt_flagData == ConWeaveDataTag::TAIL)
         {
             assert(rx_md.pkt_phase == 0); // sanity check
+            NS_LOG_INFO(" Is TAIL label, start send reply");
             SendReply(p, ch, ConWeaveReplyTag::TAIL,
                       rx_md.pkt_epoch); // send reply
         }
         return;
     }
-    void ConWeaveRouting::disposeReplyPacket(ConWeaveReplyTag &conweaveReplyTag, CustomHeader &ch, ConWeaveNotifyTag &conweaveNotifyTag, bool foundConWeaveNotifyTag)
+    void ConWeaveRouting::disposeReplyPacket(ConWeaveReplyTag &conweaveReplyTag, bool foundConWeaveReplyTag, CustomHeader &ch, ConWeaveNotifyTag &conweaveNotifyTag, bool foundConWeaveNotifyTag)
     {
         Time now = Simulator::Now();
-        conweaveTxMeta tx_md;
-        tx_md.pkt_flowkey = GetFlowKey(ch.dip, ch.sip, ch.udp.dport, ch.udp.sport);
-        tx_md.reply_flag = conweaveReplyTag.GetFlagReply();
-        tx_md.reply_epoch = conweaveReplyTag.GetEpoch();
-        tx_md.reply_phase = conweaveReplyTag.GetPhase();
-        auto &txEntry = m_conweaveTxTable[tx_md.pkt_flowkey];
-        /**
-         * CHECK: Reply timeout check only when epoch&phase are matched
-         */
-        if (tx_md.reply_epoch == txEntry._epoch && tx_md.reply_phase == txEntry._phase)
+
+        if (foundConWeaveReplyTag)
         {
-            if (tx_md.reply_flag == ConWeaveReplyTag::INIT)
-            { /* reply of INIT */
-                if (now < txEntry._replyTimer &&
-                    txEntry._replyTimer != CW_MAX_TIME)
-                {                                      /* if replied timely */
-                    txEntry._stabilized = true;        /* stabilized */
+            conweaveTxMeta tx_md;
+            tx_md.pkt_flowkey = ipv4Address2string(Ipv4Address(ch.dip)) + "#" + ipv4Address2string(Ipv4Address(ch.sip)) + "#" + std::to_string(ch.udp.sport);
+            tx_md.reply_flag = conweaveReplyTag.GetFlagReply();
+            tx_md.reply_epoch = conweaveReplyTag.GetEpoch();
+            tx_md.reply_phase = conweaveReplyTag.GetPhase();
+            auto &txEntry = m_conweaveTxTable[tx_md.pkt_flowkey];
+            /**
+             * CHECK: Reply timeout check only when epoch&phase are matched
+             */
+            if (tx_md.reply_epoch == txEntry._epoch && tx_md.reply_phase == txEntry._phase)
+            {
+                if (tx_md.reply_flag == ConWeaveReplyTag::INIT)
+                { /* reply of INIT */
+                    if (now < txEntry._replyTimer &&
+                        txEntry._replyTimer != CW_MAX_TIME)
+                    {                                      /* if replied timely */
+                        txEntry._stabilized = true;        /* stabilized */
+                        txEntry._replyTimer = CW_MAX_TIME; /* no more timeout */
+                        ConWeaveRouting::m_nTimelyInitReplied += 1;
+                        NS_LOG_INFO(PARSE_REVERSE_FIVE_TUPLE(ch)
+                                    << "[TxToR/GotReplied] Sw(" << m_switch_id << "),PktEpoch:"
+                                    << tx_md.reply_epoch << ",PktPhase:" << tx_md.reply_phase
+                                    << ",ReplyFlag:" << tx_md.reply_flag << ",ReplyDL"
+                                    << txEntry._replyTimer);
+                        NS_LOG_INFO(
+                            PARSE_REVERSE_FIVE_TUPLE(ch)
+                            << "--------------------------------->>> INIT Replied timely!!");
+                    }
+                    else
+                    { /* late reply -> ignore */
+                        /* do nothing */
+                    }
+                }
+                if (tx_md.reply_flag == ConWeaveReplyTag::TAIL)
+                { /* reply of TAIL */
+                    txEntry._stabilized =
+                        true;                          // out-of-order issue is resolved for this "flowcut"
                     txEntry._replyTimer = CW_MAX_TIME; /* no more timeout */
-                    ConWeaveRouting::m_nTimelyInitReplied += 1;
+                    ConWeaveRouting::m_nTimelyTailReplied += 1;
                     NS_LOG_INFO(PARSE_REVERSE_FIVE_TUPLE(ch)
                                 << "[TxToR/GotReplied] Sw(" << m_switch_id << "),PktEpoch:"
                                 << tx_md.reply_epoch << ",PktPhase:" << tx_md.reply_phase
                                 << ",ReplyFlag:" << tx_md.reply_flag << ",ReplyDL"
                                 << txEntry._replyTimer);
-                    NS_LOG_INFO(
-                        PARSE_REVERSE_FIVE_TUPLE(ch)
-                        << "--------------------------------->>> INIT Replied timely!!");
+                    NS_LOG_INFO(PARSE_REVERSE_FIVE_TUPLE(ch)
+                                << "-------------------------------------->>> TAIL Replied!!");
                 }
-                else
-                { /* late reply -> ignore */
-                    /* do nothing */
-                }
-            }
-            if (tx_md.reply_flag == ConWeaveReplyTag::TAIL)
-            { /* reply of TAIL */
-                txEntry._stabilized =
-                    true;                          // out-of-order issue is resolved for this "flowcut"
-                txEntry._replyTimer = CW_MAX_TIME; /* no more timeout */
-                ConWeaveRouting::m_nTimelyTailReplied += 1;
-                NS_LOG_INFO(PARSE_REVERSE_FIVE_TUPLE(ch)
-                            << "[TxToR/GotReplied] Sw(" << m_switch_id << "),PktEpoch:"
-                            << tx_md.reply_epoch << ",PktPhase:" << tx_md.reply_phase
-                            << ",ReplyFlag:" << tx_md.reply_flag << ",ReplyDL"
-                            << txEntry._replyTimer);
-                NS_LOG_INFO(PARSE_REVERSE_FIVE_TUPLE(ch)
-                            << "-------------------------------------->>> TAIL Replied!!");
             }
         }
         if (m_pathAwareRerouting)
@@ -1170,9 +1200,37 @@ namespace ns3
         DoSwitchSend(p, ch, outDev, qIndex);
         return;
     }
+    uint32_t ConWeaveRouting::get_the_path_length_by_path_id(const uint32_t pathId)
+    {
+        // NS_LOG_INFO ("############ Fucntion: get_the_path_length_by_path_id() ############");
+        PathData *pitEntry = routePath.lookup_PIT(pathId);
+        return pitEntry->portSequence.size();
+    }
+    bool ConWeaveRouting::reach_the_last_hop_of_path_tag(ConWeaveDataTag &conweaveDataTag)
+    {
+        NS_LOG_FUNCTION(this);
+        uint32_t pathId = conweaveDataTag.GetPathId();
+        uint32_t pathSize = get_the_path_length_by_path_id(pathId);
+        uint32_t hopIdx = conweaveDataTag.GetHopCount() + 1;
+        NS_ASSERT_MSG(hopIdx <= pathSize - 2, "The hopIdx is larger than the pathSize");
+        if (hopIdx == pathSize - 2) // E2E path table
+        {
+            NS_LOG_INFO("The packet reaches the last hop of Path " << pathId);
+            return true;
+        }
+        else
+        {
+            // NS_LOG_INFO("Is " << hopIdx << "/" << pathSize << " hops");
+            return false;
+        }
+    }
+
     /** MAIN: Every SLB packet is hijacked to this function at switches */
     void ConWeaveRouting::RouteInput(Ptr<Packet> p, CustomHeader &ch)
     {
+        NS_LOG_INFO("NodeId: " << m_switch_id
+                               << " packetsieze " << p->GetSize() << " time " << Simulator::Now().GetMicroSeconds());
+
         // Packet arrival time
         Time now = Simulator::Now();
         // Turn on aging event scheduler if it is not running
@@ -1208,92 +1266,85 @@ namespace ns3
 
         if ((ch.l3Prot != 0x11) || IsSrcToREqualdstToR)
         {
-            forwardSpeicalPackets(p, ch, foundConWeaveReplyTag, foundConWeaveNotifyTag, IsSrcToREqualdstToR);
-            return;
-        }
-
-        if (m_isToR) // to conweaveDataTag ,if not is srctor->if m_switch_id is dst torid
-        {
-            if (m_switch_id == srcToRId)
+            /** ACK or ConWeave's Control Packets */
+            /** NOTE: ConWeave uses 0xFD protocol id for its control packets.
+             **/
+            NS_LOG_INFO("Is ACK or ConWeave's Control Packets");
+            bool IsSend = false;
+            forwardSpeicalPackets(p, ch, foundConWeaveReplyTag, foundConWeaveNotifyTag, IsSrcToREqualdstToR, IsSend);
+            if (IsSend)
             {
-                conweaveTxMeta tx_md; // SrcToR packet metadata
-                /** INIT: initialize flowkey */
-                tx_md.pkt_flowkey = GetStringHashValueFromCustomHeader(ch);
-                auto &txEntry = m_conweaveTxTable[tx_md.pkt_flowkey];
-                initializeConweaveTxData(txEntry, tx_md, pstKey, ch);
-                pathSelect(txEntry, tx_md, pstKey, ch);
-                forwardSrctorPacket(conweaveDataTag, p, ch, tx_md);
                 return;
             }
-            else if (m_switch_id == dstToRId)
+        }
+        if (m_switch_id == srcToRId)
+        {
+            NS_LOG_INFO("Reach Src Tor");
+            conweaveTxMeta tx_md; // SrcToR packet metadata
+            /** INIT: initialize flowkey */
+            tx_md.pkt_flowkey = GetStringHashValueFromCustomHeader(ch);
+            auto &txEntry = m_conweaveTxTable[tx_md.pkt_flowkey];
+            initializeConweaveTxData(txEntry, tx_md, pstKey, ch);
+            pathSelect(txEntry, tx_md, pstKey, ch);
+            PrintConweaveTxTable();
+            forwardSrctorPacket(conweaveDataTag, p, ch, tx_md);
+            return;
+        }
+        else if (m_switch_id == dstToRId)
+        {
+            if (foundConWeaveDataTag)
             {
-                if (foundConWeaveDataTag)
+                NS_LOG_INFO("Reach Dst Tor ,is conweaveDataTag");
+                NS_ASSERT_MSG(reach_the_last_hop_of_path_tag(conweaveDataTag) == true, "not last hop");
+                PrintConweaveTxTable();
+                conweaveRxMeta rx_md;
+                rx_md.pkt_flowkey = GetStringHashValueFromCustomHeader(ch);
+                auto &rxEntry = m_conweaveRxTable[rx_md.pkt_flowkey];
+                initializeConweaveRxData(rxEntry, rx_md, conweaveDataTag, ch);
+                /**
+                 * ROUND: check epoch: 2(prev), 0(current), or 1(new)
+                 */
+                epochToCheck(rxEntry, rx_md, p, ch);
+                updateExpectedToFlushTime(rxEntry, rx_md, ch);
+                phaseToDisposeVqq(rxEntry, rx_md, ch);
+                replyLablePacket(rx_md, p, ch);
+                /**
+                 * ENQUEUE: enqueue the packet
+                 */
+                if (rx_md.flagEnqueue)
                 {
-                    conweaveRxMeta rx_md;
-                    rx_md.pkt_flowkey = GetStringHashValueFromCustomHeader(ch);
-                    auto &rxEntry = m_conweaveRxTable[rx_md.pkt_flowkey];
-                    initializeConweaveRxData(rxEntry, rx_md, conweaveDataTag, ch);
-                    /**
-                     * ROUND: check epoch: 2(prev), 0(current), or 1(new)
-                     */
-                    epochToCheck(rxEntry, rx_md, p, ch);
-                    updateExpectedToFlushTime(rxEntry, rx_md, ch);
-                    phaseToDisposeVqq(rxEntry, rx_md, ch);
-                    replyLablePacket(rx_md, p, ch);
-                    /**
-                     * ENQUEUE: enqueue the packet
-                     */
-                    if (rx_md.flagEnqueue)
-                    {
-                        m_voqMap[rx_md.pkt_flowkey].Enqueue(p);
-                        m_nOutOfOrderPkts++;
-                        return;
-                    }
-                    /**
-                     * SEND: send to end-host
-                     */
-                    DoSwitchSendToDev(p, ch);
+                    m_voqMap[rx_md.pkt_flowkey].Enqueue(p);
+                    m_nOutOfOrderPkts++;
                     return;
                 }
-                if (foundConWeaveReplyTag || m_pathAwareRerouting)
-                {
-                    disposeReplyPacket(conweaveReplyTag, ch, conweaveNotifyTag, foundConWeaveNotifyTag);
-                }
-                else
-                {
-                    /**
-                     * NOTAG: impossible
-                     */
-                    NS_LOG_INFO(PARSE_FIVE_TUPLE(ch) << "Sw(" << m_switch_id << "),isToR:" << m_isToR);
-                    std::cout << __FILE__ << "(" << __LINE__ << "):" << Simulator::Now() << ","
-                              << PARSE_FIVE_TUPLE(ch) << std::endl;
-                    assert(false && "No Tag is impossible");
-                }
+                /**
+                 * SEND: send to end-host
+                 */
+                DoSwitchSendToDev(p, ch);
+                return;
             }
-            // should not reach here (TOR, but neither TxToR nor RxToR)
-            NS_LOG_INFO(PARSE_FIVE_TUPLE(ch) << "Sw(" << m_switch_id << "),isToR:" << m_isToR);
-            std::cout << __FILE__ << "(" << __LINE__ << "):" << Simulator::Now() << ","
-                      << PARSE_FIVE_TUPLE(ch) << std::endl;
-            printf(
-                "[ERROR] TxToR: %u, RxToR: %u, Current SwitchId: %u, isToR: %u, CwhData: %u, REPLY:%u, "
-                "NOTIFY:%u\n",
-                srcToRId, dstToRId, m_switch_id, m_isToR, foundConWeaveDataTag, foundConWeaveReplyTag,
-                foundConWeaveNotifyTag);
-            assert(false);
+            else if (foundConWeaveReplyTag || foundConWeaveNotifyTag)
+            {
+                NS_LOG_INFO("Reach Dst Tor ,is foundConWeaveReplyTag or foundConWeaveNotifyTag ");
+                PrintConweaveTxTable();
+                disposeReplyPacket(conweaveReplyTag, foundConWeaveReplyTag, ch, conweaveNotifyTag, foundConWeaveNotifyTag);
+                return;
+            }
         }
-
-        /******************************
-         *  Non-ToR Switch (Core/Agg) *
-         ******************************/
-        if (foundConWeaveDataTag)
+        else if (reach_the_last_hop_of_path_tag(conweaveDataTag) == false)
         {
-
+            NS_LOG_INFO("Reach Mid Tor ");
+            PrintConweaveTxTable();
             onlyForwardPacket(conweaveDataTag, p, ch);
             return;
         }
-        // UDP with ECMP
-        NS_LOG_INFO("[NonToR/ECMP] Sw(" << m_switch_id << ")," << PARSE_FIVE_TUPLE(ch));
-        DoSwitchSendToDev(p, ch);
+        else
+        {
+            // UDP with ECMP
+            NS_LOG_INFO("[NonToR/ECMP] Sw(" << m_switch_id << ")," << PARSE_FIVE_TUPLE(ch));
+            DoSwitchSendToDev(p, ch);
+            return;
+        }
         return;
     }
 
@@ -1375,6 +1426,7 @@ namespace ns3
         {
             if (now - ((itr1->second)._activeTime) > m_agingTime)
             {
+                NS_LOG_INFO("erase m_conweaveTxTable one key: " << itr1->first << " Now Time " << now.GetNanoSeconds() << " activeTime " << (itr1->second)._activeTime.GetNanoSeconds() << " agingTime " << m_agingTime.GetNanoSeconds());
                 itr1 = m_conweaveTxTable.erase(itr1);
             }
             else

@@ -1351,8 +1351,8 @@ namespace ns3
     uint32_t RdmaSmartFlowRouting::get_the_path_length_by_path_id(const uint32_t pathId, PathData *&pitEntry)
     {
         // NS_LOG_INFO ("############ Fucntion: get_the_path_length_by_path_id() ############");
-        PathData *pitEntry = lookup_PIT(pathId);
-        return pitEntry->portSequence.size();
+        PathData *pitEntry1 = lookup_PIT(pathId);
+        return pitEntry1->portSequence.size();
     }
 
     bool RdmaSmartFlowRouting::reach_the_last_hop_of_path_tag(Ipv4SmartFlowPathTag &smartFlowTag, PathData *&pitEntry)
@@ -1479,7 +1479,7 @@ namespace ns3
             else
             {
                 NS_LOG_INFO("There is too Many available forwarding paths, so to select " << m_pathSelNum << " paths");
-                rndPathIdStartValue = std::rand() % (forwardPathNum - m_pathSelNum + 1);
+                uint32_t rndPathIdStartValue = std::rand() % (forwardPathNum - m_pathSelNum + 1);
                 for (uint32_t i = 0; i < m_pathSelNum; i++)
                 {
                     // uint32_t rndPathIdx = std::rand() % forwardPathNum;

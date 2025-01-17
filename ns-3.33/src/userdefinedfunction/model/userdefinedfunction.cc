@@ -1528,6 +1528,8 @@ namespace ns3
     std::map<uint32_t, std::map<uint32_t, PathData>> PIT;
     read_PIT_from_file(varMap->pitFile, PIT);
     read_hostId_PST_Path_from_file(varMap, PST);
+    read_SMT_from_file(varMap->smtFile, SMT);
+    std::cout << "SMT: " << varMap->smtFile << std::endl;
     uint32_t nodeId = sw->GetSwitchId();
     std::cout << varMap->lbsName << std::endl;
     if (varMap->lbsName == "laps" || varMap->lbsName == "e2elaps")
@@ -2066,7 +2068,114 @@ namespace ns3
     }
     return;
   }
-  void save_PLB_outinfo(global_variable_t *varMap)
+  void save_LB_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save LB outinfo()----------");
+    if (varMap->lbsName == "ecmp")
+    {
+      save_ecmp_outinfo(varMap);
+    }
+    else if (varMap->lbsName == "conga")
+    {
+      save_conga_outinfo(varMap);
+    }
+    else if (varMap->lbsName == "plb")
+    {
+      save_plb_outinfo(varMap);
+    }
+    else if (varMap->lbsName == "letflow")
+    {
+      save_letflow_outinfo(varMap);
+    }
+    return;
+  }
+  void save_ecmp_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save ecmp outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-ecmpRecordOutInf.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+    for (auto it = SwitchNode::m_ecmpPortInf.begin(); it != SwitchNode::m_ecmpPortInf.end(); ++it)
+    {
+      uint32_t nodeid = it->first;
+      std::map<uint32_t, std::map<uint32_t, uint32_t>> m_flowIdInfos = it->second;
+      for (auto flowinfo = m_flowIdInfos.begin(); flowinfo != m_flowIdInfos.end(); ++flowinfo)
+      {
+        uint32_t flowId = flowinfo->first;
+        std::string outinfo = map_to_string<uint32_t, uint32_t>(flowinfo->second);
+        fprintf(file, "nodeID:%d flowId:%u outinfo:%s\n", nodeid, flowId, outinfo.c_str());
+      }
+    }
+    fflush(file);
+    return;
+  }
+  void save_letflow_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save letflow outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-letflowRecordOutInf.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+    for (auto it = SwitchNode::m_letflowTestInf.begin(); it != SwitchNode::m_letflowTestInf.end(); ++it)
+    {
+      uint32_t nodeid = it->first;
+      for (auto flowRecordinfo = it->second.begin(); flowRecordinfo != it->second.end(); ++flowRecordinfo)
+      {
+        std::string flowId = flowRecordinfo->first;
+        std::map<uint64_t, letflowSaveEntry> m_letflowInfos = flowRecordinfo->second;
+        for (auto letflowinfo = m_letflowInfos.begin(); letflowinfo != m_letflowInfos.end(); ++letflowinfo)
+        {
+          uint64_t currTime = letflowinfo->first;
+          letflowSaveEntry outEntry = letflowinfo->second;
+
+          std::string outinfo = "timegap " + std::to_string(outEntry.timeGap) + " LP " + std::to_string(outEntry.lastPort) + " CP " + std::to_string(outEntry.currPort) + " AT " + std::to_string(outEntry.activeTime);
+          fprintf(file, "nodeID:%d fID:%s CT:%lu OT:%s\n", nodeid, flowId.c_str(), currTime, outinfo.c_str());
+        }
+      }
+    }
+    fflush(file);
+    return;
+  }
+  void save_ccmode_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save ccmode outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-ccmodeRecordOutInf.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+    for (auto it = RdmaHw::ccmodeOutInfo.begin(); it != RdmaHw::ccmodeOutInfo.end(); ++it)
+    {
+      uint32_t nodeid = it->first;
+      std::map<std::string, std::map<uint64_t, RecordCcmodeOutEntry>> m_flowIdRecordInfos = it->second;
+      for (auto ccmodRecordinfo = m_flowIdRecordInfos.begin(); ccmodRecordinfo != m_flowIdRecordInfos.end(); ++ccmodRecordinfo)
+      {
+        std::string flowId = ccmodRecordinfo->first;
+        for (auto OutEntry = ccmodRecordinfo->second.begin(); OutEntry != ccmodRecordinfo->second.end(); ++OutEntry)
+        {
+
+          uint64_t curTimeInMilliSec = OutEntry->first;
+          RecordCcmodeOutEntry outinfo = OutEntry->second;
+          std::string outinfoStr1 = " ecn " + std::to_string(outinfo.m_cnt_cnpByEcn);
+          std::string outinfoStr2 = outinfoStr1 + " cnp " + std::to_string(outinfo.m_cnt_Cnp) + " currrate " + std::to_string(outinfo.currdatarate) + " nextrate " + std::to_string(outinfo.nextdatarate);
+          // NS_LOG_INFO("NID:%d fId:%s CT:%lu out:%s\n");
+          fprintf(file, "NID:%d fId:%s CT:%lu out:%s\n", nodeid, flowId.c_str(), curTimeInMilliSec, outinfoStr2.c_str());
+        }
+      }
+    }
+    fflush(file);
+    return;
+  }
+  void save_plb_outinfo(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save PLB outinfo()----------");
     std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-plbRecordOutInf.txt";
@@ -2085,14 +2194,14 @@ namespace ns3
         // std::string swid_poid = "nodeID: " + to_string(nodeid) + ",portIdx: " + to_string(portinfo->first);
         uint32_t curTimeInMilliSec = m_record_timeInMilliSec->first;
         PlbRecordEntry plbOutInfo = m_record_timeInMilliSec->second;
-        fprintf(file, "nodeID:%d TimeInMilliSec:%u flowId:%s congested_rounds:%d pkts_in_flight:%d pause_untilInSec:%u randomNum:%u\n", nodeid, curTimeInMilliSec, plbOutInfo.flowID.c_str(), plbOutInfo.congested_rounds, plbOutInfo.pkts_in_flight, plbOutInfo.pause_untilInSec, plbOutInfo.randomNum);
+        fprintf(file, "nodeID:%d TimeInMilliSec:%lu flowId:%s congested_rounds:%u pkts_in_flight:%u pause_untilInSec:%u randomNum:%u\n", nodeid, curTimeInMilliSec, plbOutInfo.flowID.c_str(), plbOutInfo.congested_rounds, plbOutInfo.pkts_in_flight, plbOutInfo.pause_untilInSec, plbOutInfo.randomNum);
       }
     }
     fflush(file);
     return;
   }
 
-  void save_Conga_outinfo(global_variable_t *varMap)
+  void save_conga_outinfo(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save conga outinfo()----------");
     std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-CongaRecordOutInf.txt";
@@ -2112,7 +2221,7 @@ namespace ns3
         // std::string swid_poid = "nodeID: " + to_string(nodeid) + ",portIdx: " + to_string(portinfo->first);
         uint64_t curTimeInMilliSec = m_record_timeInMilliSec->first;
         std::string outinfo = m_record_timeInMilliSec->second;
-        fprintf(file, "nodeID:%d TimeInMilliSec:%u OutInfo:%s\n", nodeid, curTimeInMilliSec, outinfo.c_str());
+        fprintf(file, "nodeID:%u TimeInMilliSec:%lu OutInfo:%s\n", nodeid, curTimeInMilliSec, outinfo.c_str());
       }
     }
     fflush(file);
@@ -2375,27 +2484,16 @@ namespace ns3
       uint32_t dstNodeIdx = channelEntry.dstNodeIdx;
       Ptr<Node> dstNode = allNodes.Get(dstNodeIdx);
       QbbHelper qbb;
-      if (varMap->enableFlowCongestTest)
-      {
-        qbb = set_QBB_Test_attribute(channelEntry.widthInMbps, channelEntry.delayInUs);
-      }
-      else
-      {
-        qbb = set_QBB_attribute(channelEntry.widthInGbps, channelEntry.delayInUs);
-      }
+
+      qbb = set_QBB_attribute(channelEntry.widthInGbps, channelEntry.delayInUs);
+
       // QbbHelper qbb = set_QBB_attribute(channelEntry.widthInGbps, channelEntry.delayInUs);
       NetDeviceContainer d = qbb.Install(srcNode, dstNode);
       if (i == 0) {
-        if (varMap->enableFlowCongestTest)
-        {
-          update_EST(varMap->paraMap, "channelWidthInMbps:", channelEntry.widthInGbps);
-          NS_LOG_INFO("enableFlowCongestTest channelWidthInMbps : " << channelEntry.widthInGbps);
-        }
-        else
-        {
-          update_EST(varMap->paraMap, "channelWidthInGbps:", channelEntry.widthInGbps);
-          NS_LOG_INFO("channelWidthInGbps : " << channelEntry.widthInGbps);
-        }
+
+        update_EST(varMap->paraMap, "channelWidthInGbps:", channelEntry.widthInGbps);
+        NS_LOG_INFO("channelWidthInGbps : " << channelEntry.widthInGbps);
+
         // update_EST(varMap->paraMap, "channelWidthInGbps:", channelEntry.widthInGbps);
         // NS_LOG_INFO("channelWidthInGbps : " << channelEntry.widthInGbps);
         update_EST(varMap->paraMap, "channelDelayInUs:", channelEntry.delayInUs);
@@ -2708,17 +2806,11 @@ namespace ns3
   }
   void config_switch(global_variable_t *varMap)
   {
-    if (varMap->enableFlowCongestTest)
-    {
-      config_switch_mmu_flowCongest_test(varMap);
-    }
-    else
-    {
-      config_switch_mmu(varMap);
-    }
+
+    config_switch_mmu(varMap);
 
     set_switch_cc_para(varMap);
-    // config_switch_lb(varMap);
+    config_switch_lb(varMap);
     return;
   }
   /*
@@ -2767,7 +2859,15 @@ namespace ns3
 
   void install_rdma_driver(global_variable_t *varMap) {
     NS_LOG_FUNCTION(varMap->svNodes.GetN());
-    Irn::SetMode(varMap->irnMode);
+    if (varMap->lbsName == "e2elaps")
+    {
+      Irn::SetMode("NACK");
+    }
+    else
+    {
+      Irn::SetMode(varMap->irnMode);
+    }
+
     update_EST(varMap->paraMap, "irnMode", Irn::GetMode());
     NS_LOG_INFO("irnMode : " << Irn::GetMode());
 
@@ -3171,12 +3271,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       std::map<Ipv4Address, uint32_t> SMT = Calulate_SMT_for_laps(varMap->svNodes);
       install_routing_entries_based_on_single_smt_entry_for_laps(varMap->svNodes, SMT);
     }
-    else
-    {
-      NS_ASSERT_MSG(false, "Error in unknown lbsName");
-    }
   }
-
 
   void print_node_routing_tables(global_variable_t *varMap, uint32_t nodeidx)
   {
@@ -3550,6 +3645,16 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
   }
   void sim_finish(global_variable_t *varMap)
   {
+
+    // save_PLB_outinfo(&varMap);
+    // save_Conga_outinfo(&varMap);
+    // save_ecmp_outinfo(&varMap);
+    save_LB_outinfo(varMap);
+    if (ENABLE_CCMODE_TEST)
+    {
+      save_ccmode_outinfo(varMap);
+    }
+
     if (varMap->enableQbbTrace)
     {
       fflush(varMap->qbbFileHandle);

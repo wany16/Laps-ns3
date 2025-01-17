@@ -1158,8 +1158,11 @@ namespace ns3
   void set_QBB_trace(global_variable_t *varMap);
   // void switchportinfoPrint(global_variable_t *varMap, uint32_t nodeId);
   void save_egress_ports_loadinfo(global_variable_t *varMap);
-  void save_Conga_outinfo(global_variable_t *varMap);
-  void save_PLB_outinfo(global_variable_t *varMap);
+  void save_conga_outinfo(global_variable_t *varMap);
+  void save_plb_outinfo(global_variable_t *varMap);
+  void save_ecmp_outinfo(global_variable_t *varMap);
+  void save_LB_outinfo(global_variable_t *varMap);
+  void save_letflow_outinfo(global_variable_t *varMap);
   void sim_finish(global_variable_t *varMap);
   // void print_nic_info(global_variable_t *varMap);
   void generate_rdma_flows_for_node_pair(global_variable_t *varMap);

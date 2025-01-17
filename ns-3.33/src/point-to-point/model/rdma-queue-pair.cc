@@ -19,6 +19,8 @@ namespace ns3
 	uint32_t Irn::reTxThresholdNPackets = IRN_OPTIMIZED_RE_TX_THRESHOLD_N_PACKETS;
 	uint32_t Irn::reTxThresholdNNanoSeconds = IRN_OPTIMIZED_RE_TX_THRESHOLD_N_NANOSECONDS;
 	uint64_t CcLaps::maxIncStage = 5;
+	bool Irn::isTrnOptimizedEnabled = false;
+
 	Irn::Mode Irn::mode = Irn::Mode::NONE;
 
 	void Irn::SetMode(std::string mode)
@@ -30,6 +32,14 @@ namespace ns3
 		else if (mode == "NACK")
 		{
 			Irn::mode = Irn::Mode::NACK;
+		}
+		else if (mode == "GBN")
+		{
+			Irn::mode = Irn::Mode::GBN;
+		}
+		else if (mode == "IRN")
+		{
+			Irn::mode = Irn::Mode::IRN;
 		}
 		else if (mode == "NONE")
 		{
@@ -50,6 +60,14 @@ namespace ns3
 		else if (Irn::mode == Irn::Mode::NACK)
 		{
 			return "NACK";
+		}
+		else if (mode == Irn::Mode::GBN)
+		{
+			return "GBN";
+		}
+		else if (mode == Irn::Mode::IRN)
+		{
+			return "IRN";
 		}
 		else if (Irn::mode == Irn::Mode::NONE)
 		{
@@ -190,10 +208,15 @@ std::string RdmaQueuePair::GetStringHashValueFromQp()
 		}
 		else if (Irn::mode == Irn::Mode::NACK)
 		{
-			return GetBytesLeftForLaps();	
+			return GetBytesLeftForLaps();
 		}
-		return m_size >= snd_nxt ? m_size - snd_nxt : 0;
-	}
+		else if (Irn::mode == Irn::Mode::GBN)
+		{
+			return m_size >= snd_nxt ? m_size - snd_nxt : 0;
+		}
+		NS_LOG_ERROR("IRN::mode error:GetBytesLeft()");
+		exit(1);
+		}
 
 	uint64_t RdmaQueuePair::GetBytesLeftForLaps()
 	{
@@ -654,9 +677,13 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 
 	bool RdmaQueuePair::CanIrnTransmit(uint32_t mtu) {
 		NS_LOG_FUNCTION(this << "MtuInByte " << mtu);
-		if (Irn::mode == Irn::Mode::IRN_OPT)
+		if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
 		{
 			return CanIrnTransmitForLaps(mtu);
+		}
+		else if (Irn::mode == Irn::Mode::GBN)
+		{
+			return true;
 		}
 
 		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN, "Called Only when Irn is enabled");
@@ -679,7 +706,7 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 		NS_LOG_FUNCTION(this << "enableVarWin" << m_var_win
 												 << "maxWinInByte" << m_win
 									 );
-		if (Irn::mode == Irn::Mode::IRN_OPT)
+		if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
 		{
 			return IsWinBoundForLaps();
 		}
@@ -698,7 +725,7 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 	uint64_t RdmaQueuePair::GetWin()
 	{
 		NS_LOG_FUNCTION(this);
-		if (Irn::mode == Irn::Mode::IRN_OPT)
+		if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
 		{
 			return GetWinForLaps();
 		}

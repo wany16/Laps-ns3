@@ -940,13 +940,19 @@ namespace ns3 {
 				flowIdTag.SetFlowId(m_ifIndex);
 				packet->AddPacketTag(flowIdTag);
 				DynamicCast<SwitchNode>(m_node)->SwitchReceiveFromDevice(this, packet, ch);
-			}else { // NIC
-				Ptr<RdmaSmartFlowRouting> m_routing = m_rdmaGetE2ELapsLBouting();
-				bool ShouldUpForward = m_routing->RouteInput(packet, ch);
-				if (ShouldUpForward)
+			}
+			else
+			{ // NIC
+				if (m_lbSolution == LB_Solution::LB_E2ELAPS)
 				{
-					m_rdmaReceiveCb(packet, ch);
+					Ptr<RdmaSmartFlowRouting> m_routing = m_rdmaGetE2ELapsLBouting();
+					bool ShouldUpForward = m_routing->RouteInput(packet, ch);
+					if (ShouldUpForward)
+					{
+						m_rdmaReceiveCb(packet, ch);
+					}
 				}
+				m_rdmaReceiveCb(packet, ch);
 			}
 		}
 		return;

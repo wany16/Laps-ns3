@@ -47,12 +47,12 @@ NS_LOG_COMPONENT_DEFINE("CongestionControlSimulator");
 int main(int argc, char *argv[])
 {
     LogComponentEnable("RdmaHw", LOG_LEVEL_INFO);
-    LogComponentEnable("SwitchNode", LOG_LEVEL_INFO);
+    //  LogComponentEnable("SwitchNode", LOG_LEVEL_INFO);
     LogComponentEnable("ConWeaveRouting", LOG_LEVEL_INFO);
-    LogComponentEnable("RdmaSmartFlowRouting", LOG_LEVEL_INFO);
+    //  LogComponentEnable("RdmaSmartFlowRouting", LOG_LEVEL_INFO);
     LogComponentEnable("userdefinedfunction", LOG_LEVEL_INFO);
-    LogComponentEnable("CongestionControlSimulator", LOG_LEVEL_INFO);
-    LogComponentEnable("QbbNetDevice", LOG_LEVEL_INFO);
+    // LogComponentEnable("CongestionControlSimulator", LOG_LEVEL_INFO);
+    // LogComponentEnable("QbbNetDevice", LOG_LEVEL_INFO);
     // LogComponentEnable ("BEgressQueue", LOG_LEVEL_INFO);
 
     global_variable_t varMap;
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
     std::cout << "-------------------------------Calculate The Paths----------------------------------------" << std::endl;
     calculate_paths_for_servers(&varMap);
     std::cout << "-------------------------------Install The Routing Table----------------------------------------" << std::endl;
-    install_routing_entries(&varMap);
+    install_routing_entries_without_Pathtable(&varMap);
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
     // print_node_routing_tables(&varMap, 5);
     // print_node_routing_tables(&varMap, 19);
@@ -112,8 +112,21 @@ int main(int argc, char *argv[])
     // install_rdma_client_on_node(&varMap, 20, 24);
     // install_rdma_client_on_node(&varMap, 20, 21, 1, 2000000000, varMap.appStartPort);
     // install_rdma_client_on_node(&varMap, 20, 30, 1, 2000000000, varMap.appStartPort + 1);
-    install_rdma_client_on_node(&varMap, 5, 7, 1, 200000000, varMap.appStartPort);
-    // install_rdma_client_on_node(&varMap, 5, 8, 1, 20000000000, varMap.appStartPort + 1);
+    /*for (size_t i = 0; i < 200; i += 4)
+    {
+        install_rdma_client_on_node(&varMap, 5, 7, 1, 20000000, varMap.appStartPort);
+        install_rdma_client_on_node(&varMap, 5, 8, 1, 20000000, varMap.appStartPort + i + 1);
+        install_rdma_client_on_node(&varMap, 6, 8, 1, 20000000, varMap.appStartPort + i + 2);
+        install_rdma_client_on_node(&varMap, 6, 7, 1, 20000000, varMap.appStartPort + i + 3);
+    }*/
+
+    /* for (size_t i = 0; i < 200; i += 1)
+     {
+         install_rdma_client_on_node(&varMap, 5, 7, 1, 20000, varMap.appStartPort + i);
+     }*/
+    // install_rdma_client_on_node(&varMap, 5, 7, 1, 3000, varMap.appStartPort);
+
+    install_rdma_client_on_node(&varMap, 5, 8, 1, 1000, varMap.appStartPort + 1);
     // install_rdma_client_on_node(&varMap, 6, 8, 1, 20000000000, varMap.appStartPort + 2);
     // install_rdma_client_on_node(&varMap, 6, 7, 1, 20000000000, varMap.appStartPort + 3);
     //  node_install_rdma_application(&varMap);
@@ -126,8 +139,6 @@ int main(int argc, char *argv[])
     NS_LOG_INFO("Run Simulation.");
     Simulator::Run();
     save_egress_ports_loadinfo(&varMap);
-    // save_PLB_outinfo(&varMap);
-    save_Conga_outinfo(&varMap);
     sim_finish(&varMap);
     Simulator::Destroy();
     std::cout << "-------------------------------Finish The Simulation----------------------------------------" << std::endl;

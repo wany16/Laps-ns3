@@ -48,18 +48,21 @@ namespace ns3
     std::string GetStringHashValueFromCustomHeader(const CustomHeader &ch)
     {
         uint16_t port = 0;
-        if (ch.l3Prot == 0x6) // TCP
-            port = ch.tcp.sport;
-        else if (ch.l3Prot == 0x11) // UDP
-            port = ch.udp.sport;
-        else if (ch.l3Prot == 0xFC || ch.l3Prot == 0xFD) // ACK or NACK
-            port = ch.ack.sport;
-        else
-        {
-            std::cout << "Error in GetStringHashValueFromCustomHeader() for UNKOWN header type" << std::endl;
-            return "";
-        }
-        std::string stringhash = std::to_string(ch.sip) + "#" + std::to_string(ch.dip) + "#" + std::to_string(port);
+
+        /* if (ch.l3Prot == 0x6) // TCP
+             port = ch.tcp.sport;
+         else if (ch.l3Prot == 0x11) // UDP
+             port = ch.udp.sport;
+         else if (ch.l3Prot == 0xFC || ch.l3Prot == 0xFD) // ACK or NACK
+             port = ch.ack.sport;
+         else
+         {
+             std::cout << "Error in GetStringHashValueFromCustomHeader() for UNKOWN header type" << std::endl;
+             return "";
+         }*/
+        port = ch.udp.sport;
+        // std::string stringhash = std::to_string(ch.sip) + "#" + std::to_string(ch.dip) + "#" + std::to_string(port);
+        std::string stringhash = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(port);
         return stringhash;
     }
     std::string ipv4Address2string(Ipv4Address addr)

@@ -51,6 +51,8 @@ namespace ns3
     sip << "(" << sport << ")," << dip << "(" << dport << ")[" << protocol << "],SEQ:" << seq \
         << ",ECN:" << ecn << ","
 
+#define ENABLE_CCMODE_TEST false
+#define ENABLE_LOSS_PACKET_TEST false
     enum LB_Solution
     {
         LB_ECMP = 0,
@@ -68,40 +70,60 @@ namespace ns3
 
     };
 
-
-template <typename T>
-size_t GetHashValue(std::vector<T> & key)
-{
-    std::string str = "";
-    for (size_t i = 0; i < key.size(); i++)
+    template <typename T>
+    size_t GetHashValue(std::vector<T> &key)
     {
-        str = str + "#" + std::to_string(key[i]);
+        std::string str = "";
+        for (size_t i = 0; i < key.size(); i++)
+        {
+            str = str + "#" + std::to_string(key[i]);
+        }
+        std::hash<std::string> hash_fn;
+        return hash_fn(str);
     }
-    std::hash<std::string> hash_fn;
-    return hash_fn(str);
-}
 
-template <typename T1, typename T2>
-std::string ListToString(const std::list<std::pair<T1, T2>>& d)
-{
-    std::ostringstream oss;
-    for (const auto& item : d) {
-        oss << "(" << item.first << ", " << item.second << "), ";
-    }
-    std::string result = oss.str();
-    if (!result.empty()) {
-        result.pop_back(); // 移除最后一个空格
-        result.pop_back(); // 移除最后一个逗号
-    }
-    else
+    template <typename T1, typename T2>
+    std::string ListToString(const std::list<std::pair<T1, T2>> &d)
     {
-        result = "()";
+        std::ostringstream oss;
+        for (const auto &item : d)
+        {
+            oss << "(" << item.first << ", " << item.second << "), ";
+        }
+        std::string result = oss.str();
+        if (!result.empty())
+        {
+            result.pop_back(); // 移除最后一个空格
+            result.pop_back(); // 移除最后一个逗号
+        }
+        else
+        {
+            result = "()";
+        }
+        return result;
     }
-    return result;
-}
 
+    struct RecordCcmodeOutEntry
+    {
+        uint64_t currdatarate = 0;
+        uint64_t nextdatarate = 0;
+        uint32_t m_cnt_cnpByEcn = 0;
+        uint32_t m_cnt_cnpByOoo = 0;
+        uint32_t m_cnt_Cnp = 0;
+        bool IsCnp;
+    };
 
-   struct HostId2PathSeleKey
+    struct LostPacketEntry
+    {
+        uint64_t snd_nxt = 0;
+        uint64_t snd_una = 0;
+        uint64_t RTO = 0;
+        uint32_t currlossPacketSeq = 0;
+        uint32_t lostNum = 0;
+        bool IsRT;
+    };
+
+    struct HostId2PathSeleKey
     {
         uint32_t selfHostId;
         uint32_t dstHostId;
@@ -359,7 +381,13 @@ std::string ListToString(const std::list<std::pair<T1, T2>>& d)
         uint32_t pause_untilInSec;
         std::string flowID;
     };
-
+    struct letflowSaveEntry
+    {
+        uint32_t lastPort = 0;
+        uint32_t currPort = 0;
+        uint64_t activeTime = 0;
+        uint64_t timeGap = 0;
+    };
     class PlbRehashTag : public Tag
     {
     public:

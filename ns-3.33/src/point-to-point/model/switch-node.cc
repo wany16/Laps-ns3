@@ -26,6 +26,7 @@ namespace ns3
 	std::map<uint32_t, std::map<uint32_t, SwitchNode::FlowPortInfo>> SwitchNode::m_PortInf;
 	RoutePath SwitchNode::routePath;
 	std::map<uint32_t, std::map<uint64_t, std::string>> SwitchNode::congaoutinfo;
+	std::map<uint32_t, std::map<std::string, std::map<uint64_t, letflowSaveEntry>>> SwitchNode::m_letflowTestInf;
 	// LB_Solution SwitchNode::lbSolution = LB_Solution::NONE;
 	uint32_t SwitchNode::GetHashValueFromCustomHeader(const CustomHeader &ch)
 	{
@@ -37,6 +38,7 @@ namespace ns3
 		} buf;
 		buf.u32[0] = ch.sip;
 		buf.u32[1] = ch.dip;
+		/*
 		if (ch.l3Prot == 0x6) // TCP
 			buf.u32[2] = ch.tcp.sport | ((uint32_t)ch.tcp.dport << 16);
 		else if (ch.l3Prot == 0x11) // UDP
@@ -47,8 +49,9 @@ namespace ns3
 		{
 			std::cout << "Error in GetHashValueFromCustomHeader() for UNKOWN header type" << std::endl;
 			return 0;
-		}
+		}*/
 		// no PFC and CNP
+		buf.u32[2] = ch.udp.sport;
 		uint32_t idx = EcmpHash(buf.u8, 12, m_ecmpSeed);
 		return idx;
 	}
@@ -687,10 +690,10 @@ namespace ns3
 
 			/*---- receiver-side ----*/
 			// update CongaToLeaf table
-			auto toLeafItr = m_congaToLeafTable.find(srcToRId);
+			// auto toLeafItr = m_congaToLeafTable.find(srcToRId);
 
-			assert(toLeafItr != m_congaToLeafTable.end() && "Cannot find srcToRId from ToLeafTable");
-			auto innerToLeafItr = (toLeafItr->second).find(congaTag.GetFbPathId());
+			// assert(toLeafItr != m_congaToLeafTable.end() && "Cannot find srcToRId from ToLeafTable");
+			// auto innerToLeafItr = (toLeafItr->second).find(congaTag.GetFbPathId());
 
 			HostId2PathSeleKey reversePstKey(dstHostId, srcHostId);
 			// pstEntryData *reversePstEntry = routePath.lookup_PST(reversePstKey);
@@ -888,6 +891,7 @@ namespace ns3
 		Time now = Simulator::Now();
 		// If the flowlet table entry is valid, return the port
 		std::map<std::string, struct LetFlowFlowletInfo>::iterator flowletItr = m_flowletTable.find(flowId);
+		letflowSaveEntry RecordEntry;
 		if (flowletItr != m_flowletTable.end())
 		{
 			LetFlowFlowletInfo flowlet = flowletItr->second;
@@ -900,19 +904,26 @@ namespace ns3
 				//{
 				//	NS_LOG_INFO(GetId() << " hit flowletTable continue select the port: ");
 				//}
-
+				RecordEntry.timeGap = (now - flowlet.activeTime).GetMicroSeconds();
+				RecordEntry.currPort = flowlet.port;
+				RecordEntry.lastPort = flowlet.port;
+				RecordEntry.activeTime = flowlet.activeTime.GetMicroSeconds();
 				flowlet.activeTime = now;
 
 				// Return the port information used for routing routine to select the port
 				selectedPort = flowlet.port;
 
 				m_flowletTable[flowId] = flowlet;
+				m_letflowTestInf[GetId()][flowId][now.GetMicroSeconds()] = RecordEntry;
 
 				return selectedPort;
 			}
 			else
 			{
 				NS_LOG_INFO(GetId() << " not hit flowletTable ,Random select the port" << ", since timegap is: " << (now - flowletItr->second.activeTime).GetNanoSeconds() << "ns");
+				RecordEntry.timeGap = (now - flowlet.activeTime).GetMicroSeconds();
+				RecordEntry.lastPort = flowlet.port;
+				RecordEntry.activeTime = flowlet.activeTime.GetMicroSeconds();
 			}
 		}
 
@@ -924,6 +935,10 @@ namespace ns3
 		flowlet.port = selectedPort;
 		flowlet.activeTime = now;
 		m_flowletTable[flowId] = flowlet;
+
+		RecordEntry.currPort = selectedPort;
+		m_letflowTestInf[GetId()][flowId][now.GetMicroSeconds()] = RecordEntry;
+
 		NS_LOG_INFO(" Random select the port is" << selectedPort << std::endl);
 		return selectedPort;
 	}
@@ -934,17 +949,19 @@ namespace ns3
 		{
 		case LB_Solution::LB_ECMP:
 		{
-			// NS_LOG_INFO("Apply Load Balancing Algorithm: " << "ECMP");
+			NS_LOG_INFO("swNodeId " << swnodeid << " Apply Load Balancing Algorithm: " << "ECMP");
 			uint32_t flowId = GetHashValueFromCustomHeader(ch);
 			CandidatePortEntry ecmpEntry = GetEcmpRouteEntry(Ipv4Address(ch.dip));
 			uint32_t egressPort = ecmpEntry.ports[flowId % ecmpEntry.ports.size()];
-			if (m_ecmpPortInf[swnodeid][egressPort].find(flowId) != m_ecmpPortInf[swnodeid][egressPort].end())
+			std::string ipInfo = ipv4Address2string(Ipv4Address(ch.sip)) + " " + ipv4Address2string(Ipv4Address(ch.dip)) + " " + std::to_string(ch.udp.sport);
+			NS_LOG_INFO(" flowId " << flowId << " " << ipInfo);
+			if (m_ecmpPortInf[swnodeid].find(flowId) != m_ecmpPortInf[swnodeid].end())
 			{
-				m_ecmpPortInf[swnodeid][egressPort][flowId] += 1;
+				m_ecmpPortInf[swnodeid][flowId][egressPort] += 1;
 			}
 			else
 			{
-				m_ecmpPortInf[swnodeid][egressPort][flowId] = 1;
+				m_ecmpPortInf[swnodeid][flowId][egressPort] = 1;
 			}
 			return egressPort;
 		}
@@ -1005,6 +1022,8 @@ namespace ns3
 			*/
 			// std::string flowId = std::to_string(ch.sip) + "#" + std::to_string(ch.dip) + std::to_string(ch.udp.sport);
 			std::string flowId = GetStringHashValueFromCustomHeader(ch);
+			// std::map<uint64_t, letflowSaveEntry> saveEntry;
+			// m_letflowTestInf[GetId()][flowId] = saveEntry;
 			uint32_t egressPort = GetLetFlowEgressPort(Ipv4Address(ch.dip), flowId);
 			return egressPort;
 		}

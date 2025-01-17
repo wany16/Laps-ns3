@@ -94,17 +94,17 @@ parser.add_argument("--pstFileName",
                     default="PST_S5_H4_L10_1.txt",
                     help="defaultFileName, by default PST_S5_H4_L10.txt/fat_tree_topology_PST.txt")
 parser.add_argument("--smtFileName",
-                    default="SMT.txt",
+                    default="SMT_S5_H4_L10_1.txt",
                     help="defaultFileName, by default fat_tree_topology_SMT.txt")
 
 parser.add_argument("--simStartTimeInSec",
                     default="0",
                     help="simulation start time")
 parser.add_argument("--simEndTimeInSec",
-                    default="6",
+                    default="1",
                     help="simulation end time")
 parser.add_argument("--flowLunchEndTimeInSec",
-                    default="5",
+                    default="0.5",
                     help="flow end time")
 parser.add_argument("--qlenMonitorIntervalInNs",
                     default="100000",
@@ -124,7 +124,7 @@ parser.add_argument(
     "--PS",
     default="30",
     help="Physical Server 30 is DCTCP_CDF',29 is RPC_CDF,28 is VL2_CDF")
-parser.add_argument("--ccMode", default="Dctcp",  help="congestion control algorithm")
+parser.add_argument("--ccMode", default="Dcqcn_mlx",  help="congestion control algorithm")
 parser.add_argument("--screenDisplayInNs", default="10000000",  help="screen display interval in Ns")
 parser.add_argument("--enablePfcMonitor", default="true",  help="trace Pfc packets or not ")
 parser.add_argument("--enableFctMonitor", default="true",  help="trace Fct or not")
@@ -194,7 +194,7 @@ patternNameMap = {'Ring': 1, 'all2all': 0.032, 'Reduce': 0.333}
 onePatternNameMap = {'Ring': 1}
 allLbsNameList = ['drill', 'letflow', 'ecmp','laps','conweave','conga']
 loadratioList = ['0.5']
-lbsNameList = ['conga']
+lbsNameList = ['conweave']
 
 
 def runBigSimTest():
