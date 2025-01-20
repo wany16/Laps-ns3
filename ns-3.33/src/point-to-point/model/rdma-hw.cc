@@ -24,6 +24,123 @@ namespace ns3
 	std::map<uint32_t, std::map<uint32_t, PlbRecordEntry>> RdmaHw::m_plbRecordOutInf;
 	std::map<uint32_t, std::map<std::string, std::map<uint64_t, RecordCcmodeOutEntry>>> RdmaHw::ccmodeOutInfo;
 	std::map<uint32_t, std::map<std::string, std::map<uint32_t, LostPacketEntry>>> RdmaHw::m_lossPacket;
+	std::map<uint32_t, std::vector<RecordFlowRateEntry_t>> RdmaHw::recordRateMap;		  //
+	std::map<uint32_t, std::vector<RecordPathDelayEntry_t>> RdmaHw::recordPathDelayMap;		  //
+	std::map<uint32_t, uint64_t> RdmaHw::pidToThDelay;		  //
+
+	bool RdmaHw::enablePathDelayRecord = true;
+
+	void RdmaHw::insertRateRecord(uint32_t flowId, uint64_t curRateInMbps)
+	{
+		if (RdmaHw::enableRateRecord == false)
+		{
+			return ;
+		}
+		auto it = RdmaHw::recordRateMap.find(flowId);
+		if (it == RdmaHw::recordRateMap.end())
+		{
+			recordRateMap[flowId].push_back(RecordFlowRateEntry_t(curRateInMbps, Simulator::Now().GetNanoSeconds(), 0));
+		}
+		else
+		{
+			 std::vector<RecordFlowRateEntry_t> & pathDelayVec = it->second;
+			 uint64_t prev_rate_in_Mbps = pathDelayVec.back().rateInMbps;
+			 uint64_t prev_time_in_ns = pathDelayVec.back().startTimeInNs;
+			 pathDelayVec.back().durationInNs = Simulator::Now().GetNanoSeconds() - prev_time_in_ns;
+			 if (curRateInMbps != prev_rate_in_Mbps)
+			 {
+				 pathDelayVec.push_back(RecordFlowRateEntry_t(curRateInMbps, Simulator::Now().GetNanoSeconds(), 0));
+			 }
+		}
+	}
+
+	void RdmaHw::insertPathDelayRecord(uint32_t pid, uint64_t pathDelayInNs)
+	{
+		if (RdmaHw::enablePathDelayRecord == false)
+		{
+			return ;
+		}
+		auto it = RdmaHw::recordPathDelayMap.find(pid);
+		if (it == RdmaHw::recordPathDelayMap.end())
+		{
+			recordPathDelayMap[pid].push_back(RecordPathDelayEntry_t(pathDelayInNs, Simulator::Now().GetNanoSeconds(), 0));
+		}
+		else
+		{
+			 std::vector<RecordPathDelayEntry_t> & pathDelayVec = it->second;
+			 uint64_t prev_delay_in_ns = pathDelayVec.back().delayInNs;
+			 uint64_t prev_time_in_ns = pathDelayVec.back().startTimeInNs;
+			 pathDelayVec.back().durationInNs = Simulator::Now().GetNanoSeconds() - prev_time_in_ns;
+			 if (pathDelayInNs != prev_delay_in_ns)
+			 {
+				 pathDelayVec.push_back(RecordPathDelayEntry_t(pathDelayInNs, Simulator::Now().GetNanoSeconds(), 0));
+			 }
+		}
+	}
+
+
+
+	void RdmaHw::printRateRecordToFile(std::string fileName)
+	{
+		if (RdmaHw::enableRateRecord == false)
+		{
+			return ;
+		}
+
+    FILE * fileHandle = fopen(fileName.c_str(), "w");
+    if (fileHandle == NULL)
+    {
+      std::cout << "Error for Cannot open file " << fileName << std::endl;
+      return ;
+    }
+
+		for (auto & flowRateEntry : RdmaHw::recordRateMap)
+		{
+			uint32_t flowId = flowRateEntry.first;
+			fprintf(fileHandle, "FlowId %u ", flowId);
+			std::vector<RecordFlowRateEntry_t> & rateVec = flowRateEntry.second;
+			for (auto & rateEntry : rateVec)
+			{
+				fprintf(fileHandle, "%s ", rateEntry.to_string().c_str());
+			}
+			fprintf(fileHandle, "\n");
+		}
+    fflush(fileHandle);
+    fclose(fileHandle);
+	}
+
+	void RdmaHw::printPathDelayRecordToFile(std::string fileName)
+	{
+		if (RdmaHw::enablePathDelayRecord == false)
+		{
+			return ;
+		}
+
+		FILE * fileHandle = fopen(fileName.c_str(), "w");
+		if (fileHandle == NULL)
+		{
+			std::cout << "Error for Cannot open file " << fileName << std::endl;
+			return ;
+		}
+
+		for (auto & pathDelayEntry : RdmaHw::recordPathDelayMap)
+		{
+			uint32_t pid = pathDelayEntry.first;
+			fprintf(fileHandle, "%u %lu ", pid, pidToThDelay[pid]);
+			std::vector<RecordPathDelayEntry_t> & pathDelayVec = pathDelayEntry.second;
+			for (auto & pathDelay : pathDelayVec)
+			{
+				fprintf(fileHandle, "%s ", pathDelay.to_string().c_str());
+			}
+			fprintf(fileHandle, "\n");
+		}
+		fflush(fileHandle);
+		fclose(fileHandle);
+	}
+
+
+	bool RdmaHw::enableRateRecord = true; 
+	std::map<uint32_t, Ptr<RdmaQueuePair>> m_flowId2Qp;
 	TypeId RdmaHw::GetTypeId(void)
 	{
 		static TypeId tid = TypeId("ns3::RdmaHw")
@@ -231,6 +348,7 @@ namespace ns3
 			dev->m_rdmaLinkDownCb = MakeCallback(&RdmaHw::SetLinkDown, this);
 			dev->m_rdmaPktSent = MakeCallback(&RdmaHw::PktSent, this);
 			dev->m_rdmaLbPktSent = MakeCallback(&RdmaHw::LBPktSent, this);
+			dev->m_rdmaOutStanding_cb = MakeCallback(&RdmaHw::AppendOutStandingDataPerPath, this);
 			dev->m_rtoSetCb = MakeCallback(&RdmaHw::SetTimeoutForLaps, this);
 			dev->m_rdmaGetE2ELapsLBouting = MakeCallback(&RdmaHw::GetE2ELapsLBouting, this);
 			dev->m_plbTableDataCb = MakeCallback(&RdmaHw::GetFlowIdRehashNum, this);
@@ -244,6 +362,10 @@ namespace ns3
 
 	uint32_t RdmaHw::GetNicIdxOfQp(Ptr<RdmaQueuePair> qp)
 	{
+		if (m_rtTable.size() == 0 && m_nic.size() == 1)
+		{
+			return 0;
+		}
 		auto &v = m_rtTable[qp->dip.Get()];
 		if (v.size() > 0)
 		{
@@ -251,6 +373,17 @@ namespace ns3
 		}
 		else
 		{
+			std::cout << "Node ** " << m_node->GetId() << " ** has " << m_rtTable.size() << " entries and " << m_nic.size() << " nics" << std::endl;
+			for (auto &i : m_rtTable)
+			{
+				std::cout << "m_rtTable[" << i.first << "] = [";
+				for (auto &j : i.second)
+				{
+					std::cout << j << " ";
+				}
+				std::cout << "]" << std::endl;				
+			}
+			
 			NS_ASSERT_MSG(false, "We assume at least one NIC is alive");
 		}
 	}
@@ -374,7 +507,7 @@ namespace ns3
 		uint64_t key = GetQpKey(dip.Get(), sport, dport, pg);
 		NS_ASSERT_MSG(m_qpMap.find(key) == m_qpMap.end(), "Flow cannot be initialized twice");
 		m_qpMap[key] = qp;
-
+		m_flowId2Qp[flowId] = qp;
 		// set init variables
 		DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
 		qp->m_max_rate = m_bps;
@@ -408,6 +541,7 @@ namespace ns3
 
 		uint64_t winInByte = uint64_t(1.0 * qp->laps.m_tgtDelayInNs * 2 * m_bps.GetBitRate() / 8 / 1000000000lu);
 		qp->SetWin(winInByte);
+		std::cout << "Flow " << flowId << " maxRateInGbps " << qp->m_max_rate.GetBitRate() / 1000000000lu << " target delay " << qp->laps.m_tgtDelayInNs << " winInByte " << qp->m_win << std::endl;
 		m_nic[nic_idx].dev->NewQp(qp);
 	}
 
@@ -471,6 +605,10 @@ namespace ns3
 
 	uint32_t RdmaHw::GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q)
 	{
+		if (m_rtTable.size() == 0 && m_nic.size() == 1)
+		{
+			return 0;
+		}
 		auto &v = m_rtTable[q->dip];
 		if (v.size() > 0)
 		{
@@ -745,6 +883,15 @@ bool RdmaHw::checkRxQpFinishedOnDstHost(const CustomHeader &ch)
 	}
 }
 
+void RdmaHw::AppendOutStandingDataPerPath(uint32_t pathId, OutStandingDataEntry & e)
+{
+	NS_LOG_FUNCTION(this << "Node=" << m_node->GetId());
+	m_outstanding_data[pathId].push_back(e);
+	SetTimeoutForLapsPerPath(pathId);
+}
+
+
+
 Ptr<Packet> RdmaHw::ConstructAckForUDP(ReceiverSequenceCheckResult state, const CustomHeader &ch, Ptr<RdmaRxQueuePair> rxQp, uint32_t udpPayloadSize)
 {
 
@@ -841,13 +988,112 @@ Ptr<Packet> RdmaHw::ConstructAckForUDP(ReceiverSequenceCheckResult state, const 
 }
 
 
+Ptr<Packet> RdmaHw::ConstructAckForProbe(const CustomHeader &ch)
+{
+
+	NS_LOG_FUNCTION(this << "Node=" << m_node->GetId());	
+	NS_LOG_INFO("Node " << m_node->GetId() << " Reply Probe");
+	qbbHeader seqh;
+	Ipv4Header head; // Prepare IPv4 header
+
+	if (Irn::mode == Irn::Mode::NACK)
+	{
+		seqh.SetIrnNack(ch.udp.seq);
+		seqh.SetIrnNackSize(0);
+		head.SetProtocol(L3ProtType::NACK);
+	}
+	// else if (Irn::mode == Irn::Mode::IRN_OPT)
+	// {
+	// 	head.SetProtocol(L3ProtType::NACK);
+	// 	if (state == ReceiverSequenceCheckResult::ACTION_NACK)
+	// 	{
+	// 		seqh.SetIrnNack(ch.udp.seq);
+	// 		seqh.SetIrnNackSize(udpPayloadSize);
+	// 	}
+	// 	else if (state == ReceiverSequenceCheckResult::ACTION_ACK || state == ReceiverSequenceCheckResult::ACTION_NACK_PSEUDO)
+	// 	{
+	// 		seqh.SetIrnNack((uint16_t) 0); 
+	// 		seqh.SetIrnNackSize(0);
+	// 	}
+	// 	else
+	// 	{
+	// 		return NULL;
+	// 	}
+	// }
+	// else if (Irn::mode == Irn::Mode::IRN)
+	// {
+	// 	if (state == ReceiverSequenceCheckResult::ACTION_NACK)
+	// 	{
+	// 		seqh.SetIrnNack(ch.udp.seq);
+	// 		seqh.SetIrnNackSize(udpPayloadSize);
+	// 		head.SetProtocol(L3ProtType::NACK); 
+	// 	}
+	// 	else if (state == ReceiverSequenceCheckResult::ACTION_ACK || state == ReceiverSequenceCheckResult::ACTION_NACK_PSEUDO)
+	// 	{
+	// 		seqh.SetIrnNack((uint16_t) 0); 
+	// 		seqh.SetIrnNackSize(0);
+	// 		head.SetProtocol(L3ProtType::ACK);
+	// 	}
+	// 	else
+	// 	{
+	// 		return NULL;
+	// 	}
+	// }
+	// else if (Irn::mode == Irn::Mode::GBN)
+	// {
+	// 		seqh.SetIrnNack((uint16_t) 0); 
+	// 		seqh.SetIrnNackSize(0);
+	// 		head.SetProtocol(L3ProtType::ACK); 
+	// }
+	else
+	{
+		NS_ASSERT_MSG(false, "Invalid Irn::mode");
+		return NULL;
+	}
+	
+
+	Ptr<Packet> ackPkt = NULL;
+	if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
+	{
+	 	ackPkt = Create<Packet>(0);
+	}
+	else
+	{
+		ackPkt = Create<Packet>(std::max(60 - 14 - 20 - (int)seqh.GetSerializedSize(), 0));
+	}
+	
+	seqh.SetSeq(0);
+	seqh.SetPG(ch.udp.pg);
+	seqh.SetSport(ch.udp.dport);
+	seqh.SetDport(ch.udp.sport);
+	seqh.SetIntHeader(ch.udp.ih);
+
+	head.SetDestination(Ipv4Address(ch.sip));
+	head.SetSource(Ipv4Address(ch.dip));
+	head.SetTtl(64);
+	head.SetPayloadSize(ackPkt->GetSize());
+	head.SetIdentification(0);
+
+	ackPkt->AddHeader(seqh);
+	ackPkt->AddHeader(head);
+	AddHeader(ackPkt, 0x800); // Attach PPP header
+	
+	return ackPkt;
+
+}
+
+
+
 int RdmaHw::ReceiveUdpOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 {
 	NS_LOG_FUNCTION (this << "Node=" << m_node->GetId());
 	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "IRN_OPT or NACK should be enabled");
 	NS_ASSERT_MSG(p && ch.l3Prot == L3ProtType::UDP, "Not UDP packet");
 	Ipv4SmartFlowProbeTag probeTag;
-	NS_ASSERT_MSG(!(p->PeekPacketTag(probeTag)), "Probe packet should not be received here");
+	if(p->PeekPacketTag(probeTag)){
+		return ReceiveProbeDataOnDstHostForLaps(p, ch);
+	}
+
 	uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
 	NS_LOG_INFO("#Node: " << m_node->GetId() << ", Time:" << Simulator::Now() << ", Receive Packet with Type: DATA" << ", PktId:" << p->GetUid() << ", Size=" << payload_size);
 	if (checkRxQpFinishedOnDstHost(ch))	{ return 1; }
@@ -869,9 +1115,12 @@ int RdmaHw::ReceiveUdpOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 		NS_ASSERT_MSG(ackPkt, "Ack packet should be generated");
 		Ipv4SmartFlowPathTag pathTag;
 		NS_ASSERT_MSG(p->PeekPacketTag(pathTag), "Path tag should be attached on UDP packet");
+		int64_t ts = Simulator::Now().GetNanoSeconds() - pathTag.GetTimeStamp().GetNanoSeconds();
+		NS_ASSERT_MSG(ts >= 0, "Timestamp should be non-negative");
 		AckPathTag ackTag;
 		ackTag.SetPathId(pathTag.get_path_id());
 		ackTag.SetFlowId(rxQp->m_flow_id);
+		ackTag.SetDelay(ts);
 		ackPkt->AddPacketTag(ackTag);
 	}
 
@@ -880,6 +1129,40 @@ int RdmaHw::ReceiveUdpOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 		uint32_t nic_idx = GetNicIdxOfRxQp(rxQp);
 		m_nic[nic_idx].dev->RdmaEnqueueHighPrioQ(ackPkt);
 		m_nic[nic_idx].dev->TriggerTransmit();
+	}
+	return 0;
+}
+
+
+int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
+{
+	NS_LOG_FUNCTION (this << "Node=" << m_node->GetId());
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "IRN_OPT or NACK should be enabled");
+	NS_ASSERT_MSG(p && ch.l3Prot == L3ProtType::UDP, "Not UDP packet");
+	Ptr<Packet> ackPkt = NULL;
+	Ipv4SmartFlowProbeTag probeTag;
+	bool isProbe = p->PeekPacketTag(probeTag);
+	NS_ASSERT_MSG(isProbe, "Probe packet should be received here");
+	ackPkt = ConstructAckForProbe(ch);
+	ackPkt->AddPacketTag(probeTag);
+
+	
+	Ipv4SmartFlowPathTag pathTag;
+	NS_ASSERT_MSG(p->PeekPacketTag(pathTag), "Path tag should be attached on UDP packet");
+	int64_t ts = Simulator::Now().GetNanoSeconds() - pathTag.GetTimeStamp().GetNanoSeconds();
+	NS_ASSERT_MSG(ts >= 0, "Timestamp should be non-negative");
+
+
+	AckPathTag ackTag;
+	ackTag.SetPathId(pathTag.get_path_id());
+	ackTag.SetDelay(ts);
+	ackPkt->AddPacketTag(ackTag);
+	std::cout << "Node " << m_node->GetId() << " Receive Probe Data Packet for path " << pathTag.get_path_id() << std::endl;
+
+	if (ackPkt)
+	{
+		m_nic[0].dev->RdmaEnqueueHighPrioQ(ackPkt);
+		m_nic[0].dev->TriggerTransmit();
 	}
 	return 0;
 }
@@ -1201,6 +1484,54 @@ int RdmaHw::ReceiveUdpOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 		return 0;
 	}
 
+	bool RdmaHw::checkOutstandingDataAndUpdateLossyData(uint32_t pid, uint32_t flowId, uint32_t seq, uint16_t size){
+		NS_LOG_FUNCTION(this);
+		NS_LOG_INFO("OutStanding Data On path " << pid << "are as follows: ");
+		auto it = m_outstanding_data.find(pid);
+		NS_ASSERT_MSG(it != m_outstanding_data.end(), "Invalid path id");
+		std::list<OutStandingDataEntry> & dataList = it->second;
+		NS_ASSERT_MSG(dataList.size() > 0, "Time " << Simulator::Now().GetNanoSeconds()<< ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId);
+		for(auto & it2 : dataList){
+			NS_LOG_INFO(it2.to_string());
+		}
+
+		bool valid = false;
+		bool lossy = false;
+		auto it2 = dataList.begin();
+		while (it2 != dataList.end())
+		{
+			if(it2->flow_id == flowId && it2->seq == seq && it2->size == size){
+				it2 = dataList.erase(it2);
+				valid = true;
+				break;
+			}
+			else
+			{
+				auto it3 = m_flowId2Qp.find(flowId);
+				NS_ASSERT_MSG(it3 != m_flowId2Qp.end(), "Invalid flow id");
+				auto qp = it3->second;
+				qp->m_irn.m_sack.m_lossy_data.emplace_back(it2->seq, it2->size);
+				NS_LOG_INFO ("LossyData: flowId=" << flowId << ", seq=[" << it2->seq << ", " << it2->size << ")");
+				it2 = it->second.erase(it2);
+				lossy = true;
+			}
+		}
+		NS_ASSERT_MSG(valid, "Time " << Simulator::Now().GetNanoSeconds()<< ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq);
+
+		if (dataList.size() == 0)
+		{
+			CancelRtoPerPath(pid);
+		}
+		else
+		{
+			SetTimeoutForLapsPerPath(pid);
+		}
+		
+		return lossy;
+	}
+
+
+
 
 	int RdmaHw::ReceiveAckForLaps(Ptr<Packet> p, CustomHeader &ch)
 	{
@@ -1208,6 +1539,14 @@ int RdmaHw::ReceiveUdpOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 		NS_ASSERT_MSG(p && ch.l3Prot == L3ProtType::NACK, "Not NACK packet");
 		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "TRN_OPTIMIZED should be enabled");
 		NS_ASSERT_MSG(m_cc_mode == CongestionControlMode::CC_LAPS, "LAPS CC should be enabled");
+
+			Ipv4SmartFlowProbeTag probeTag;
+			bool findProPacket = p->PeekPacketTag(probeTag);
+			if (findProPacket)
+			{
+				return ReceiveProbeAckForLaps(p, ch);
+			}
+
 		uint16_t qIndex = ch.ack.pg;
 		uint16_t port = ch.ack.dport;
     uint16_t sport = ch.ack.sport;  // dport for this host (sport of ACK packet)
@@ -1229,9 +1568,20 @@ int RdmaHw::ReceiveUdpOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 			AckPathTag ackTag;
 			NS_ASSERT_MSG(p->PeekPacketTag(ackTag), "Path tag should be attached on ACK packet");
 			f_pid = ackTag.GetPathId();
+			uint64_t delayInNs = ackTag.GetDelay();
+			PathData * pitEntry = m_E2ErdmaSmartFlowRouting->lookup_PIT(f_pid);
+			NS_ASSERT_MSG(pitEntry != NULL, "Invalid path id");
+			pitEntry->latency = delayInNs;
+			pitEntry->tsGeneration = Simulator::Now();
+			insertPathDelayRecord(pitEntry->pid, pitEntry->latency);
+			// pitEntry->print();
 			NS_LOG_INFO("#Node " << m_node->GetId() << " receive ACK with ExpSeq=" << seq << ", NackSeq=" << ch.ack.irnNack << ", NackSize=" << ch.ack.irnNackSize << ", PathId=" << f_pid);
 		}
 		
+
+			// m_irn.m_sack.checkOutstandingDataAndUpdateLossyData(fpid, nackSeq);
+		checkOutstandingDataAndUpdateLossyData(f_pid, qp->m_flow_id, ch.ack.irnNack, ch.ack.irnNackSize);
+
 		if (!m_backto0)
 		{
 			qp->AcknowledgeForLaps(seq, ch.ack.irnNack, ch.ack.irnNackSize,f_pid);
@@ -1266,6 +1616,30 @@ int RdmaHw::ReceiveUdpOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 		dev->TriggerTransmit();
 		return 0;
 	}
+
+	int RdmaHw::ReceiveProbeAckForLaps(Ptr<Packet> p, CustomHeader &ch)
+	{
+			NS_LOG_FUNCTION(this);
+			Ipv4SmartFlowProbeTag probeTag;
+			bool findProPacket = p->PeekPacketTag(probeTag);
+			NS_ASSERT_MSG(findProPacket, "Probe packet should be attached on ACK packet");
+			AckPathTag ackTag;
+			NS_ASSERT_MSG(p->PeekPacketTag(ackTag), "Path tag should be attached on ACK packet");
+			uint32_t f_pid = ackTag.GetPathId();
+			uint64_t delayInNs = ackTag.GetDelay();
+			PathData * pitEntry = m_E2ErdmaSmartFlowRouting->lookup_PIT(f_pid);
+			NS_ASSERT_MSG(pitEntry != NULL, "Invalid path id");
+			std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Node " << m_node->GetId() << " Receive Probe ACK Packet for path " << f_pid << std::endl;
+			// pitEntry->print();
+			pitEntry->latency = delayInNs;
+			pitEntry->tsGeneration = Simulator::Now();
+			insertPathDelayRecord(pitEntry->pid, pitEntry->latency);
+			// pitEntry->print();
+
+
+		return 0;
+	}
+
 
 	int RdmaHw::ReceiveForLaps(Ptr<Packet> p, CustomHeader &ch)
 	{
@@ -1820,8 +2194,14 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		{
 			if (it->second.IsRunning ())
 			{
-				NS_LOG_INFO("Cancel the exist timeout event that should be triggered at " << it->second.GetTs());
-				Simulator::Cancel (it->second);
+				// std::cout << "Time " << Simulator::Now().GetNanoSeconds();
+				// std::cout << ", FlowID " << qp->m_flow_id;
+				// std::cout << ", PathID " << pid;
+				// std::cout << ", **RESET** RTO from " << it->second.GetTs();
+				// std::cout << " to " << Simulator::Now().GetNanoSeconds() + timeInNs.GetNanoSeconds();
+				// std::cout << std::endl;
+				NS_LOG_INFO("Cancel the timeout event that should be triggered at " << it->second.GetTs());
+				it->second.Cancel();
 			}
 			m_rtoEvents[key] = Simulator::Schedule(timeInNs, &RdmaHw::HandleTimeoutForLaps, this, qp, pid);
 			NS_LOG_INFO("Reset a exist timeout event that should be triggered at " <<m_rtoEvents[key].GetTs());
@@ -1830,9 +2210,49 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		{
 			m_rtoEvents[key] = Simulator::Schedule(timeInNs, &RdmaHw::HandleTimeoutForLaps, this, qp, pid);
 			NS_LOG_INFO("Initial a new timeout event that should be triggered at " <<m_rtoEvents[key].GetTs());
+			// std::cout << "Time " << Simulator::Now().GetNanoSeconds();
+			// std::cout << ", FlowID " << qp->m_flow_id;
+			// std::cout << ", PathID " << pid;
+			// std::cout << " Initial RTO at " << m_rtoEvents[key].GetTs();
+			// std::cout << std::endl;
 		}
 
 	}
+
+
+		void RdmaHw::SetTimeoutForLapsPerPath(uint32_t pid) 
+	{
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::NACK, "LAPS::NACK should be enabled");
+		Time timeInNs = GetRtoTimeForPath(pid)*100;
+
+		auto it = m_rtoEventsPerPath.find(pid);
+		if (it != m_rtoEventsPerPath.end())
+		{
+			if (it->second.IsRunning ())
+			{
+				// std::cout << "Time " << Simulator::Now().GetNanoSeconds();
+				// std::cout << ", PathID " << pid;
+				// std::cout << ", **RESET** RTO from " << it->second.GetTs();
+				// std::cout << " to " << Simulator::Now().GetNanoSeconds() + timeInNs.GetNanoSeconds();
+				// std::cout << std::endl;
+				NS_LOG_INFO("Cancel the timeout event that should be triggered at " << it->second.GetTs());
+				it->second.Cancel();
+			}
+			m_rtoEventsPerPath[pid] = Simulator::Schedule(timeInNs, &RdmaHw::HandleTimeoutForLapsPerPath, this, pid);
+			NS_LOG_INFO("Reset a exist timeout event that should be triggered at " <<m_rtoEventsPerPath[pid].GetTs());
+		}
+		else
+		{
+			m_rtoEventsPerPath[pid] = Simulator::Schedule(timeInNs, &RdmaHw::HandleTimeoutForLapsPerPath, this, pid);
+			NS_LOG_INFO("Initial a new timeout event that should be triggered at " <<m_rtoEventsPerPath[pid].GetTs());
+			// std::cout << "Time " << Simulator::Now().GetNanoSeconds();
+			// std::cout << ", PathID " << pid;
+			// std::cout << " Initial RTO at " << m_rtoEventsPerPath[pid].GetTs();
+			// std::cout << std::endl;
+		}
+
+	}
+
 
 	void RdmaHw::CancelRtoForPath(Ptr<RdmaQueuePair> qp, uint32_t pathId)
 	{
@@ -1844,7 +2264,31 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		if (it->second.IsRunning ())
 		{
 			NS_LOG_INFO("Cancel the exist timeout event that should be triggered at " << it->second.GetTs());
-			Simulator::Cancel (it->second);
+			std::cout << "Time " << Simulator::Now().GetNanoSeconds();
+			std::cout << ", FlowID " << qp->m_flow_id;
+			std::cout << ", PathID " << pathId;
+			std::cout << ", **CANCEL** RTO that should be triggered at " << it->second.GetTs();
+			std::cout << std::endl;
+			it->second.Cancel();
+		}
+
+	}
+
+	void RdmaHw::CancelRtoPerPath(uint32_t pathId)
+	{
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::NACK, "LAPS::NACK should be enabled");
+
+		auto it = m_rtoEventsPerPath.find(pathId);
+		NS_ASSERT_MSG(it != m_rtoEventsPerPath.end(), "RTO event should exist");
+
+		if (it->second.IsRunning ())
+		{
+			NS_LOG_INFO("Cancel the exist timeout event that should be triggered at " << it->second.GetTs());
+			std::cout << "Time " << Simulator::Now().GetNanoSeconds();
+			std::cout << ", PathID " << pathId;
+			std::cout << ", **CANCEL** RTO that should be triggered at " << it->second.GetTs();
+			std::cout << std::endl;
+			it->second.Cancel();
 		}
 
 	}
@@ -1865,6 +2309,43 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
     Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
 		qp->m_irn.m_sack.handleRto(pid);
 		dev->TriggerTransmit();		
+	}
+
+	void RdmaHw::HandleTimeoutForLapsPerPath(uint32_t pid) 
+	{
+		NS_ASSERT_MSG(Irn::mode == Irn::Mode::NACK, "LAPS::NACK should be enabled");
+		auto it = m_outstanding_data.find(pid);
+		NS_ASSERT_MSG(it != m_outstanding_data.end(), "Outstanding data should exist called by HandleTimeoutForLapsPerPath");
+		std::list<OutStandingDataEntry> & dataList = it->second;
+		std::map<uint32_t, bool> reTxNic;
+		auto it2 = dataList.begin();
+		bool prefixPrinted = false;
+		while (it2 != dataList.end())
+		{
+			uint32_t flowId = it2->flow_id;
+			uint32_t seq = it2->seq;
+			uint16_t size = it2->size;
+			auto & qp = m_flowId2Qp[flowId];
+			NS_ASSERT_MSG(qp != NULL, "QP should exist called by HandleTimeoutForLapsPerPath");
+			qp->m_irn.m_sack.m_lossy_data.emplace_back(seq, size);
+			uint32_t nic_idx = GetNicIdxOfQp(qp);
+			reTxNic[nic_idx] = true;
+			if (!prefixPrinted)
+			{
+				std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Time " << Simulator::Now().GetNanoSeconds() << ", Path " << pid << " enter RTO timeout" << std::endl;
+				prefixPrinted = true;
+			}
+			std::cout << "FlowID " << flowId <<", PathID=" << pid << ", segment=[" << seq << ", " << seq+size << "]" << std::endl;
+			it2 = it->second.erase(it2);
+		}
+		NS_ASSERT_MSG(reTxNic.size() > 0, "Retransmit NIC should exist called by HandleTimeoutForLapsPerPath");
+		NS_ASSERT_MSG(dataList.size() == 0, "Outstanding data should be empty called by HandleTimeoutForLapsPerPath");
+
+		for (auto & it3 : reTxNic)
+		{
+			Ptr<QbbNetDevice> dev = m_nic[it3.first].dev;
+			dev->TriggerTransmit();
+		}
 	}
 
 	Ptr<RdmaSmartFlowRouting> RdmaHw::GetE2ELapsLBouting()
@@ -2715,8 +3196,8 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		Time oldSendingTime = Seconds(qp->laps.m_curRate.CalculateTxTime(qp->lastPktSize));
 		if (qp->laps.m_incStage > CcLaps::maxIncStage)
 		{
-			qp->laps.m_tgtRate = qp->laps.m_tgtRate * 2;
-			qp->laps.m_incStage = 0;
+			qp->laps.m_tgtRate = std::min(qp->m_max_rate, qp->laps.m_tgtRate * 2);
+			// qp->laps.m_incStage = 0;
 		}
 		qp->laps.m_curRate = 0.5 * (qp->laps.m_curRate + qp->laps.m_tgtRate);
 		qp->laps.m_nxtRateIncTimeInNs = Simulator::Now().GetNanoSeconds() + nxtIncTimeInNs;
@@ -2725,6 +3206,16 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		int64_t timeGap = newSendingTime.GetNanoSeconds() - oldSendingTime.GetNanoSeconds();
 		NS_ASSERT_MSG(timeGap <= 0, "The timeGap is positive");
 		NS_LOG_INFO("curRateInMbps: " << qp->laps.m_curRate.GetBitRate()/1000000 << " tgtRateInMbps: " << qp->laps.m_tgtRate.GetBitRate()/1000000);
+		// if (RdmaHw::enableRateRecord)
+		// {
+		// 	RecordFlowRateEntry_t recordFlowRateEntry;
+		// 	recordFlowRateEntry.timeInNs = Simulator::Now().GetNanoSeconds();
+		// 	recordFlowRateEntry.curRateInMbps = qp->laps.m_curRate.GetBitRate()/1000000/8;
+		// 	recordFlowRateEntry.tgtRateInMbps = qp->laps.m_tgtRate.GetBitRate()/1000000/8;
+		// 	recordFlowRateEntry.reason = "IdleLatency";
+		// 	recordFlowRateEntry.incStage = qp->laps.m_incStage;
+		// 	recordRateMap[qp->m_flow_id].push_back(recordFlowRateEntry);
+		// }
 		return timeGap;
 	}
 
@@ -2734,13 +3225,24 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		NS_ASSERT_MSG(qp->laps.m_curRate <= qp->laps.m_tgtRate, "The current rate is larger than the target rate");
 		qp->laps.m_nxtRateDecTimeInNs = Simulator::Now().GetNanoSeconds() + nxtDecTimeInNs;
 		Time oldSendingTime = Seconds(qp->laps.m_curRate.CalculateTxTime(qp->lastPktSize));
-		qp->laps.m_tgtRate = qp->laps.m_curRate;
-		qp->laps.m_curRate = qp->laps.m_curRate / 2;
+		qp->laps.m_tgtRate = std::max(m_minRate, qp->laps.m_curRate);
+		qp->laps.m_curRate = std::max(m_minRate, qp->laps.m_curRate / 2);
 		qp->laps.m_incStage = 0;
 		Time newSendingTime = Seconds(qp->laps.m_curRate.CalculateTxTime(qp->lastPktSize));
 		int64_t timeGap = newSendingTime.GetNanoSeconds() - oldSendingTime.GetNanoSeconds();
 		NS_ASSERT_MSG(timeGap >= 0, "The timeGap is negative");
 		NS_LOG_INFO("curRateInMbps: " << qp->laps.m_curRate.GetBitRate()/1000000 << " tgtRateInMbps: " << qp->laps.m_tgtRate.GetBitRate()/1000000);
+		// if (RdmaHw::enableRateRecord)
+		// {
+		// 	RecordFlowRateEntry_t recordFlowRateEntry;
+		// 	recordFlowRateEntry.timeInNs = Simulator::Now().GetNanoSeconds();
+		// 	recordFlowRateEntry.curRateInMbps = qp->laps.m_curRate.GetBitRate()/1000000/8;
+		// 	recordFlowRateEntry.tgtRateInMbps = qp->laps.m_tgtRate.GetBitRate()/1000000/8;
+		// 	recordFlowRateEntry.reason = "largeLatency";
+		// 	recordRateMap[qp->m_flow_id].push_back(recordFlowRateEntry);
+		// }
+		
+
 		return timeGap;
 	}
 
@@ -2764,6 +3266,8 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		HostId2PathSeleKey pstKey(srcHostId, dstHostId);
 		pstEntryData *pstEntry = m_E2ErdmaSmartFlowRouting->lookup_PST(pstKey);
 		std::vector<PathData *> pitEntries = m_E2ErdmaSmartFlowRouting->batch_lookup_PIT(pstEntry->paths);
+
+		
 		NS_ASSERT_MSG(pitEntries.size() > 0, "The pitEntries is empty");
 
 		auto maxElement = std::max_element(pitEntries.begin(), pitEntries.end(),
@@ -2776,12 +3280,19 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		uint64_t tgtDelayInNs = qp->laps.m_tgtDelayInNs;
 		uint64_t curTimeInNs = Simulator::Now().GetNanoSeconds();
 
-		if (curMaxDelayInNs > tgtDelayInNs + 80)
+		if (curMaxDelayInNs > tgtDelayInNs)
 		{
 			if (qp->laps.m_nxtRateDecTimeInNs < curTimeInNs)
 			{
+				// std::cout << "Decrease rate for LAPS since  curMaxDelayInNs " << curMaxDelayInNs << " tgtDelayInNs " << tgtDelayInNs << std::endl;
+				// for (size_t i = 0; i < pitEntries.size(); i++)
+				// {
+				// 	pitEntries[i]->print();
+				// }
+
 				NS_LOG_INFO("Decrease rate for LAPS");
 				int64_t timeGap = DecreaseRateForLaps(qp, curMaxDelayInNs*2);
+				insertRateRecord(qp->m_flow_id, qp->laps.m_curRate.GetBitRate()/1000000/8);
 				UpdateNxtQpAvailTimeForLaps(qp, timeGap);
 			}
 		}
@@ -2791,6 +3302,7 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 			{
 				int64_t timeGap = IncreaseRateForLaps(qp, curMaxDelayInNs*2);
 				UpdateNxtQpAvailTimeForLaps(qp, timeGap);
+   			insertRateRecord(qp->m_flow_id, qp->laps.m_curRate.GetBitRate()/1000000/8);
 			}
 		}
 	}
@@ -2799,7 +3311,7 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 	void RdmaHw::HandleAckLaps(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch)
 	{
 		NS_LOG_FUNCTION(this << "flowId" << qp->m_flow_id);
-		m_E2ErdmaSmartFlowRouting->update_PIT_by_latency_tag(p);
+		// m_E2ErdmaSmartFlowRouting->update_PIT_by_latency_tag(p);
 		UpdateRateForLaps(qp, ch);
 	}
 

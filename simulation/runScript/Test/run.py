@@ -116,6 +116,7 @@ parser.add_argument("--workloadFile", default="DCTCP.txt",  help="The workload f
 parser.add_argument("--patternFile", default="spine-leaf-2-4-16-Ring.txt",  help="The pattern file")
 parser.add_argument("--pstFile", default="PST_S5_H4_L10.txt",  help="The pstFile file")
 parser.add_argument("--pitFile", default="PIT_S5_H4_L10.txt",  help="The pitFile file")
+parser.add_argument("--smtFile", default="SMT_S5_H4_L10.txt",  help="The smtFile file")
 args = parser.parse_args()
 
 
@@ -142,7 +143,7 @@ Line_command = '\
     --rdmaAppStartPort={}\
     --testPktNum={}\
     --loadRatio={} --workloadFile={} --patternFile={}\
-    --PITFile={} --PSTFile={}"\
+    --PITFile={} --PSTFile={} --SMTFile={}"\
 '.format(
     mainFileName,
     experimentalName,
@@ -166,6 +167,7 @@ Line_command = '\
     dir_host_workloads + args.workloadFile,
     dir_host_patterns + args.patternFile,
     dir_host_topologies + args.pitFile,
-    dir_host_topologies + args.pstFile)
+    dir_host_topologies + args.pstFile,
+    dir_host_topologies + args.smtFile)
 print(Line_command)
 os.system(Line_command)

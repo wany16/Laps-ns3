@@ -4,6 +4,12 @@ namespace ns3
 {
 
     NS_LOG_COMPONENT_DEFINE("CommonUserModel");
+    bool IsVectorReverse(const std::vector<uint32_t>& vec1, const std::vector<uint32_t>& vec2) {
+        if (vec1.size() != vec2.size()) {
+            return false;
+        }
+        return std::equal(vec1.begin(), vec1.end(), vec2.rbegin());
+    }
 
     RoutePath::RoutePath()
     {

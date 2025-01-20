@@ -24,6 +24,8 @@ namespace ns3
 		};
 
 
+
+
 		enum ReceiverSequenceCheckResult {
 			/// Packet dropped due to missing route to the destination
 			ACTION_ERROR = 0, // 
@@ -53,12 +55,17 @@ namespace ns3
 	public:
 		static TypeId GetTypeId(void);
 		RdmaHw();
+		std::map<uint32_t, std::list<OutStandingDataEntry>> m_outstanding_data;
 
 		std::map<std::pair<uint32_t, uint32_t>, EventId> m_rtoEvents;
+		std::map<uint32_t, EventId> m_rtoEventsPerPath;
   	void HandleTimeoutForLaps(Ptr<RdmaQueuePair> qp, uint32_t pid) ;
 		void SetTimeoutForLaps(Ptr<RdmaQueuePair> qp, uint32_t pid, Time timeInNs); 
+		static void printRateRecordToFile(std::string fileName);
+		static void printPathDelayRecordToFile(std::string fileName);
 
 		void CheckTxCompletedQp(uint16_t sport);
+
 
 		// static bool isIrnEnabled;
 		std::unordered_map<unsigned, unsigned> m_cnt_timeout;
@@ -67,6 +74,15 @@ namespace ns3
 		static std::map<uint32_t, std::map<std::string, std::map<uint64_t, RecordCcmodeOutEntry>>> ccmodeOutInfo; // Record CCMod outinfo:send rate\RTO evente
 		std::map<uint32_t, std::map<std::string, uint32_t>> m_packetLost;										  // node->flowid->packetSeq;
 		static std::map<uint32_t, std::map<std::string, std::map<uint32_t, LostPacketEntry>>> m_lossPacket;		  // QPId->packetSeqNum->lostNum
+		static std::map<uint32_t, std::vector<RecordFlowRateEntry_t>> recordRateMap;		  //
+		static std::map<uint32_t, std::vector<RecordPathDelayEntry_t>> recordPathDelayMap; //
+		static std::map<uint32_t, uint64_t> pidToThDelay;		  //
+		static bool enableRateRecord;
+		static bool enablePathDelayRecord;
+		static void insertRateRecord(uint32_t flowId, uint64_t curRateInMbps);
+		static void insertPathDelayRecord(uint32_t pid, uint64_t pathDelayInNs);
+
+
 		Ptr<Node> m_node;
 		DataRate m_minRate; //< Min sending rate
 		uint32_t m_mtu;
@@ -235,6 +251,15 @@ namespace ns3
 	void UpdateNxtQpAvailTimeForLaps(Ptr<RdmaQueuePair> qp, int64_t timeGap);
 	Time GetRtoTimeForPath(uint32_t pathId);
 	void CancelRtoForPath(Ptr<RdmaQueuePair> qp, uint32_t pathId);
+	void AppendOutStandingDataPerPath(uint32_t pathId, OutStandingDataEntry & e);
+	bool checkOutstandingDataAndUpdateLossyData(uint32_t pid, uint32_t flowId, uint32_t seq, uint16_t size);
+	void HandleTimeoutForLapsPerPath(uint32_t pid) ;
+	void SetTimeoutForLapsPerPath(uint32_t pid) ;
+	void CancelRtoPerPath(uint32_t pathId);
+	Ptr<Packet> ConstructAckForProbe(const CustomHeader &ch);
+	int ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch);
+	int ReceiveProbeAckForLaps(Ptr<Packet> p, CustomHeader &ch);
+
 
 
 

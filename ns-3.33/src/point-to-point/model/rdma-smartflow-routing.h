@@ -32,7 +32,7 @@
 #define PROBE_RANDOM_STRATEGY 2
 #define PROBE_PATH_EXPIRED_TIME_IN_NANOSECOND 1000000
 #define PROBE_DEFAULT_INTERVAL_IN_NANOSECOND 1000000
-#define PROBE_DEFAULT_PKT_SIZE_IN_BYTE 0
+#define PROBE_DEFAULT_PKT_SIZE_IN_BYTE 1000
 
 #define PIGGY_BACK_SMALL_LATENCY_FIRST_STRATEGY 0
 #define PIGGY_BACK_SMALL_GENT_TIME_FIRST_STRATEGY 1
@@ -98,6 +98,9 @@ namespace ns3
     static double laps_alpha;
     static std::uniform_real_distribution<double> rndGen;
     static std::default_random_engine generator;
+    static std::map<uint32_t,uint32_t> pathPair;
+    static void setPathPair(std::vector<PathData> &PIT);
+    // static std::map<uint32_t, std>pathDelayRecordTable
 
   public:
     static TypeId GetTypeId(void);
@@ -163,7 +166,7 @@ namespace ns3
     pdt_entry_t *lookup_PDT(HostId2PathSeleKey &pstKey);
     hostIp2SMT_entry_t *lookup_SMT(const Ipv4Address &serverAddr);
     uint32_t print_PIT();
-    // uint32_t print_PST();
+    uint32_t print_PST();
     uint32_t print_SMT();
     std::string ipv4Address2string(Ipv4Address addr);
     std::string construct_target_string_strlen(uint32_t strLen, std::string c);

@@ -49,6 +49,11 @@ namespace ns3
         m_flowId = fid;
         return;
     }
+    void AckPathTag::SetDelay(uint64_t ts)
+    {
+        m_delayInNs = ts;
+        return;
+    }
      
      
     uint32_t AckPathTag::GetPathId(void) const
@@ -59,6 +64,11 @@ namespace ns3
     uint32_t AckPathTag::GetFlowId(void) const
     {
         return m_flowId;
+    }
+
+    uint64_t AckPathTag::GetDelay(void) const
+    {
+        return m_delayInNs;
     }
     TypeId AckPathTag::GetTypeId(void)
     {
@@ -77,7 +87,7 @@ namespace ns3
     uint32_t AckPathTag::GetSerializedSize(void) const
     {
         NS_LOG_FUNCTION(this);
-        return sizeof(uint32_t) + sizeof(uint32_t);
+        return sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t);
     }
 
     void AckPathTag::Serialize(TagBuffer i) const
@@ -85,6 +95,7 @@ namespace ns3
         NS_LOG_FUNCTION(this << &i);
         i.WriteU32(m_pathId);
         i.WriteU32(m_flowId);
+        i.WriteU64(m_delayInNs);
         return;
     }
 
@@ -93,6 +104,7 @@ namespace ns3
         NS_LOG_FUNCTION(this << &i);
         m_pathId = i.ReadU32();
         m_flowId = i.ReadU32();
+        m_delayInNs = i.ReadU64();
         return;
     }
 
@@ -101,6 +113,7 @@ namespace ns3
         NS_LOG_FUNCTION(this << &os);
         os << "pathid: " << m_pathId;
         os << ", flowId: " << m_flowId;
+        os << ", delay: " << m_delayInNs;
         os << "\n";
         return;
     }

@@ -123,6 +123,70 @@ namespace ns3
         bool IsRT;
     };
 
+    struct RecordFlowRateEntry_t
+    {
+        uint64_t rateInMbps = 0;
+        uint64_t startTimeInNs = 0;
+        uint64_t durationInNs = 0;
+        RecordFlowRateEntry_t(uint64_t rateInMbps, uint64_t startTimeInNs, uint64_t durationInNs) :
+        rateInMbps(rateInMbps), startTimeInNs(startTimeInNs), durationInNs(durationInNs) {}
+        std::string to_string()
+        {
+            std::string str = "[" + std::to_string(rateInMbps) + ", ";
+            str += std::to_string(startTimeInNs) + ", ";
+            str += std::to_string(durationInNs) + "]";
+            return str;
+        }
+    };
+
+    struct RecordPathDelayEntry_t
+    {
+        uint64_t delayInNs = 0;
+        uint64_t startTimeInNs = 0;
+        uint64_t durationInNs = 0;
+        RecordPathDelayEntry_t(uint64_t delayInNs, uint64_t startTimeInNs, uint64_t durationInNs) :
+        delayInNs(delayInNs), startTimeInNs(startTimeInNs), durationInNs(durationInNs){}
+        std::string to_string()
+        {
+            std::string str = "[" + std::to_string(delayInNs) + ", ";
+            str += std::to_string(startTimeInNs) + ", ";
+            str += std::to_string(durationInNs) + "]";
+            return str;
+        }
+
+        // std::vector<std::pair<uint64_t, uint64_t>> delays;
+        // std::string to_string()
+        // {
+        //     std::string str = std::to_string(pid) + " ";
+        //     for (size_t i = 0; i < delays.size(); i++)
+        //     {
+        //         str += std::to_string(delays[i].first) + ",";
+        //         str += std::to_string(delays[i].second) + " ";
+        //     }
+        //     str += std::to_string(curRateInMbps) + " ";
+        //     str += std::to_string(tgtRateInMbps) + " ";
+        //     str += reason + " ";
+        //     str += std::to_string(incStage);
+        //     return str;
+        // }
+    };
+
+	struct OutStandingDataEntry {
+		uint32_t flow_id;
+		uint32_t seq;
+		uint16_t size;
+		std::string to_string() {
+			return "[" + std::to_string(flow_id) + ", " + std::to_string(seq) + ", " + std::to_string(size) + "]";
+		}
+        OutStandingDataEntry(uint32_t flow_id, uint32_t seq, uint16_t size) : flow_id(flow_id), seq(seq), size(size) {}
+
+	};
+
+
+
+    bool IsVectorReverse(const std::vector<uint32_t>& vec1, const std::vector<uint32_t>& vec2);
+
+
     struct HostId2PathSeleKey
     {
         uint32_t selfHostId;

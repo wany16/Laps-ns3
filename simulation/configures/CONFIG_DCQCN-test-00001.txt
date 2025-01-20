@@ -1,10 +1,10 @@
 enablePfcDynThresh true
 enablePfc true
 enableQcn true
-enableQlenMonitor false
-enablePfcMonitor false
-enableFctMonitor false
-enableQbbTrace false
+enableQlenMonitor true
+enablePfcMonitor true
+enableFctMonitor true
+enableQbbTrace true
 enableKvCache false
 enableWindow true
 enableUnifiedWindow true
@@ -19,6 +19,9 @@ enableAckHigherPrio true
 enableTest false
 enableIrn false
 enableIrnOptimized true
+enbaleRateTrace true
+enableProbeTrace true
+enablePathDelayTraceForLaps true
 ccMode Laps
 irnMode NACK
 lbsName ecmp
@@ -38,7 +41,7 @@ dctcpRateAiInMbps 1000
 targetUtilization 0.95
 pintLogBase 1.01
 pfcPauseTimeInUs 5
-traceNodeIds 8
+traceNodeIds 5 8 6 7
 alphaShiftInLog 3
 ecnParaMap 100 400 1600 0.8 400 1600 6400 0.8 25 100 400 0.8 10 40 160 0.8 1 4 16 0.8
 pintProbTresh 65536

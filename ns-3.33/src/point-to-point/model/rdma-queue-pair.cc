@@ -20,6 +20,8 @@ namespace ns3
 	uint32_t Irn::reTxThresholdNNanoSeconds = IRN_OPTIMIZED_RE_TX_THRESHOLD_N_NANOSECONDS;
 	uint64_t CcLaps::maxIncStage = 5;
 	bool Irn::isTrnOptimizedEnabled = false;
+	bool Irn::isWindowBasedForLaps = true;
+
 
 	Irn::Mode Irn::mode = Irn::Mode::NONE;
 
@@ -234,9 +236,8 @@ std::string RdmaQueuePair::GetStringHashValueFromQp()
 		}
 		else if (Irn::mode == Irn::NACK)
 		{
-			size_t lossySize = m_irn.m_sack.getLossyDataSize();
 			size_t undSize = m_size >= snd_nxt ? m_size - snd_nxt : 0;
-			return lossySize + undSize;
+			return undSize;
 		}
 		else
 		{
@@ -444,13 +445,15 @@ std::string RdmaQueuePair::GetStringHashValueFromQp()
 		{
 			NS_LOG_INFO ("pid=" << it->first << ", seq= " << ListToString(it->second));
 		}
-		
+
+		std::cout << "Time " << Simulator::Now().GetNanoSeconds() << ", Acknowledge the data with flowID=" << socketId << ", pid=" << pid << " and seq=" << seq << std::endl;
 		auto it = m_outstanding_data.find(pid);
 		if (it == m_outstanding_data.end())
 		{
 			NS_ASSERT_MSG(false, "Invalid pid");
 			return false;
 		}
+		std::cout << "FlowID=" << socketId << ", PathID=" << it->first << ", Original OutStandingSeqs= " << ListToString(it->second) << std::endl;
 		NS_ASSERT_MSG(it->second.size() > 0, "Invalid outstanding data");
 		bool valid = false;
 		bool lossy = false;
@@ -476,13 +479,14 @@ std::string RdmaQueuePair::GetStringHashValueFromQp()
 		{
 			NS_LOG_INFO ("pid=" << it->first << ", seq= " << ListToString(it->second));
 		}
-
+		std::cout << "FlowID=" << socketId << ", PathID=" << it->first << ", Updated OutStandingSeqs= " << ListToString(it->second) << std::endl;
 		NS_ASSERT_MSG(valid, "Invalid seq");
 		return lossy;
 	}
 
 void IrnSackManager::handleRto(uint32_t pid)
 {
+	std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Time " << Simulator::Now().GetNanoSeconds() << ", Time Out ReTx Starts and the lossing data is " << std::endl;
 	NS_LOG_FUNCTION(this << "pid=" << pid);
 	auto it = m_outstanding_data.find(pid);
 	NS_ASSERT_MSG(it != m_outstanding_data.end(), "Invalid pid when handling RTO");
@@ -491,6 +495,7 @@ void IrnSackManager::handleRto(uint32_t pid)
 	while (it2 != it->second.end())
 	{
 		m_lossy_data.emplace_back(it2->first, it2->second);
+		std::cout << "FlowID " << socketId <<", PathID=" << pid << ", seq=[" << it2->first << ", " << it2->second << "]" << std::endl;
 		it2 = it->second.erase(it2);
 	}
 }
@@ -504,22 +509,22 @@ void IrnSackManager::handleRto(uint32_t pid)
 		if (Irn::mode == Irn::Mode::NACK)
 		{
 			NS_ASSERT_MSG(nackSize != 0, "Invalid nackSize");
-			NS_ASSERT_MSG(nackSeq >= snd_una, "Invalid nackSeq");
+			NS_ASSERT_MSG(nackSeq >= snd_una, "Invalid nackSeq " << nackSeq << " snd_una " << snd_una);
 			m_irn.m_sack.sack(nackSeq, nackSize);
 			m_irn.m_sack.checkFirstNackedBlockAndUpdateSndUna(snd_una);
 			m_irn.m_sack.discardUpTo(snd_una);
-			m_irn.m_sack.checkOutstandingDataAndUpdateLossyData(fpid, nackSeq);
-			auto it = m_irn.m_sack.m_outstanding_data.find(fpid);
-			NS_ASSERT_MSG( it != m_irn.m_sack.m_outstanding_data.end(), "Invalid fpid");
-			if (it->second.size() > 0)
-			{
-				Time rto =  m_cb_getRtoTimeForPath(fpid);
-				m_rtoSetCb(this, fpid, rto);
-			}
-			else
-			{
-				m_cb_cancelRtoForPath(this, fpid);
-			}
+			// m_irn.m_sack.checkOutstandingDataAndUpdateLossyData(fpid, nackSeq);
+			// auto it = m_irn.m_sack.m_outstanding_data.find(fpid);
+			// NS_ASSERT_MSG( it != m_irn.m_sack.m_outstanding_data.end(), "Invalid fpid");
+			// if (it->second.size() > 0)
+			// {
+			// 	Time rto =  m_cb_getRtoTimeForPath(fpid);
+			// 	m_rtoSetCb(this, fpid, rto);
+			// }
+			// else
+			// {
+			// 	m_cb_cancelRtoForPath(this, fpid);
+			// }
 			
 		}
 		else if (Irn::mode == Irn::Mode::IRN_OPT)
@@ -619,6 +624,11 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 		if (Irn::mode == Irn::Mode::IRN_OPT){
 			return GetOnTheFlyForLaps();
 		}
+		else if (Irn::mode == Irn::Mode::NACK)
+		{
+			return GetOnTheFlyForLaps();
+		}
+
 		return snd_nxt - snd_una;
 	}
 
@@ -635,7 +645,7 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 		}
 		else if (Irn::mode == Irn::Mode::NACK)
 		{
-			uint32_t onTheFly = m_irn.m_sack.getOutStandingDataSizeForLaps();
+			int32_t onTheFly = snd_nxt - snd_una;
 			NS_ASSERT_MSG(onTheFly >= 0, "onTheFly should be non-negative");
 			return onTheFly;
 		}
@@ -660,6 +670,11 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 		}
 		else if (Irn::mode == Irn::Mode::NACK)
 		{
+			if (!Irn::isWindowBasedForLaps)
+			{
+				return true;
+			}
+			int32_t lossy = m_irn.m_sack.getLossyDataSize();
 			uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
 			uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
 			uint64_t byteOnFly = GetOnTheFlyForLaps();
@@ -718,6 +733,11 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 	bool RdmaQueuePair::IsWinBoundForLaps()
 	{
 		NS_LOG_FUNCTION(this);
+		if (!Irn::isWindowBasedForLaps)
+		{
+			return false;
+		}
+		
 		uint64_t w = GetWinForLaps();
 		return w != 0 && GetOnTheFlyForLaps() >= w;
 	}
@@ -758,7 +778,7 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 									 );
 		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called Only when Laps is enabled");
 
-		if (m_win == 0)
+		if (m_win == 0 || !Irn::isWindowBasedForLaps)
 		{
 			return 0x7FFFFFFFFFFFFFFF;
 		}

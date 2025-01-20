@@ -1522,6 +1522,10 @@ namespace ns3
 
   void install_LB_table(global_variable_t *varMap, Ptr<Node> curNode)
   {
+    if (varMap->lbsName == "laps" || varMap->lbsName == "e2elaps")
+    {
+      return; // LAPS does not need to install LB table
+    }
     Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(curNode);
     std::map<Ipv4Address, hostIp2SMT_entry_t> SMT;
     std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> PST;
@@ -1668,6 +1672,7 @@ namespace ns3
         SMT[curAddr] = curNode->GetId();
       }
     }
+    std::cout << "LAPS: Calculate " << SMT.size() << " entries in SMT" << std::endl;
     return SMT;
   }
 
@@ -1700,10 +1705,13 @@ namespace ns3
         sumDelayInNs += txDelayInNs;
       }
       path.latency = sumDelayInNs;
-      path.theoreticalSmallestLatencyInNs = sumDelayInNs;
+      uint64_t gapInNs = uint64_t(1.0 * varMap->defaultPktSizeInByte / (1.0 * minBwInbps / 1000000000lu / 8));
+      path.theoreticalSmallestLatencyInNs = sumDelayInNs + gapInNs;
       uint64_t bdpInByte = minBwInbps * sumDelayInNs / 1000000000lu / 8;
       maxBdpInByte = std::max(maxBdpInByte, bdpInByte);
       maxPathDelayInNs = std::max(maxPathDelayInNs, sumDelayInNs);
+      path.print();
+      RdmaHw::pidToThDelay[path.pid] = path.theoreticalSmallestLatencyInNs;
     }
 
     varMap->maxRttInNs = maxPathDelayInNs*2;
@@ -2298,6 +2306,42 @@ namespace ns3
     }
   }
 
+  void print_flow_rate_record(global_variable_t *varMap)
+  {
+    if (!varMap->enbaleRateTrace)
+    {
+      return;
+    }
+
+    NS_LOG_INFO("----------print flow rate record----------");
+    varMap->rateMonitorFileName = varMap->outputFileDir + varMap->fileIdx + "-RATE.txt";
+    NS_LOG_INFO("Queue Length Record File: " << varMap->rateMonitorFileName);
+    if (varMap->rateMonitorFileHandle == NULL)
+    {
+      varMap->rateMonitorFileHandle = fopen(varMap->rateMonitorFileName.c_str(), "w");
+    }
+    FILE *os = varMap->rateMonitorFileHandle;
+    if (os == NULL)
+    {
+      std::cout << "Error for Cannot open file " << varMap->rateMonitorFileName << std::endl;
+      return ;
+    }
+    
+    fprintf(os, "flowID timeInNs curRateInMBps tgtRateInMBps incStage reason\n");
+	  std::map<uint32_t, std::vector<RecordFlowRateEntry_t>> & m = RdmaHw::recordRateMap;		  //
+    for (auto & f : m)
+    {
+      for (auto & r : f.second)
+      {
+        fprintf(os, "%u\t %s\n", f.first, r.to_string().c_str());
+      }
+    }
+    fflush(os);
+    fclose(varMap->rateMonitorFileHandle);
+    return;
+  }
+
+
   void monitor_special_port_qlen(global_variable_t *varMap, uint32_t nodeId, uint32_t portId, uint32_t roundIdx) {
     NS_LOG_INFO("enableQlenMonitor : " << boolToString(varMap->enablePfc));
     update_EST(varMap->paraMap, "enableQlenMonitor", boolToString(varMap->enablePfc));
@@ -2446,9 +2490,14 @@ namespace ns3
     NS_LOG_INFO("Intalled Internet Stack on " << varMap->allNodes.GetN() << " Nodes");
     std::vector<std::vector<std::string>> s(resLines.begin() + 1, resLines.end());
     varMap->channels = parse_channels(s);
+    for (auto & it : varMap->channels)
+    {
+      it.second.print();
+    }
+
     add_QBB_channels(varMap);
-    install_rdma_driver(varMap);
     set_QBB_trace(varMap);
+    install_rdma_driver(varMap);
     return;
   }
 
@@ -2857,19 +2906,15 @@ namespace ns3
     return tokens;
   }
 
+
   void install_rdma_driver(global_variable_t *varMap) {
     NS_LOG_FUNCTION(varMap->svNodes.GetN());
-    if (varMap->lbsName == "e2elaps")
-    {
-      Irn::SetMode("NACK");
-    }
-    else
-    {
-      Irn::SetMode(varMap->irnMode);
-    }
-
+    Irn::SetMode(varMap->irnMode);
     update_EST(varMap->paraMap, "irnMode", Irn::GetMode());
     NS_LOG_INFO("irnMode : " << Irn::GetMode());
+    RdmaHw::enableRateRecord = varMap->enbaleRateTrace;
+    update_EST(varMap->paraMap, "enableRateTrace", boolToString(RdmaHw::enableRateRecord));
+    NS_LOG_INFO("enableRateTrace : " << RdmaHw::enableRateRecord);
 
     NodeContainer &svNodes = varMap->svNodes;
     nic_para_entry_t &nicParas = varMap->nicParas;
@@ -2992,6 +3037,11 @@ namespace ns3
 
   void server_instal_LB_table(global_variable_t *varMap, Ptr<RdmaHw> &rdmaHw, uint32_t nodeId)
   {
+    if (varMap->lbsName == "e2elaps")
+    {
+      return;
+    }
+    
     std::map<Ipv4Address, hostIp2SMT_entry_t> SMT;
     std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> PST;
     std::map<uint32_t, std::map<uint32_t, PathData>> PIT;
@@ -3216,6 +3266,8 @@ void install_routing_entries_based_on_single_pst_entry_for_laps(global_variable_
 
 void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer nodes, std::map<Ipv4Address, uint32_t> &ip2nodeId)
 {
+  uint32_t curCnt = 0, preCnt = 0;
+  bool isFirstNode = true;
   for (auto &e : ip2nodeId)
   {
     hostIp2SMT_entry_t * smtEntry = new hostIp2SMT_entry_t;
@@ -3223,19 +3275,40 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     smtEntry->hostId = e.second;
     for (size_t i = 0; i < nodes.GetN(); i++)
     {
+      curCnt = curCnt + 1;
       Ptr<Node> node = nodes.Get(i);
       NS_ASSERT_MSG(node->GetNodeType() == SERVER_NODE_TYPE, "Error in node type");
       Ptr<RdmaDriver> rdmaDriver = node->GetObject<RdmaDriver>();
       NS_ASSERT_MSG(rdmaDriver, "unfound rdma driver on server node");
       rdmaDriver->m_rdma->m_E2ErdmaSmartFlowRouting->insert_entry_to_SMT(*smtEntry);
     }
+
+    if (isFirstNode)
+    {
+      preCnt = curCnt;
+      curCnt = 0;
+      isFirstNode = false;
+    }
+    else
+    {
+      NS_ASSERT_MSG(preCnt == curCnt, "Error in preCnt and curCnt");
+      preCnt = curCnt;
+      curCnt = 0;
+    }
+
   }
+
 }
 
 
 
   void install_routing_entries(global_variable_t *varMap) {
     NS_LOG_FUNCTION(varMap->allNodes.GetN() << varMap->swNodes.GetN() << varMap->svNodes.GetN());
+    if (varMap->lbsName == "e2elaps") {
+      install_routing_entries_for_laps(varMap);
+      return;
+    }
+
     std::map<Ptr<Node>, std::map<Ptr<Node>, std::vector<Ptr<Node>>>> &nextHop = varMap->nextHop;       // srcNode   dstNode   adjacentNodes ：   6         20       [0 1]
     uint64_t entryCntSw = 0;
     for (auto i = nextHop.begin(); i != nextHop.end(); i++) {
@@ -3272,6 +3345,26 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       install_routing_entries_based_on_single_smt_entry_for_laps(varMap->svNodes, SMT);
     }
   }
+
+  void install_routing_entries_for_laps(global_variable_t *varMap) {
+    NS_LOG_FUNCTION(varMap->allNodes.GetN() << varMap->swNodes.GetN() << varMap->svNodes.GetN());
+    NS_ASSERT_MSG(varMap->lbsName == "e2elaps", "Error in lbsName");
+    std::map<Ipv4Address, uint32_t> SMT = Calulate_SMT_for_laps(varMap->svNodes);
+    install_routing_entries_based_on_single_smt_entry_for_laps(varMap->svNodes, SMT);
+    std::vector<pstEntryData> PST = load_PST_from_file(varMap->pstFile);
+    for (size_t i = 0; i < PST.size(); i++)
+    {
+        install_routing_entries_based_on_single_pst_entry_for_laps(varMap, PST[i]);
+    }
+    std::vector<PathData> PIT = load_PIT_from_file(varMap->pitFile);
+    RdmaSmartFlowRouting::setPathPair(PIT);
+    cal_metadata_on_PIT_from_laps(varMap, PIT);
+    for (size_t i = 0; i < PIT.size(); i++)
+    {
+      install_routing_entries_based_on_single_pit_entry_for_laps(varMap, PIT[i]);
+    }
+  }
+
 
   void print_node_routing_tables(global_variable_t *varMap, uint32_t nodeidx)
   {
@@ -3676,6 +3769,27 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       fflush(varMap->pfcFileHandle);
       fclose(varMap->pfcFileHandle);
     }
+    if (varMap->enbaleRateTrace)
+    {
+      // print_flow_rate_record(varMap);
+      std::string rateFileName = varMap->outputFileDir + varMap->fileIdx + "-Rate.txt";
+      RdmaHw::printRateRecordToFile(rateFileName);
+    }
+
+    if (varMap->enableProbeTrace)
+    {
+      std::string probeFileName = varMap->outputFileDir + varMap->fileIdx + "-Probe.txt";
+      print_probe_info_to_file(probeFileName, RdmaSmartFlowRouting::m_prbInfoTable);
+    }
+
+    if (varMap->enablePathDelayTraceForLaps)
+    {
+      std::string fileName = varMap->outputFileDir + varMap->fileIdx + "-Delay.txt";
+      RdmaHw::printPathDelayRecordToFile(fileName);
+    }
+    
+    
+    
     NS_LOG_INFO("Write the Parameter Setting");
     std::string parameterFile = varMap->outputFileDir + varMap->fileIdx + "-Para.txt";
     print_EST_to_file(parameterFile, varMap->paraMap);
@@ -3706,6 +3820,9 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       varMap->configMap[key] = values;
     }
     varMap->irnMode = varMap->configMap.find("irnMode") != varMap->configMap.end() ? varMap->configMap["irnMode"][0] : "NONE";
+    varMap->enbaleRateTrace = varMap->configMap.find("enbaleRateTrace") != varMap->configMap.end() ? stringToBool(varMap->configMap["enbaleRateTrace"][0]) : false;
+    varMap->enableProbeTrace = varMap->configMap.find("enableProbeTrace") != varMap->configMap.end() ? stringToBool(varMap->configMap["enableProbeTrace"][0]) : false;
+    varMap->enablePathDelayTraceForLaps = varMap->configMap.find("enablePathDelayTraceForLaps") != varMap->configMap.end() ? stringToBool(varMap->configMap["enablePathDelayTraceForLaps"][0]) : false;
     varMap->enablePfcDynThresh = varMap->configMap.find("enablePfcDynThresh") != varMap->configMap.end() ? stringToBool(varMap->configMap["enablePfcDynThresh"][0]) : true;
     varMap->enableQcn = varMap->configMap.find("enableQcn") != varMap->configMap.end() ? stringToBool(varMap->configMap["enableQcn"][0]) : true;
     varMap->enablePfc = varMap->configMap.find("enablePfc") != varMap->configMap.end() ? stringToBool(varMap->configMap["enablePfc"][0]) : true;

@@ -244,6 +244,10 @@ public:
   typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t, Time> RdmaLBPktSent;
   RdmaLBPktSent m_rdmaLbPktSent;
 
+  // callback for sent a packet
+  typedef Callback<void, uint32_t, OutStandingDataEntry &> RdmaHwOutStandingTace;
+  RdmaHwOutStandingTace m_rdmaOutStanding_cb;
+
   // callback for set rto
   typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t, Time> RtoSet;
   RtoSet m_rtoSetCb;

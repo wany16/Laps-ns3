@@ -47,6 +47,7 @@
 #include "ns3/tcp-socket-base.h"
 #include "ns3/boolean.h"
 #include "ns3/common-user-model.h"
+#include "ns3/rdma-smartflow-routing.h"
 
 #define BYTE_NUMBER_PER_GBPS 1000000000 // 1Gbps
 #define TG_CDF_TABLE_ENTRY 32
@@ -350,7 +351,7 @@ namespace ns3
       std::cout << "srcNodeIdx=" << srcNodeIdx << ", ";
       std::cout << "dstNodeIdx=" << dstNodeIdx << ", ";
       std::cout << "widthInGbps=" << widthInGbps << "Gbps, ";
-      std::cout << "delayInUs=" << delayInUs << "ns, ";
+      std::cout << "delayInUs=" << delayInUs << "Us, ";
       std::cout << std::endl;
     }
   };
@@ -866,14 +867,19 @@ namespace ns3
     bool enablePfcMonitor;
     bool enableFctMonitor;
     bool enableQbbTrace;
+    bool enbaleRateTrace;
     bool enablePfc;
     bool enableTest;
     bool enableIrn;
     bool enableIrnOptimized;
+    bool enableProbeTrace;
+    bool enablePathDelayTraceForLaps;
 
     uint64_t qlenMonitorIntervalInNs;
     std::string qlenMonitorFileName;
+    std::string rateMonitorFileName;
     FILE *qlenMonitorFileHandle;
+    FILE *rateMonitorFileHandle;
     uint64_t qlenMonitorEndTimeInNs;
     uint64_t qlenMonitorStartTimeInNs;
 
@@ -897,6 +903,8 @@ namespace ns3
     uint32_t jobNum;
     uint32_t numOfFinishedJob;
     uint32_t testPktNum;
+
+
 
 
     global_variable_t() {
@@ -985,12 +993,15 @@ namespace ns3
       enableFctMonitor = false;
       enableQbbTrace = false;
       enablePfc = false;
+      enableProbeTrace = false;
+      enbaleRateTrace = false;
 
       qlenMonitorIntervalInNs = 0;
       qlenMonitorFileName = "";
       qlenMonitorFileHandle = NULL;
       qlenMonitorEndTimeInNs = 0;
       qlenMonitorStartTimeInNs = 0;
+      rateMonitorFileHandle = NULL;
 
 
       cdfTable = NULL;
@@ -1376,6 +1387,8 @@ namespace ns3
   void install_routing_entries_based_on_single_pst_entry_for_laps(global_variable_t *varMap, pstEntryData &pst);
   std::map<Ipv4Address, uint32_t> Calulate_SMT_for_laps(NodeContainer nodes);
   void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer nodes, std::map<Ipv4Address, uint32_t> &ip2nodeId);
+  void install_routing_entries_for_laps(global_variable_t *varMap) ;
+  void print_flow_rate_record(global_variable_t *varMap);
 
 
 

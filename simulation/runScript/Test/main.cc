@@ -48,20 +48,15 @@ int main(int argc, char *argv[])
 {
     // LogComponentEnable("userdefinedfunction", LOG_LEVEL_FUNCTION);
     // LogComponentEnable("CongestionControlSimulator", LOG_LEVEL_INFO);
-    LogComponentEnable("QbbNetDevice", LOG_LEVEL_INFO);
+    // LogComponentEnable("QbbNetDevice", LOG_LEVEL_INFO);
     // LogComponentEnable ("BEgressQueue", LOG_LEVEL_INFO);
-
     // LogComponentEnable("RdmaQueuePair", LOG_LEVEL_INFO);
     // LogComponentEnable("SwitchNode", LOG_LEVEL_INFO);
-
-    LogComponentEnable("RdmaHw", LOG_LEVEL_INFO);
+    // LogComponentEnable("RdmaHw", LOG_LEVEL_INFO);
     // LogComponentEnable("SwitchNode", LOG_LEVEL_INFO);
     // LogComponentEnable("RdmaSmartFlowRouting", LOG_LEVEL_INFO);
     // LogComponentEnable("userdefinedfunction", LOG_LEVEL_INFO);
-    // LogComponentEnable("CongestionControlSimulator", LOG_LEVEL_INFO);
-
-
-
+    LogComponentEnable("CongestionControlSimulator", LOG_LEVEL_INFO);
 
     std::cout << "*******************************Parse the Default Parameters*****************************************" << std::endl;
     global_variable_t varMap;
@@ -74,6 +69,7 @@ int main(int argc, char *argv[])
     cmd.AddValue("topoFileName", "topoFileName", varMap.topoFileName);
     cmd.AddValue("PITFile", "init The LAPS LB PIT map.", varMap.pitFile);
     cmd.AddValue("PSTFile", "init The LAPS LB PST map.", varMap.pstFile);
+    cmd.AddValue("SMTFile", "init The LAPS LB SMT map", varMap.smtFile);
     cmd.AddValue("inputFileDir", "input File Directory", varMap.inputFileDir);
     cmd.AddValue("outputFileDir", "output File Directory", varMap.outputFileDir);
     cmd.AddValue("fileIdx", "fileIdx", varMap.fileIdx);
@@ -104,7 +100,7 @@ int main(int argc, char *argv[])
     std::cout << "-------------------------------Assign The Addresses----------------------------------------" << std::endl;
     assign_addresses(varMap.allNodes, varMap.addr2node);
     // std::cout << "-------------------------------Calculate The Paths----------------------------------------" << std::endl;
-    // calculate_paths_for_servers(&varMap);
+    calculate_paths_for_servers(&varMap);
     std::cout << "-------------------------------Install The Routing Table----------------------------------------" << std::endl;
     install_routing_entries(&varMap);
     // Ipv4GlobalRoutingHelper::PopulateRoutingTables();
@@ -112,6 +108,9 @@ int main(int argc, char *argv[])
     config_switch(&varMap);
     std::cout << "-------------------------------Install The Application----------------------------------------" << std::endl;
     install_rdma_client_on_node(&varMap, 5, 8, 1, varMap.testPktNum, varMap.appStartPort);
+    install_rdma_client_on_node(&varMap, 6, 8, 1, varMap.testPktNum, varMap.appStartPort+1);
+    // install_rdma_client_on_node(&varMap, 7, 8, 1, varMap.testPktNum, varMap.appStartPort+2);
+
     // install_rdma_client_on_node(&varMap, 5, 7, 1, varMap.testPktNum, varMap.appStartPort);
 
     // install_rdma_client_on_node(&varMap, 6, 8, varMap.appStartPort+1);
