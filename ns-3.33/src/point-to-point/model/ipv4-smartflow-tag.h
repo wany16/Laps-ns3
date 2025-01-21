@@ -82,6 +82,9 @@ namespace ns3
         uint32_t latency=0;
         uint32_t theoreticalSmallestLatencyInNs=0;
         uint32_t pathDre = UINT32_MAX;
+
+        uint64_t lastpathload = 0;
+        uint64_t pathload = 0;
         Time tsGeneration=Seconds(0);
         Time tsProbeLastSend=Seconds(0);
         Time tsLatencyLastSend=Seconds(0);

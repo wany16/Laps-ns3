@@ -27,7 +27,7 @@ namespace ns3
     NS_OBJECT_ENSURE_REGISTERED(ConWeaveRouting);
 
     RoutePath ConWeaveRouting::routePath;
-
+    std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, uint64_t>>> ConWeaveRouting::m_recordPath;
     ConWeaveDataTag::ConWeaveDataTag() : Tag() {}
     TypeId ConWeaveDataTag::GetTypeId(void)
     {
@@ -178,7 +178,11 @@ namespace ns3
         m_conweavePathTable.resize(65536);           // initialize table size
     }
     ConWeaveRouting::~ConWeaveRouting() {}
-    void ConWeaveRouting::DoDispose() { m_agingEvent.Cancel(); }
+    void ConWeaveRouting::DoDispose()
+    {
+        m_agingEvent.Cancel();
+        m_recordEvent.Cancel();
+    }
     TypeId ConWeaveRouting::GetTypeId(void)
     {
         static TypeId tid =
@@ -622,6 +626,12 @@ namespace ns3
         tx_md.tailTime = txEntry._tailTime.GetNanoSeconds();
         return;
     }
+    void ConWeaveRouting::updatePathLoad(uint32_t size, uint32_t pathId)
+    {
+        PathData *pitEntry = routePath.lookup_PIT(pathId);
+        pitEntry->pathload += size;
+        return;
+    }
     void ConWeaveRouting::forwardSrctorPacket(ConWeaveDataTag &conweaveDataTag, Ptr<Packet> p, CustomHeader &ch, conweaveTxMeta &tx_md)
     {
         Time now = Simulator::Now();
@@ -646,7 +656,7 @@ namespace ns3
             conweaveDataTag.SetFlagData(ConWeaveDataTag::DATA);
         }
         p->AddPacketTag(conweaveDataTag);
-
+        updatePathLoad(p->GetSize(), conweaveDataTag.GetPathId());
         uint32_t outDev = GetOutPortFromPath(conweaveDataTag.GetPathId(), conweaveDataTag.GetHopCount());
         uint32_t qIndex = ch.udp.pg;
         NS_LOG_INFO(PARSE_FIVE_TUPLE(ch)
@@ -704,12 +714,6 @@ namespace ns3
     void ConWeaveRouting::epochMatch(conweaveRxState &rxEntry, conweaveRxMeta &rx_md, Ptr<Packet> p, CustomHeader &ch)
     {
         Time now = Simulator::Now();
-        /** FILTER: if previous epoch, just pass to destination */
-        if (rx_md.resultEpochMatch == 2)
-        {                             /* prev epoch */
-            DoSwitchSendToDev(p, ch); /* immediately send to dst */
-            return;
-        }
 
         /*------- Current or Next Epoch Pkts -------*/
 
@@ -747,19 +751,17 @@ namespace ns3
             auto voq = m_voqMap.find(rx_md.pkt_flowkey);
             if (rxEntry._reordering || voq != m_voqMap.end())
             {
-                std::cout
-                    << __FILE__ << "(" << __LINE__ << "):" << Simulator::Now() << ","
-                    << PARSE_FIVE_TUPLE(ch)
-                    << " New epoch packet arrives, but reordering is in progress."
-                    << " Maybe TxToR made the epoch progress too aggressively."
-                    << " If this is frequent, try to increase `cwh_txExpiryTime` value."
-                    << std::endl;
+
+                NS_LOG_INFO(__FILE__ << "(" << __LINE__ << "):" << Simulator::Now() << ","
+                                     << PARSE_FIVE_TUPLE(ch)
+                                     << " New epoch packet arrives, but reordering is in progress."
+                                     << " Maybe TxToR made the epoch progress too aggressively."
+                                     << " If this is frequent, try to increase `cwh_txExpiryTime` value.");
 
                 if (rxEntry._reordering != (voq != m_voqMap.end()))
                 {
-                    std::cout
-                        << "--> ERROR: reordering status and VOQ status are different..."
-                        << std::endl;
+                    NS_LOG_INFO(
+                        "--> ERROR: reordering status and VOQ status are different...");
                     assert(rxEntry._reordering == (voq != m_voqMap.end()));
                 }
             }
@@ -768,6 +770,7 @@ namespace ns3
         }
         else
         {                                        /* current epoch */
+            NS_LOG_INFO("rx_md.resultEpochMatch:" << rx_md.resultEpochMatch);
             assert(rx_md.resultEpochMatch == 0); // sanity check
             if (rx_md.pkt_flagData == ConWeaveDataTag::TAIL)
             { /* TAIL */
@@ -797,7 +800,7 @@ namespace ns3
     void ConWeaveRouting::epochToCheck(conweaveRxState &rxEntry, conweaveRxMeta &rx_md, Ptr<Packet> p, CustomHeader &ch)
     {
 
-        epochMatch(rxEntry, rx_md, p, ch);
+        // epochMatch(rxEntry, rx_md, p, ch);
         Time now = Simulator::Now();
         /*------- Current or Next Epoch Pkts -------*/
         /**
@@ -834,19 +837,17 @@ namespace ns3
             auto voq = m_voqMap.find(rx_md.pkt_flowkey);
             if (rxEntry._reordering || voq != m_voqMap.end())
             {
-                std::cout
-                    << __FILE__ << "(" << __LINE__ << "):" << Simulator::Now() << ","
-                    << PARSE_FIVE_TUPLE(ch)
-                    << " New epoch packet arrives, but reordering is in progress."
-                    << " Maybe TxToR made the epoch progress too aggressively."
-                    << " If this is frequent, try to increase `cwh_txExpiryTime` value."
-                    << std::endl;
+                NS_LOG_INFO(
+                    __FILE__ << "(" << __LINE__ << "):" << Simulator::Now() << ","
+                             << PARSE_FIVE_TUPLE(ch)
+                             << " New epoch packet arrives, but reordering is in progress."
+                             << " Maybe TxToR made the epoch progress too aggressively."
+                             << " If this is frequent, try to increase `cwh_txExpiryTime` value.");
 
                 if (rxEntry._reordering != (voq != m_voqMap.end()))
                 {
-                    std::cout
-                        << "--> ERROR: reordering status and VOQ status are different..."
-                        << std::endl;
+                    NS_LOG_INFO(
+                        "--> ERROR: reordering status and VOQ status are different...");
                     assert(rxEntry._reordering == (voq != m_voqMap.end()));
                 }
             }
@@ -920,9 +921,7 @@ namespace ns3
                     NS_LOG_INFO(PARSE_FIVE_TUPLE(ch)
                                 << "** tailTime:" << rx_md.tailTime
                                 << ",Phase0TxTime:" << rx_md.phase0TxTime.GetNanoSeconds());
-                    std::cout << "** CONWEAVE WARNING - Though this pkt has tailTime, the "
-                                 "tailTime is before Phase0-TxTime"
-                              << std::endl;
+
                     exit(1);
                 }
             }
@@ -1239,6 +1238,7 @@ namespace ns3
             NS_LOG_INFO("ConWeave routing restarts aging event scheduling:" << m_switch_id << now);
             m_agingEvent = Simulator::Schedule(m_agingTime, &ConWeaveRouting::AgingEvent, this);
         }
+
         Ipv4Address srcServerAddr = Ipv4Address(ch.sip);
         Ipv4Address dstServerAddr = Ipv4Address(ch.dip);
         NS_LOG_INFO("(srcServer, dstServer)=(" << srcServerAddr << ", " << dstServerAddr << ")");
@@ -1280,13 +1280,18 @@ namespace ns3
         if (m_switch_id == srcToRId)
         {
             NS_LOG_INFO("Reach Src Tor");
+            if (!m_recordEvent.IsRunning())
+            {
+                NS_LOG_INFO("ConWeave routing restarts aging event scheduling:" << m_switch_id << now);
+                m_recordEvent = Simulator::Schedule(m_recordTime, &ConWeaveRouting::RecordPathload, this);
+            }
             conweaveTxMeta tx_md; // SrcToR packet metadata
             /** INIT: initialize flowkey */
             tx_md.pkt_flowkey = GetStringHashValueFromCustomHeader(ch);
             auto &txEntry = m_conweaveTxTable[tx_md.pkt_flowkey];
             initializeConweaveTxData(txEntry, tx_md, pstKey, ch);
             pathSelect(txEntry, tx_md, pstKey, ch);
-            PrintConweaveTxTable();
+            // PrintConweaveTxTable();
             forwardSrctorPacket(conweaveDataTag, p, ch, tx_md);
             return;
         }
@@ -1296,7 +1301,7 @@ namespace ns3
             {
                 NS_LOG_INFO("Reach Dst Tor ,is conweaveDataTag");
                 NS_ASSERT_MSG(reach_the_last_hop_of_path_tag(conweaveDataTag) == true, "not last hop");
-                PrintConweaveTxTable();
+                // PrintConweaveTxTable();
                 conweaveRxMeta rx_md;
                 rx_md.pkt_flowkey = GetStringHashValueFromCustomHeader(ch);
                 auto &rxEntry = m_conweaveRxTable[rx_md.pkt_flowkey];
@@ -1304,6 +1309,13 @@ namespace ns3
                 /**
                  * ROUND: check epoch: 2(prev), 0(current), or 1(new)
                  */
+                /** FILTER: if previous epoch, just pass to destination */
+                if (rx_md.resultEpochMatch == 2)
+                {                             /* prev epoch */
+                    DoSwitchSendToDev(p, ch); /* immediately send to dst */
+                    return;
+                }
+
                 epochToCheck(rxEntry, rx_md, p, ch);
                 updateExpectedToFlushTime(rxEntry, rx_md, ch);
                 phaseToDisposeVqq(rxEntry, rx_md, ch);
@@ -1326,7 +1338,7 @@ namespace ns3
             else if (foundConWeaveReplyTag || foundConWeaveNotifyTag)
             {
                 NS_LOG_INFO("Reach Dst Tor ,is foundConWeaveReplyTag or foundConWeaveNotifyTag ");
-                PrintConweaveTxTable();
+                // PrintConweaveTxTable();
                 disposeReplyPacket(conweaveReplyTag, foundConWeaveReplyTag, ch, conweaveNotifyTag, foundConWeaveNotifyTag);
                 return;
             }
@@ -1334,7 +1346,7 @@ namespace ns3
         else if (reach_the_last_hop_of_path_tag(conweaveDataTag) == false)
         {
             NS_LOG_INFO("Reach Mid Tor ");
-            PrintConweaveTxTable();
+            // PrintConweaveTxTable();
             onlyForwardPacket(conweaveDataTag, p, ch);
             return;
         }
@@ -1449,6 +1461,28 @@ namespace ns3
         }
 
         m_agingEvent = Simulator::Schedule(m_agingTime, &ConWeaveRouting::AgingEvent, this);
+    }
+    void ConWeaveRouting::RecordPathload()
+    {
+
+        for (auto it = routePath.m_pathSelTbl.begin(); it != routePath.m_pathSelTbl.end(); it++)
+        {
+            HostId2PathSeleKey key = it->first;
+            std::vector<uint32_t> paths = it->second.paths;
+            for (uint32_t path : paths)
+            {
+                PathData *pathinfo = routePath.lookup_PIT(path);
+                if (pathinfo->pathload == 0)
+                {
+                    continue;
+                }
+                uint64_t pathloadgap = pathinfo->pathload - pathinfo->lastpathload;
+                pathinfo->lastpathload = pathinfo->pathload;
+                m_recordPath[key][m_recordTime.GetMilliSeconds() * recordNum][path] = pathloadgap;
+            }
+        }
+        recordNum++;
+        m_recordEvent = Simulator::Schedule(m_recordTime, &ConWeaveRouting::RecordPathload, this);
     }
 
     ConWeaveVOQ::ConWeaveVOQ() {}

@@ -94,6 +94,7 @@ namespace ns3 {
 		}
 		if (qIndex >= 0){ // qp
 			Ptr<Packet> p = m_rdmaGetNxtPkt(m_qpGrp->Get(qIndex));
+			m_qpGrp->Get(qIndex)->sendDateSize += p->GetSize();
 			m_rrlast = qIndex;
 			m_qlast = qIndex;
 			m_traceRdmaDequeue(p, m_qpGrp->Get(qIndex)->m_pg);
@@ -120,7 +121,11 @@ namespace ns3 {
 			bool isDataLeft = qp->GetBytesLeft() > 0 ? true : false;
 			bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
 			int32_t flowid = qp->m_flow_id;
-
+			if (Simulator::Now() >= Seconds(0.9))
+			{
+				std::cout << qp->GetStringHashValueFromQp() << " curtime " << Simulator::Now().GetNanoSeconds() << std::endl;
+				std::cout << " FLOWId " << flowid << " SIZE " << qp->m_size << " una " << qp->snd_una << " Pfc " << isPfcAllowed << " Win " << isWinAllowed << " irn " << isIrnAllowed << " Data " << isDataLeft << " isTime " << isTimeAvail << std::endl;
+			}
 			if (!isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed) {
 					if (!isTimeAvail) { // not available now
 					} else {// blocked by PFC
@@ -952,7 +957,10 @@ namespace ns3 {
 						m_rdmaReceiveCb(packet, ch);
 					}
 				}
-				m_rdmaReceiveCb(packet, ch);
+				else
+				{
+					m_rdmaReceiveCb(packet, ch);
+				}
 			}
 		}
 		return;
@@ -979,9 +987,9 @@ namespace ns3 {
 		PauseHeader pauseh((type == PfcPktType::PAUSE ? m_pausetime : 0), m_queue->GetNBytes(qIndex), qIndex);
 		if (type == PfcPktType::PAUSE)
 		{
-    	std::cout << "TimeInNs: " <<   Simulator::Now().GetNanoSeconds() << " Node: " << m_node->GetId() <<  " Nic: " << m_ifIndex  << " Qindex: "<<qIndex << " Send PAUSE" << std::endl;
+			NS_LOG_INFO("TimeInNs: " << Simulator::Now().GetNanoSeconds() << " Node: " << m_node->GetId() << " Nic: " << m_ifIndex << " Qindex: " << qIndex << " Send PAUSE");
 		}else{
-    	std::cout << "TimeInNs: " <<   Simulator::Now().GetNanoSeconds() << " Node: " << m_node->GetId() <<  " Nic: " << m_ifIndex  << " Qindex: "<<qIndex << " Send Resume" << std::endl;
+			NS_LOG_INFO("TimeInNs: " << Simulator::Now().GetNanoSeconds() << " Node: " << m_node->GetId() << " Nic: " << m_ifIndex << " Qindex: " << qIndex << " ");
 		}
 		
 

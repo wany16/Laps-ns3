@@ -335,6 +335,7 @@ namespace ns3
         bool reach_the_last_hop_of_path_tag(ConWeaveDataTag &conweaveDataTag);
         void DeleteVOQ(std::string flowkey); // used for callback when reorder queue is flushed
         EventId m_agingEvent;
+        EventId m_recordEvent;
         void AgingEvent(); // aging Tx/RxTableEntry (for cleaning and improve NS-3 simulation)
 
         /* SET functions */
@@ -364,6 +365,7 @@ namespace ns3
         static RoutePath routePath;
 
         /* statistics (logging) */
+        static std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, uint64_t>>> m_recordPath; // timegap->pid->sendpacketsize
         static uint64_t m_nReplyInitSent;              // number of reply sent
         static uint64_t m_nReplyTailSent;              // number of reply sent
         static uint64_t m_nTimelyInitReplied;          // number of reply timely arrived at TxToR
@@ -374,6 +376,8 @@ namespace ns3
         static uint64_t m_nFlushVOQTotal;              // number of VOQ flush by timeout (can cause out-of-order)
         static uint64_t m_nFlushVOQByTail;             // number of flushing VOQ natually (w/o out-of-order issue)
         static std::vector<uint32_t> m_historyVOQSize; // history of VOQ size
+        void RecordPathload();
+        void updatePathLoad(uint32_t size, uint32_t pathId);
 
     private:
         // callback
@@ -393,14 +397,14 @@ namespace ns3
         Time m_pathPauseTime; // time to pause path selection when getting ECN's feedback
         bool m_pathAwareRerouting;
         Time m_agingTime; // aging time (e.g., 2ms)
-
+        Time m_recordTime = MilliSeconds(10);
         // local
         std::map<std::string, conweaveTxState> m_conweaveTxTable; // flowkey -> TxToR's stateful table
         std::map<std::string, conweaveRxState> m_conweaveRxTable; // flowkey -> RxToR's stateful table
 
         // VOQ (voq.m_deleteCallback = MakeCallback(&ConWeaveRouting::deleteVoq, this); )
         std::unordered_map<std::string, ConWeaveVOQ> m_voqMap; // flowkey -> FIFO Queue
-
+        uint32_t recordNum=0;
         static uint64_t debug_time;
     };
 

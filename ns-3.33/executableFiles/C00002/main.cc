@@ -47,9 +47,9 @@ NS_LOG_COMPONENT_DEFINE("CongestionControlSimulator");
 int main(int argc, char *argv[])
 {
     LogComponentEnable("RdmaHw", LOG_LEVEL_INFO);
-    //  LogComponentEnable("SwitchNode", LOG_LEVEL_INFO);
-    LogComponentEnable("ConWeaveRouting", LOG_LEVEL_INFO);
-    //  LogComponentEnable("RdmaSmartFlowRouting", LOG_LEVEL_INFO);
+    // LogComponentEnable("SwitchNode", LOG_LEVEL_INFO);
+    // LogComponentEnable("ConWeaveRouting", LOG_LEVEL_INFO);
+    //   LogComponentEnable("RdmaSmartFlowRouting", LOG_LEVEL_INFO);
     LogComponentEnable("userdefinedfunction", LOG_LEVEL_INFO);
     // LogComponentEnable("CongestionControlSimulator", LOG_LEVEL_INFO);
     // LogComponentEnable("QbbNetDevice", LOG_LEVEL_INFO);
@@ -126,12 +126,13 @@ int main(int argc, char *argv[])
      }*/
     // install_rdma_client_on_node(&varMap, 5, 7, 1, 3000, varMap.appStartPort);
 
-    install_rdma_client_on_node(&varMap, 5, 8, 1, 1000, varMap.appStartPort + 1);
-    // install_rdma_client_on_node(&varMap, 6, 8, 1, 20000000000, varMap.appStartPort + 2);
-    // install_rdma_client_on_node(&varMap, 6, 7, 1, 20000000000, varMap.appStartPort + 3);
-    //  node_install_rdma_application(&varMap);
+    // install_rdma_client_on_node(&varMap, 5, 8, 1, 200000000, varMap.appStartPort + 1);
+    //  install_rdma_client_on_node(&varMap, 80, 82, 1, 3000, varMap.appStartPort + 2);
+    //   install_rdma_client_on_node(&varMap, 6, 7, 1, 20000000000, varMap.appStartPort + 3);
+    node_install_rdma_application(&varMap);
     std::cout << "-------------------------------Monitor The queue Len----------------------------------------" << std::endl;
-    monitor_special_port_qlen(&varMap, 0, 1, 0);
+    //  monitor_special_port_qlen(&varMap, 0, 1, 0);
+    monitor_switch_qlen(&varMap, 0);
     std::cout << "-------------------------------Monitor The qBB Device----------------------------------------" << std::endl;
     set_QBB_trace(&varMap);
     std::cout << "-------------------------------Start the Simulation----------------------------------------" << std::endl;

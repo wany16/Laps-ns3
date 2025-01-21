@@ -1,0 +1,70 @@
+enablePfcDynThresh true
+enablePfc true
+enableQcn true
+enableQlenMonitor false
+enablePfcMonitor false
+enableFctMonitor true
+enableQbbTrace false
+enableKvCache false
+enableWindow true
+enableUnifiedWindow true
+enableVarWin false
+enableFastFeedback false
+ClampTargetRate false
+enableL2BackToZero false
+enableMultiRate true
+enableSampleFeedback false
+enableRateBound true
+enableAckHigherPrio true
+enableTest false
+enableIrn true
+ccMode Dcqcn_mlx
+irnMode GBN
+lbsName ecmp
+intMulti 1
+alphaResumeIntervalInUs 1
+rpTimerInUs 300
+fastRecoveryTimes 1
+ewmaGain 0.00390625
+rateAiInMbps 5
+rateHaiInMbps 50
+l2ChunkSizeInByte 4000
+l2AckIntervalInByte 1
+rateDecreaseIntervalInUs 4
+minRateInMbps 100
+miThresh 5
+dctcpRateAiInMbps 1000
+targetUtilization 0.95
+pintLogBase 1.01
+pfcPauseTimeInUs 5
+traceNodeIds 8 64
+alphaShiftInLog 3
+ecnParaMap 100 400 1600 0.8 200 800 3200 0.8 400 1600 6400 0.8 25 100 400 0.8 10 40 160 0.8 1 2 6 0.8 
+pintProbTresh 65536
+pktPayloadSizeInByte 1000
+mmuSwBufferSizeInMB 32
+flowGroupPrio 3
+defaultPktSizeInByte 1048
+rdmaAppStartPort 1111
+screenDisplayInNs 1000000
+loadRatio 1
+loadRatioShift 1
+flowletTimoutInUs 50
+qlenMonitorIntervalInNs 1000000
+simStartTimeInSec 0
+simEndTimeInSec 1
+flowLunchEndTimeInSec 0.01
+fileIdx A00083-test-DCTCP_CDF-Ring-rps-0.5
+topoFileName /file-in-ctr/inputFiles/C00002/fat_tree_4-8-8-16_topology.txt
+outputFileDir /file-in-ctr/outputFiles/C00002/
+inputFileDir /file-in-ctr/inputFiles/C00002/
+
+
+appStartPort 6666
+kvCacheType 1
+incastKvCachePara 1 60 1000 64000000 400000
+broadcastKvCachePara 1 60 8000 160000 8000 240000
+roundNum 60
+notifySizeInByte 1000
+attentionSizeInByte 64000000
+roundDelayInNs 400000

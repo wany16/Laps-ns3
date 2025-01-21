@@ -158,6 +158,8 @@ namespace ns3
     {
         m_pathSelTbl.insert(pathSelTbl.begin(), pathSelTbl.end());
         // NS_LOG_INFO ("m_pathSelTbl size " << m_pathSelTbl.size());
+        // init
+
         return;
     }
 

@@ -27,6 +27,7 @@ namespace ns3
 	RoutePath SwitchNode::routePath;
 	std::map<uint32_t, std::map<uint64_t, std::string>> SwitchNode::congaoutinfo;
 	std::map<uint32_t, std::map<std::string, std::map<uint64_t, letflowSaveEntry>>> SwitchNode::m_letflowTestInf;
+	std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, uint64_t>>> SwitchNode::m_recordPath;
 	// LB_Solution SwitchNode::lbSolution = LB_Solution::NONE;
 	uint32_t SwitchNode::GetHashValueFromCustomHeader(const CustomHeader &ch)
 	{
@@ -142,7 +143,7 @@ namespace ns3
 		// set constants
 		m_dreTime = Time(MicroSeconds(200));
 		m_agingTime = Time(MilliSeconds(10));
-		m_flowletTimeout = Time(MicroSeconds(100));
+		m_flowletTimeout = Time(MicroSeconds(10));
 		m_quantizeBit = 3;
 		m_alpha = 0.2;
 		Ptr<RdmaSmartFlowRouting> smartFlowRouting = m_mmu->m_SmartFlowRouting;
@@ -513,6 +514,30 @@ namespace ns3
 		m_agingEvent = Simulator::Schedule(m_agingTime, &SwitchNode::AgingEvent, this);
 	}
 
+	void SwitchNode::RecordPathload()
+	{
+
+		for (auto it = routePath.m_pathSelTbl.begin(); it != routePath.m_pathSelTbl.end(); it++)
+		{
+			HostId2PathSeleKey key = it->first;
+			std::vector<uint32_t> paths = it->second.paths;
+			for (uint32_t path : paths)
+			{
+				PathData *pathinfo = routePath.lookup_PIT(path);
+				uint64_t pathloadgap = pathinfo->pathload - pathinfo->lastpathload;
+				pathinfo->lastpathload = pathinfo->pathload;
+				m_recordPath[key][m_recordTime.GetMilliSeconds() * recordNum][path] = pathloadgap;
+			}
+		}
+		recordNum++;
+		m_recordEvent = Simulator::Schedule(m_recordTime, &SwitchNode::RecordPathload, this);
+	}
+	void SwitchNode::updatePathLoad(uint32_t size, uint32_t pathId)
+	{
+		PathData *pitEntry = routePath.lookup_PIT(pathId);
+		pitEntry->pathload += size;
+		return;
+	}
 	uint32_t SwitchNode::GetCongaEgressPort(Ptr<Packet> p, CustomHeader &ch)
 	{
 
@@ -540,7 +565,9 @@ namespace ns3
 			   routeSettings::hostIp2SwitchId.end()); // Misconfig of Settings::hostIp2SwitchId - sip"
 		assert(routeSettings::hostIp2SwitchId.find(Ipv4Address(ch.dip)) !=
 			   routeSettings::hostIp2SwitchId.end()); // Misconfig of Settings::hostIp2SwitchId - dip" //user.cc is not finished
+
 		uint32_t srcToRId = routeSettings::hostIp2SwitchId[Ipv4Address(ch.sip)];
+
 		uint32_t srcHostId = routeSettings::hostIp2IdMap[Ipv4Address(ch.sip)];
 
 		uint32_t dstHostId = routeSettings::hostIp2IdMap[Ipv4Address(ch.dip)];
@@ -554,6 +581,7 @@ namespace ns3
 			if (it == m_congaIp2ports.end())
 			{
 				std::cout << "Error in GetAllCandidateEgressPorts(): found No matched routing entries" << std::endl;
+				selectedPort = 0;
 			}
 			else
 			{
@@ -576,6 +604,11 @@ namespace ns3
 		bool found = p->PeekPacketTag(congaTag);
 		if (!found)
 		{ // sender-side
+			if (!m_recordEvent.IsRunning())
+			{
+				NS_LOG_INFO("ConWeave routing restarts aging event scheduling:" << m_switch_id << now);
+				m_recordEvent = Simulator::Schedule(m_recordTime, &SwitchNode::RecordPathload, this);
+			}
 			HostId2PathSeleKey reversePstKey(dstHostId, srcHostId);
 			pstEntryData *reversePstEntry = routePath.lookup_PST(reversePstKey);
 			uint32_t forwardPathNum = reversePstEntry->pathNum;
@@ -644,6 +677,7 @@ namespace ns3
 				selectedPort = GetOutPortFromPath(selectedPath, 0);
 				uint32_t X = UpdateLocalDre(p, ch, selectedPort); // update
 				uint32_t localCe = QuantizingX(selectedPort, X);  // quantize
+				updatePathLoad(p->GetSize(), selectedPath);
 				congaTag.SetCe(localCe);
 				congaTag.SetPathId(selectedPath);
 				congaTag.SetHopCount(0);
@@ -1431,6 +1465,7 @@ namespace ns3
 		p->PeekHeader(ch);		
 		FlowIdTag t;
 		NS_ASSERT_MSG(p != 0 && (p->PeekPacketTag(t) || ch.l3Prot == L3ProtType::PFC), "No FlowIdTag found in the packet");
+		p->PeekPacketTag(t);
 		if (qIndex != 0)
 		{
 			uint32_t inDev = t.GetFlowId();

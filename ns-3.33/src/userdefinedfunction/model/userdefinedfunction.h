@@ -1116,7 +1116,8 @@ namespace ns3
   uint32_t read_files_by_line(std::ifstream &fh, std::vector<std::vector<std::string>> &resLines);
   uint32_t read_PIT_from_file(std::string pitFile, std::map<uint32_t, std::map<uint32_t, PathData>> &PIT);
   // uint32_t read_PST_from_file(std::string pstFile, std::map<uint32_t, std::map<PathSelTblKey, pstEntryData>> &PST);
-  void install_LB_table(global_variable_t *varMap, Ptr<Node> node);
+  void Read_pathInfo(global_variable_t *varMap, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST, std::map<uint32_t, std::map<uint32_t, PathData>> &PIT);
+  void install_LB_table(global_variable_t *varMap, Ptr<Node> curNode, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST, std::map<uint32_t, std::map<uint32_t, PathData>> &PIT);
   void server_instal_LB_table(global_variable_t *varMap, Ptr<RdmaHw> &rdmaHw, uint32_t nodeId);
   uint32_t read_hostId_PST_Path_from_file(global_variable_t *varMap, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST);
 
@@ -1163,7 +1164,10 @@ namespace ns3
   void save_ecmp_outinfo(global_variable_t *varMap);
   void save_LB_outinfo(global_variable_t *varMap);
   void save_letflow_outinfo(global_variable_t *varMap);
+  void save_QpRateChange_outinfo(global_variable_t *varMap);
+  void save_Conweave_pathload_outinfo(global_variable_t *varMap);
   void sim_finish(global_variable_t *varMap);
+  void save_qpFinshtest_outinfo(global_variable_t *varMap);
   // void print_nic_info(global_variable_t *varMap);
   void generate_rdma_flows_for_node_pair(global_variable_t *varMap);
   void generate_rdma_flows_on_nodes(global_variable_t *varMap);
@@ -1171,7 +1175,7 @@ namespace ns3
   void create_topology_rdma(global_variable_t *varMap);
   std::map<uint32_t, ecn_para_entry_t> parse_ecn_parameter(std::vector<std::string> &s);
   uint64_t get_nic_rate_In_Gbps(global_variable_t *varMap);
-  std::vector<uint32_t> parse_trace_nodes(std::vector<std::string> & nodesIdxes);
+  std::vector<uint32_t> parse_trace_nodes(std::vector<std::string> &nodesIdxes);
   NodeContainer merge_nodes(NodeContainer &first, NodeContainer &second);
   CHL_entry_t parse_channel_entry(std::vector<std::string> &s);
   std::map<uint32_t, CHL_entry_t> parse_channels(std::vector<std::vector<std::string>> &resLines);
@@ -1303,7 +1307,7 @@ namespace ns3
       oss << PairVector2string(len, ", ");
       return oss.str();
     }
-  };
+   };
 
   void PrintNodeQlen(std::vector<std::vector<QueueLengthEntry>> *qlenTbl, NodeContainer nodes, uint64_t interval = 100000, uint32_t round = 1);
   void SaveNodeQlen(std::string file, std::vector<std::vector<QueueLengthEntry>> &qlenTbl, uint64_t intervalInNs = 1000000);

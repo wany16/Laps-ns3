@@ -534,18 +534,19 @@ namespace ns3
     // std::cout << "srcNodeID: " << srcNode->GetId() << "dstnodeID: " << dstNode->GetId() << ",bitWdithPerSec" << bitWdithPerSec << std::endl;
     // uint64_t baseFctInNs = baseRttInNs + totalBytes * 8000000000lu / bitWdithPerSec;
 
-    fprintf(os, "SIP:%08x DIP:%08x SP:%u DP:%u DataSizeInByte:%lu PktSizeInByte:%u StartTimeInNs:%lu LastTimeInNs:%lu EndTimeInNs:%lu BaseFctInNs:%lu\n",
+    fprintf(os, "SIP:%08x DIP:%08x SP:%u DP:%u DataSizeInByte:%lu PktSizeInByte:%u SendPktSizeInByte:%lu StartTimeInNs:%lu LastTimeInNs:%lu EndTimeInNs:%lu BaseFctInNs:%ld\n",
             q->sip.Get(),
             q->dip.Get(),
             q->sport,
             q->dport,
             q->m_size,
             totalBytes,
+            q->sendDateSize,
             q->startTime.GetNanoSeconds(),
             (Simulator::Now() - q->startTime).GetNanoSeconds(),
             Simulator::Now().GetNanoSeconds()
             // baseFctInNs
-            );
+    );
     // remove rxQp from the receiver
     Ptr<RdmaDriver> rdma = dstNode->GetObject<RdmaDriver>();
     rdma->m_rdma->DeleteRxQp(q->sip.Get(), q->sport, q->dport, q->m_pg);
@@ -1518,18 +1519,19 @@ namespace ns3
     }
     return resLines;
   }
-
-
-  void install_LB_table(global_variable_t *varMap, Ptr<Node> curNode)
+  void Read_pathInfo(global_variable_t *varMap, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST, std::map<uint32_t, std::map<uint32_t, PathData>> &PIT)
   {
-    Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(curNode);
-    std::map<Ipv4Address, hostIp2SMT_entry_t> SMT;
-    std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> PST;
-    std::map<uint32_t, std::map<uint32_t, PathData>> PIT;
+
     read_PIT_from_file(varMap->pitFile, PIT);
     read_hostId_PST_Path_from_file(varMap, PST);
     read_SMT_from_file(varMap->smtFile, SMT);
-    std::cout << "SMT: " << varMap->smtFile << std::endl;
+    return;
+  }
+
+  void install_LB_table(global_variable_t *varMap, Ptr<Node> curNode, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST, std::map<uint32_t, std::map<uint32_t, PathData>> &PIT)
+  {
+    Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(curNode);
+    // std::cout << "SMT: " << varMap->smtFile << std::endl;
     uint32_t nodeId = sw->GetSwitchId();
     std::cout << varMap->lbsName << std::endl;
     if (varMap->lbsName == "laps" || varMap->lbsName == "e2elaps")
@@ -1905,6 +1907,8 @@ namespace ns3
       srcNodeIdx = std::atoi(resLines[i][0].c_str());
       tfcEntry.srcNodeIdx = srcNodeIdx;
       tfcEntry.dstNodeIdx = std::atoi(resLines[i][1].c_str());
+      tfcEntry.loadfactor = std::atof(resLines[i][2].c_str());
+      tfcEntry.capacityInGbps = std::atoi(resLines[i][3].c_str());
       tfcEntry.flowCount = 0;
       tfcEntry.bytesCount = 0;
       TFC[srcNodeIdx].push_back(tfcEntry);
@@ -2089,6 +2093,7 @@ namespace ns3
     }
     return;
   }
+
   void save_ecmp_outinfo(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save ecmp outinfo()----------");
@@ -2111,6 +2116,7 @@ namespace ns3
       }
     }
     fflush(file);
+    fclose(file);
     return;
   }
   void save_letflow_outinfo(global_variable_t *varMap)
@@ -2141,6 +2147,7 @@ namespace ns3
       }
     }
     fflush(file);
+    fclose(file);
     return;
   }
   void save_ccmode_outinfo(global_variable_t *varMap)
@@ -2173,6 +2180,7 @@ namespace ns3
       }
     }
     fflush(file);
+    fclose(file);
     return;
   }
   void save_plb_outinfo(global_variable_t *varMap)
@@ -2194,10 +2202,11 @@ namespace ns3
         // std::string swid_poid = "nodeID: " + to_string(nodeid) + ",portIdx: " + to_string(portinfo->first);
         uint32_t curTimeInMilliSec = m_record_timeInMilliSec->first;
         PlbRecordEntry plbOutInfo = m_record_timeInMilliSec->second;
-        fprintf(file, "nodeID:%d TimeInMilliSec:%lu flowId:%s congested_rounds:%u pkts_in_flight:%u pause_untilInSec:%u randomNum:%u\n", nodeid, curTimeInMilliSec, plbOutInfo.flowID.c_str(), plbOutInfo.congested_rounds, plbOutInfo.pkts_in_flight, plbOutInfo.pause_untilInSec, plbOutInfo.randomNum);
+        fprintf(file, "nodeID:%d TimeInMilliSec:%lu flowId:%s congested_rounds:%lu pkts_in_flight:%u pause_untilInSec:%u randomNum:%u\n", nodeid, curTimeInMilliSec, plbOutInfo.flowID.c_str(), plbOutInfo.congested_rounds, plbOutInfo.pkts_in_flight, plbOutInfo.pause_untilInSec, plbOutInfo.randomNum);
       }
     }
     fflush(file);
+    fclose(file);
     return;
   }
 
@@ -2225,7 +2234,95 @@ namespace ns3
       }
     }
     fflush(file);
+    fclose(file);
     return;
+  }
+  void save_qpFinshtest_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save QP outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-QpFinshTest.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = RdmaHw::m_recordQpSen.begin(); it != RdmaHw::m_recordQpSen.end(); ++it)
+    {
+      std::string qpId = it->first;
+
+      std::string outinfo = it->second;
+      fprintf(file, "flowID:%s OutInfo:%s\n", qpId.c_str(), outinfo.c_str());
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+
+  void save_QpRateChange_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save QpRateChange outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-QpRateChange.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = RdmaHw::m_qpRatechange.begin(); it != RdmaHw::m_qpRatechange.end(); ++it)
+    {
+    std:
+      std::string qpId = it->first;
+      for (auto outInfo = it->second.begin(); outInfo != it->second.end(); ++outInfo)
+      {
+        uint64_t timegapInMic = outInfo->first;
+        uint64_t dateInMbs = outInfo->second;
+        fprintf(file, "flowID:%s TGInMic:%lu dateInMbs:%lu\n", qpId.c_str(), timegapInMic, dateInMbs);
+      }
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+  void save_Conweave_pathload_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save Conweave path outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-pathload.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = ConWeaveRouting::m_recordPath.begin(); it != ConWeaveRouting::m_recordPath.end(); ++it)
+    {
+
+      HostId2PathSeleKey pathKey = it->first;
+      std::string pathKeyStr = pathKey.to_string();
+      std::map<uint32_t, std::map<uint32_t, uint64_t>> m_outInfo = it->second;
+      for (auto outInfo = m_outInfo.begin(); outInfo != m_outInfo.end(); ++outInfo)
+      {
+        uint64_t timegapInMill = outInfo->first;
+
+        for (auto pathInfo = outInfo->second.begin(); pathInfo != outInfo->second.end(); ++pathInfo)
+        {
+          if (pathInfo->second == 0)
+          {
+            continue;
+          }
+          fprintf(file, "pathKey:%s TGInMill:%u pid:%u dataSizeByte:%lu\n", pathKeyStr.c_str(), timegapInMill, pathInfo->first, pathInfo->second);
+        }
+      }
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+  void save_Conga_pathload_outinfo(global_variable_t *varMap)
+  {
   }
   // void print_mac_address_for_single_node(Ptr<Node> curNode){
   //   Ptr<Ipv4> curIpv4 = curNode->GetObject<Ipv4> ();
@@ -2649,6 +2746,10 @@ namespace ns3
 
     NodeContainer &allNodes = varMap->allNodes;
     uint32_t node_num = allNodes.GetN();
+    std::map<Ipv4Address, hostIp2SMT_entry_t> SMT;
+    std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> PST;
+    std::map<uint32_t, std::map<uint32_t, PathData>> PIT;
+    Read_pathInfo(varMap, SMT, PST, PIT);
     for (uint32_t nodeIdx = 0; nodeIdx < node_num; nodeIdx++)
     {
       Ptr<Node> curNode = allNodes.Get(nodeIdx);
@@ -2662,7 +2763,7 @@ namespace ns3
         }
         if (varMap->lbsName == "laps" || varMap->lbsName == "conweave" || varMap->lbsName == "e2elaps" || varMap->lbsName == "conga")
         {
-          install_LB_table(varMap, curNode);
+          install_LB_table(varMap, curNode, SMT, PST, PIT);
         }
       }
     }
@@ -3525,7 +3626,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
         varMap->dstNode = varMap->allNodes.Get(dstNodeIdx);
         // std::cout << "dstNode ID: " <<  dstNode->GetId() << construct_target_string(5, " ");
         // std::cout << "loadfactorAdjustFacror: " <<  loadfactorAdjustFacror << construct_target_string(5, " ");
-        double tmpLoadFactor = varMap->loadRatioShift * varMap->loadRatio;
+        double tmpLoadFactor = tfcEntry.loadfactor * varMap->loadRatio;
         // std::cout << "tmpLoadFactor: " <<  tmpLoadFactor << construct_target_string(5, " ");
         uint64_t rateInBitPerSec = DynamicCast<QbbNetDevice>(varMap->srcNode->GetDevice(1))->GetDataRate().GetBitRate();
         // std::cout << "widthInGbps: " <<  widthInGbps << construct_target_string(5, " ");
@@ -3649,10 +3750,17 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     // save_PLB_outinfo(&varMap);
     // save_Conga_outinfo(&varMap);
     // save_ecmp_outinfo(&varMap);
-    save_LB_outinfo(varMap);
+    //
+    // save_qpFinshtest_outinfo(varMap);
+    save_QpRateChange_outinfo(varMap);
+    if (varMap->lbsName == "conweave")
+    {
+      save_Conweave_pathload_outinfo(varMap);
+    }
     if (ENABLE_CCMODE_TEST)
     {
       save_ccmode_outinfo(varMap);
+      save_LB_outinfo(varMap);
     }
 
     if (varMap->enableQbbTrace)
@@ -3925,6 +4033,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     {
       Config::SetDefault("ns3::QbbNetDevice::QbbE2ELb", StringValue(varMap->lbsName));
       Config::SetDefault("ns3::RdmaHw::E2ELb", StringValue(varMap->lbsName));
+      varMap->ccMode = "Dctcp";
     }
     Config::SetDefault("ns3::SwitchNode::FlowletTimeout", TimeValue(MicroSeconds(varMap->flowletTimoutInUs)));
     NS_LOG_INFO("SwitchNode::FlowletTimeoutInUs : " << varMap->flowletTimoutInUs);

@@ -319,7 +319,12 @@ namespace ns3
 
     std::string GetStringHashValueFromCustomHeader(const CustomHeader &ch);
     std::string ipv4Address2string(Ipv4Address addr);
-
+    struct pathload
+    {
+        uint32_t pid = 0;
+        uint64_t lastsize = 0;
+        uint64_t currsize = 0;
+    };
     class RoutePath
     {
 
@@ -333,6 +338,7 @@ namespace ns3
         std::map<HostId2PathSeleKey, pstEntryData> m_pathSelTbl;  // PDT
         std::map<uint32_t, PathData> m_nexthopSelTbl;             // PIT
         std::map<HostId2PathSeleKey, pdt_entry_t> m_pathDecTbl;   //
+        // std::map<HostId2PathSeleKey, std::map<uint32_t, pathload>> m_recordPath; // timegap->pid->sendpacketsize
         std::vector<PathData *> batch_lookup_PIT(std::vector<uint32_t> &pids);
         uint32_t install_SMT(std::map<Ipv4Address, hostIp2SMT_entry_t> &vmt);
         void set_SMT(std::map<Ipv4Address, hostIp2SMT_entry_t> &vmVtepMapTbl);

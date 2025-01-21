@@ -4,7 +4,7 @@ enableQcn true
 enableQlenMonitor false
 enablePfcMonitor false
 enableFctMonitor true
-enableQbbTrace true
+enableQbbTrace false
 enableKvCache false
 enableWindow true
 enableUnifiedWindow true
@@ -39,10 +39,10 @@ pintLogBase 1.01
 pfcPauseTimeInUs 5
 traceNodeIds 5 8
 alphaShiftInLog 3
-ecnParaMap 100 400 1600 0.8 400 1600 6400 0.8 25 100 400 0.8 10 40 160 0.8 1 2 6 0.8 
+ecnParaMap 100 400 1600 0.8 200 800 3200 0.8 400 1600 6400 0.8 25 100 400 0.8 10 40 160 0.8 1 2 6 0.8 
 pintProbTresh 65536
 pktPayloadSizeInByte 1000
-mmuSwBufferSizeInMB 1
+mmuSwBufferSizeInMB 32
 flowGroupPrio 3
 defaultPktSizeInByte 1048
 rdmaAppStartPort 1111

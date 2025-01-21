@@ -67,6 +67,10 @@ namespace ns3
 		static std::map<uint32_t, std::map<std::string, std::map<uint64_t, RecordCcmodeOutEntry>>> ccmodeOutInfo; // Record CCMod outinfo:send rate\RTO evente
 		std::map<uint32_t, std::map<std::string, uint32_t>> m_packetLost;										  // node->flowid->packetSeq;
 		static std::map<uint32_t, std::map<std::string, std::map<uint32_t, LostPacketEntry>>> m_lossPacket;		  // QPId->packetSeqNum->lostNum
+		static std::map<std::string, std::string> m_recordQpSen;												  //  ->snd_una and snd_una-m_size
+		static std::map<std::string, std::map<uint64_t, uint32_t>> m_qpRatechange;
+
+		static uint32_t flowComplteNum;
 		Ptr<Node> m_node;
 		DataRate m_minRate; //< Min sending rate
 		uint32_t m_mtu;
@@ -145,6 +149,11 @@ namespace ns3
 		uint32_t m_cnt_cnpByEcn;
 		uint32_t m_cnt_cnpByOoo;
 		uint32_t m_cnt_Cnp;
+
+		// Implement Timeout according to IB Spec Vol. 1 C9-139.
+		// For an HCA requester using Reliable Connection service, to detect missing responses,
+		// every Send queue is required to implement a Transport Timer to time outstanding requests.
+		Time m_waitAckTimeout;
 
 		// std::unordered_map<uint32_t, bool> m_manualDropSeqMap={{2000, true},{3000, true},{9000,true},{19000,true}};
 

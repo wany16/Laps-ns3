@@ -87,7 +87,11 @@ namespace ns3
 	TypeId RdmaQueuePair::GetTypeId(void)
 	{
 		static TypeId tid = TypeId("ns3::RdmaQueuePair")
-														.SetParent<Object>();
+								.SetParent<Object>()
+								.AddTraceSource("RateChange",
+												"The data rate of the queue pair.",
+												MakeTraceSourceAccessor(&RdmaQueuePair::m_rateTrace), "ns3::TracedCallback");
+
 		return tid;
 	}
 
@@ -141,6 +145,21 @@ namespace ns3
 		hpccPint.m_lastUpdateSeq = 0;
 		hpccPint.m_incStage = 0;
 	}
+	void RdmaQueuePair::SetRate(DataRate rate)
+	{
+		if (m_rate != rate)
+		{
+			m_rateTrace(this, m_rate, rate); // 触发 trace source
+			m_rate = rate;
+		}
+	}
+	void RdmaQueuePair::TraceRate(DataRate rate)
+	{
+		if (m_rate != rate)
+		{
+			m_rateTrace(this, m_rate, rate); // 触发 trace source
+		}
+	}
 
 	void RdmaQueuePair::SetSize(uint64_t size)
 	{
@@ -161,12 +180,13 @@ namespace ns3
 	{
 		m_var_win = v;
 	}
+	void RdmaQueuePair::SetTimeout(Time v) { m_timeout = v; }
 
-void RdmaQueuePair::SetFlowId(int32_t v) {
-    m_flow_id = v;
-    m_irn.m_sack.socketId = v;
-
-}
+	void RdmaQueuePair::SetFlowId(int32_t v)
+	{
+		m_flow_id = v;
+		m_irn.m_sack.socketId = v;
+	}
 std::string RdmaQueuePair::GetStringHashValueFromQp()
 {
 

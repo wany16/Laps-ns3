@@ -249,8 +249,15 @@ namespace ns3
     // periodic events
     EventId m_dreEvent;
     EventId m_agingEvent;
+    EventId m_recordEvent;
+    Time m_recordTime = MilliSeconds(1);
+    uint32_t recordNum=0;
     void DreEvent();
     void AgingEvent();
+    static std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, uint64_t>>> m_recordPath; // timegap->pid->sendpacketsize
+    void RecordPathload();
+    void updatePathLoad(uint32_t size, uint32_t pathId);
+    
     
 
 

@@ -11,6 +11,7 @@
 #include <vector>
 #include <climits> /* for CHAR_BIT */
 #include <ns3/event-id.h>
+#include "ns3/traced-callback.h"
 #include <random>
 
 #define MAX_RDMA_FLOW_PER_HOST 9120
@@ -158,9 +159,9 @@ public:
 	uint32_t wp; // current window of packets
 	uint32_t lastPktSize;
 	Callback<void> m_notifyAppFinish;
-
+	uint64_t sendDateSize = 0;
 	int32_t m_flow_id; // conweave
-	Time m_timeout; // conweave
+	Time m_timeout;
 
 	//bool enablePLBHash //PLB
     uint32_t flowRandNum=0; //PLB
@@ -172,6 +173,9 @@ public:
 	 * runtime states
 	 *****************************/
 	DataRate m_rate;	//< Current rate
+	TracedCallback<Ptr<RdmaQueuePair>, DataRate, DataRate> m_rateTrace;
+	void TraceRate(DataRate rate);
+
 	struct {
 		DataRate m_targetRate;	//< Target rate
 		EventId m_eventUpdateAlpha;
@@ -260,12 +264,14 @@ public:
 	 **********/
 	static TypeId GetTypeId (void);
 	RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, uint16_t _sport, uint16_t _dport);
+	void SetRate(DataRate rate);
 	void SetSize(uint64_t size);
 	void SetWin(uint32_t win);
 	void SetBaseRtt(uint64_t baseRtt);
 	void SetVarWin(bool v);
 	void SetAppNotifyCallback(Callback<void> notifyAppFinish);
   void SetFlowId(int32_t v);
+  void SetTimeout(Time v);
   std::string GetStringHashValueFromQp();
   uint64_t GetBytesLeft();
   uint32_t GetHash(void);
