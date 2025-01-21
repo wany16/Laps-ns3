@@ -512,8 +512,10 @@ namespace ns3 {
 			hdr_size = ch.GetSerializedSize();
 			payloadSize = m_currentPkt->GetSize()-hdr_size;
 			NS_LOG_INFO("PktId: " << pktId  << " Type: DATA, Size: " << payloadSize <<	" Pid: " << pid);
-      entry->lastQp->m_irn.m_sack.appendOutstandingData(pid, ch.udp.seq, payloadSize); /////////////////////////////
+      // entry->lastQp->m_irn.m_sack.appendOutstandingData(pid, ch.udp.seq, payloadSize); /////////////////////////////
 
+			auto e = OutStandingDataEntry(entry->lastQp->m_flow_id, ch.udp.seq, payloadSize);
+			m_rdmaOutStanding_cb(pid, e);
 			return true;
 		}
 		else if (entry->isAck)
@@ -879,10 +881,10 @@ namespace ns3 {
 		{
 			Ptr<E2ESrcOutPackets> outEntry = GetTransmitQpContentOnSrcHostForLaps(qpFlowIndex);
 			AddPathTagOnSrcHostForLaps(outEntry);
-			if (outEntry->isData)
-			{
-				m_rtoSetCb(outEntry->lastQp, outEntry->pidForDataPkt, NanoSeconds(2*outEntry->latencyForDataPktInNs));
-			}
+			// if (outEntry->isData)
+			// {
+			// 	m_rtoSetCb(outEntry->lastQp, outEntry->pidForDataPkt, NanoSeconds(2*outEntry->latencyForDataPktInNs));
+			// }
 			UpdatePathTagOnSrcHostForLaps(outEntry);
 			TransmitStartOnSrcHostForLaps(outEntry);
 		}

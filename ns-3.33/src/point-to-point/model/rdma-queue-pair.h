@@ -26,6 +26,7 @@
 #define IRN_OPTIMIZED_RE_TX_THRESHOLD_N_NANOSECONDS 1000000
 
 
+
 namespace ns3 {
 
 enum CcMode {
@@ -35,6 +36,8 @@ enum CcMode {
     CC_MODE_DCTCP = 8,
     CC_MODE_UNDEFINED = 0,
 };
+
+
 
 
 
@@ -100,8 +103,8 @@ struct Irn{
 		static Irn::Mode mode;
 		static void SetMode(std::string mode);
 		static std::string GetMode();
-
-
+		static bool isWindowBasedForLaps;
+		
 		EventId m_reTxEvent;
 		uint32_t m_lastReTxSeq{0};
 		uint32_t m_nextReTxSeq{0};		

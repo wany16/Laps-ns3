@@ -163,8 +163,10 @@ namespace ns3
 
         void SetPathId(uint32_t pid);
         void SetFlowId(uint32_t fid);
+        void SetDelay(uint64_t ts);
         uint32_t GetPathId(void) const;
         uint32_t GetFlowId(void) const;
+        uint64_t GetDelay(void) const;
         static TypeId GetTypeId(void);
         virtual TypeId GetInstanceTypeId(void) const;
         virtual uint32_t GetSerializedSize(void) const;
@@ -175,6 +177,7 @@ namespace ns3
     private:
         uint32_t m_pathId;
         uint32_t m_flowId;
+        uint64_t m_delayInNs;
     };
 
     class Ipv4SmartFlowPathTag : public Tag

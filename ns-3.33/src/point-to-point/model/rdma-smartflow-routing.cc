@@ -32,6 +32,38 @@ namespace ns3
     double RdmaSmartFlowRouting::laps_alpha = 4;
     std::uniform_real_distribution<double> RdmaSmartFlowRouting::rndGen(0.0, 1.0);
     std::default_random_engine RdmaSmartFlowRouting::generator(std::random_device{}());
+    std::map<uint32_t,uint32_t> RdmaSmartFlowRouting::pathPair;
+
+    void RdmaSmartFlowRouting::setPathPair(std::vector<PathData> &PIT)
+    {
+        for (auto &pit : PIT)
+        {
+            if (pathPair.find(pit.pid) == pathPair.end())
+            {
+                bool isFound = false;
+                std::vector<uint32_t> selfNodes = pit.nodeIdSequence;
+                for (auto & rPit : PIT)
+                {
+                    if (rPit.pid == pit.pid)
+                    {
+                        continue;
+                    }
+                    std::vector<uint32_t> peerNodes = rPit.nodeIdSequence;
+                    if (IsVectorReverse(selfNodes, peerNodes))
+                    {
+                        NS_ASSERT_MSG(pathPair.find(rPit.pid) == pathPair.end(), "The pathPair should not exist");
+                        pathPair[rPit.pid] = pit.pid;
+                        pathPair[pit.pid] = rPit.pid;
+                        std::cout << "PathPair: " << rPit.pid << " <-> " << pit.pid << std::endl;
+                        isFound = true;
+                    }
+
+                }
+                NS_ASSERT_MSG(isFound, "The pathPair should be found");
+            }
+        }
+    }
+
 
     NS_LOG_COMPONENT_DEFINE("RdmaSmartFlowRouting");
 
@@ -241,13 +273,13 @@ namespace ns3
         return pathIdx;
     }
 
-    /*uint32_t RdmaSmartFlowRouting::print_PST()
+    uint32_t RdmaSmartFlowRouting::print_PST()
     {
-        uint32_t nodeID = get_node_id();
+        uint32_t nodeID = m_node->GetId();
         uint32_t pstSize = m_pathSelTbl.size();
         std::cout << "Node: **" << nodeID << "** has PST in smartFlow with **" << pstSize << "** entries" << std::endl;
         std::cout << "Index" << construct_target_string_strlen(5, " ");
-        std::cout << "(SrcTorAddr, DstToRAddr)" << construct_target_string_strlen(5, " ");
+        std::cout << "(SrcId, DstId)" << construct_target_string_strlen(5, " ");
         std::cout << "PathNum" << construct_target_string_strlen(5, " ");
         std::cout << "LastIdx" << construct_target_string_strlen(2, " ");
         std::cout << "highestIdx" << construct_target_string_strlen(2, " ");
@@ -260,8 +292,8 @@ namespace ns3
         for (it = m_pathSelTbl.begin(); it != m_pathSelTbl.end(); it++)
         {
             std::cout << entryCnt << construct_target_string_strlen(5 + 5 - change2string(entryCnt).size(), " ");
-            std::string srcTorId = std::string(it->first.selfHostId);
-            std::string dstHostId = std::string(it->first.dstHostId);
+            std::string srcTorId = std::to_string(it->first.selfHostId);
+            std::string dstHostId = std::to_string(it->first.dstHostId);
             std::string pathKeyStr = "(" + srcTorId + ", " + dstHostId+ ")";
             std::cout << pathKeyStr << construct_target_string_strlen(5 + 24 - change2string(pathKeyStr).size(), " ");
             uint32_t curPathNum = it->second.pathNum;
@@ -276,7 +308,7 @@ namespace ns3
             entryCnt = entryCnt + 1;
         }
         return entryCnt;
-    }*/
+    }
 
     uint32_t RdmaSmartFlowRouting::print_SMT()
     {
@@ -1052,6 +1084,7 @@ namespace ns3
         update_PIT_by_probe_tag(probeTag);
         return;
     }
+    
     Ptr<Packet> RdmaSmartFlowRouting::reply_probe_info(Ptr<Packet> &p, CustomHeader &ch)
     {
         Ipv4SmartFlowProbeTag probeTag;
@@ -1336,7 +1369,10 @@ namespace ns3
     void RdmaSmartFlowRouting::update_PIT_after_probing(PathData *pitEntry)
     {
         NS_LOG_FUNCTION(this);
+        std::cout << "Node " << m_node->GetId() << " Sends a Probe Data Packet at time " << Simulator::Now() << std::endl;
+        pitEntry->print();
         pitEntry->tsProbeLastSend = Simulator::Now();
+        pitEntry->print();
         return;
     }
 
@@ -1701,8 +1737,8 @@ namespace ns3
             Ipv4SmartFlowProbeTag probeTag;
             if (exist_probe_tag(p, probeTag))
             {   
-                receive_probe_packet(probeTag);
-                ShouldUpForward = false;
+                // receive_probe_packet(probeTag);
+                ShouldUpForward = true;
             }
             else
             {   
@@ -1890,6 +1926,7 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
         return;
     }
 
+
     void RdmaSmartFlowRouting::RouteOutputForAckPktOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry)
     {
         NS_LOG_FUNCTION(this << "Node: " << m_nodeId);
@@ -1930,33 +1967,38 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
             NS_ASSERT_MSG(false, "The mode is invalid");
         }
         NS_ASSERT_MSG(selPathIndex < pitEntries.size(), "The selected path index is out of range");
-        uint32_t fPid = pitEntries[selPathIndex]->pid; 
+        uint32_t fPid = pitEntries[selPathIndex]->pid;
+        auto it_rPatPid = pathPair.find(ackTag.GetPathId());
+        NS_ASSERT_MSG(it_rPatPid != pathPair.end(), "The pathPair is not found");
+        fPid = it_rPatPid->second;
+        // std::cout << "data Pid: " << ackTag.GetPathId() << ", ack pid: " << fPid << std::endl;
         add_path_tag_by_path_id(entry->ackPacket, fPid);
 	    // NS_LOG_INFO("PktId: " << p->GetUid()  << " Type: ACK, Size: " << p->GetSize()-ch.GetSerializedSize() <<	" fPid: " << fPid << " rPid: " << ackTag.GetPathId());
 
         // probing
-        PathData *prbeEntry = CheckProbePathAmoungPitEntries(pitEntries);
-        if (prbeEntry != 0)
-        {
-            entry->isProbe = true;
-            entry->probePacket = construct_probe_packet(entry->ackPacket, ch);
-            add_path_tag_by_path_id(entry->probePacket, prbeEntry->pid);
-            add_probe_tag_by_path_id(entry->probePacket, prbeEntry->pid);
-			// NS_LOG_INFO("PktId: " << entry->probePacket->GetUid()  << " Type: Probe, Size: " << entry->probePacket->GetSize()-ch.GetSerializedSize() <<	" Pid: " << prbeEntry->pid);
-            update_PIT_after_probing(prbeEntry);
-            record_the_probing_info(prbeEntry->pid);
-        }else{
+        // PathData *prbeEntry = CheckProbePathAmoungPitEntries(pitEntries);
+        // if (prbeEntry != 0)
+        // {
+        //     entry->isProbe = true;
+        //     entry->probePacket = construct_probe_packet(entry->ackPacket, ch);
+        //     add_path_tag_by_path_id(entry->probePacket, prbeEntry->pid);
+        //     add_probe_tag_by_path_id(entry->probePacket, prbeEntry->pid);
+		// 	// NS_LOG_INFO("PktId: " << entry->probePacket->GetUid()  << " Type: Probe, Size: " << entry->probePacket->GetSize()-ch.GetSerializedSize() <<	" Pid: " << prbeEntry->pid);
+        //     update_PIT_after_probing(prbeEntry);
+        //     record_the_probing_info(prbeEntry->pid);
+        // }else{
+        //     entry->isProbe = false;
+        //     entry->probePacket = NULL;
+        // }
             entry->isProbe = false;
             entry->probePacket = NULL;
-        }
-
-        // piggybacking
-        HostId2PathSeleKey reversePstKey(dstHostId, srcHostId);
-        pstEntryData *reversePstEntry = lookup_PST(reversePstKey);
-        NS_ASSERT_MSG(reversePstEntry != 0, "The reversePstEntry is null");
-        std::vector<PathData *> reversePitEntries = batch_lookup_PIT(reversePstEntry->paths);
-        add_latency_tag_by_pit_entries(p, reversePitEntries);
-        update_PIT_after_piggybacking(reversePitEntries);
+        // // piggybacking
+        // HostId2PathSeleKey reversePstKey(dstHostId, srcHostId);
+        // pstEntryData *reversePstEntry = lookup_PST(reversePstKey);
+        // NS_ASSERT_MSG(reversePstEntry != 0, "The reversePstEntry is null");
+        // std::vector<PathData *> reversePitEntries = batch_lookup_PIT(reversePstEntry->paths);
+        // add_latency_tag_by_pit_entries(p, reversePitEntries);
+        // update_PIT_after_piggybacking(reversePitEntries);
 
         return;
     }
@@ -2009,6 +2051,8 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
         }
         else
         {
+            print_PIT();
+            pitEntry.print();
             NS_ASSERT_MSG(false, "The entry already exists in PIT");
             return false;
         }
@@ -2043,6 +2087,7 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
         }
         else
         {
+            print_PST();
             NS_ASSERT_MSG(false, "The entry already exists in PST");
             return false;
         }
