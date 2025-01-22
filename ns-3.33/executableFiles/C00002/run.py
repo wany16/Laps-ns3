@@ -104,10 +104,10 @@ parser.add_argument("--simStartTimeInSec",
                     default="0",
                     help="simulation start time")
 parser.add_argument("--simEndTimeInSec",
-                    default="1",
+                    default="2",
                     help="simulation end time")
 parser.add_argument("--flowLunchEndTimeInSec",
-                    default="0.01",
+                    default="0.001",
                     help="flow end time")
 parser.add_argument("--qlenMonitorIntervalInNs",
                     default="10000000",
@@ -128,7 +128,7 @@ parser.add_argument(
     default="30",
     help="Physical Server 30 is DCTCP_CDF',29 is RPC_CDF,28 is VL2_CDF")
 parser.add_argument("--ccMode", default="Dcqcn_mlx",  help="congestion control algorithm")
-parser.add_argument("--screenDisplayInNs", default="100000000",  help="screen display interval in Ns")
+parser.add_argument("--screenDisplayInNs", default="10000000",  help="screen display interval in Ns")
 parser.add_argument("--enablePfcMonitor", default="true",  help="trace Pfc packets or not ")
 parser.add_argument("--enableFctMonitor", default="true",  help="trace Fct or not")
 parser.add_argument("--enableQlenMonitor", default="false",  help="trace queue length or not")
@@ -197,7 +197,7 @@ lbsNameList = ['ecmp']
 alltopoDirlist=['railOnly','dragonfly','fatTree']
 workloadNamelist=['DCTCP_CDF']
 topoDirlist=['railOnly']
-m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb'}
+m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb','25':'e2elaps'}
 def runBigSimTest():
   
     for patternName, patternLoadRatioShift in patternNameMap.items():
@@ -324,6 +324,19 @@ def runTopoSimTest():
                 # conga
                 for workloadName  in workloadNamelist:
                     lbsName=m_PS2lb[args.PS]
+                    if lbsName=="e2elaps":
+                       ccMode='Laps'
+                    else:
+                       ccMode=args.ccMode
+                    if lbsName=="e2elaps":
+                        ccMode='Laps'
+                        pitDir=vm_inputFiles_path + toponame+"/"+ "laps-"+args.pitFileName
+                        pstDir=vm_inputFiles_path + toponame+"/"+ "laps-"+args.pstFileName
+                    
+                    else:
+                        ccMode=args.ccMode
+                        pitDir=vm_inputFiles_path + toponame+"/"+ args.pitFileName
+                        pstDir=vm_inputFiles_path + toponame+"/"+ args.pstFileName
                     workloadFile = vm_workload_path + workloadName + ".txt"
                     fileIdx = experimentalName+"_"+toponame+"_"+workloadName + "_" +\
                         patternName + "-lr-"+loadratio+"-lb-"+lbsName
@@ -362,7 +375,7 @@ def runTopoSimTest():
                             args.simEndTimeInSec, args.flowLunchEndTimeInSec,
                             lbsName, args.flowletTimoutInUs,
                             patternLoadRatioShift, loadratio,
-                            args.ccMode,
+                            ccMode,
                             args.screenDisplayInNs,
                             args.enablePfcMonitor,
                             args.enableFctMonitor,
@@ -371,7 +384,7 @@ def runTopoSimTest():
                             args.rdmaAppStartPort,
                             args.testPktNum,
                             workloadFile,patternFile,
-                            vm_inputFiles_path + toponame+"/"+ args.smtFileName,vm_inputFiles_path + toponame+"/"+ args.pitFileName,vm_inputFiles_path + toponame+"/"+ args.pstFileName,
+                            vm_inputFiles_path + toponame+"/"+ args.smtFileName,pitDir,pstDir,
                             enableFlowCongestTest)
                     print(Line_command)
                     os.system(Line_command)

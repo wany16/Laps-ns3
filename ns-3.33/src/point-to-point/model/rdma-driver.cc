@@ -39,10 +39,7 @@ void RdmaDriver::Init(void){
 		{
 			dev = DynamicCast<QbbNetDevice>(m_node->GetDevice(i));
 		}
-		else
-		{
-			continue;
-		}
+
 		m_rdma->m_nic.push_back(RdmaInterfaceMgr(dev));
 		m_rdma->m_nic.back().qpGrp = CreateObject<RdmaQueuePairGroup>();
 	}

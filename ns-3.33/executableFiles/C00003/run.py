@@ -194,7 +194,7 @@ allLoadratioList = [
     '0.5', '0.55', '0.6', '0.65', '0.7', '0.75', '0.8', '0.85', '0.9', '0.95',
     '1.0'
 ]
-m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb'}
+m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb','25':'e2elaps'}
 #patternNames = ['Ring', 'all2all', 'Reduce']
 patternNameMap = {'Ring': 1, 'All': 0.032, 'Reduce': 0.333}
 onePatternNameMap = {'All': 1}
@@ -335,6 +335,16 @@ def runTopoSimTest():
             for loadratio in loadratioList:
                 # conga
                 lbsName=m_PS2lb[args.PS]
+                if lbsName=="e2elaps":
+                    ccMode='Laps'
+                    pitDir=vm_inputFiles_path + toponame+"/"+ "laps-"+args.pitFileName
+                    pstDir=vm_inputFiles_path + toponame+"/"+ "laps-"+args.pstFileName
+                    
+                else:
+                    ccMode=args.ccMode
+                    pitDir=vm_inputFiles_path + toponame+"/"+ args.pitFileName
+                    pstDir=vm_inputFiles_path + toponame+"/"+ args.pstFileName
+                
                 for workloadName  in workloadNamelist:
                     workloadFile = vm_workload_path + workloadName + ".txt"
                     fileIdx = experimentalName+"_"+toponame+"_"+workloadName + "_" +\
@@ -376,7 +386,7 @@ def runTopoSimTest():
                             args.simEndTimeInSec, args.flowLunchStartTimeInSec,args.flowLunchEndTimeInSec,
                             lbsName, args.flowletTimoutInUs,
                             patternLoadRatioShift, loadratio,
-                            args.ccMode,
+                            ccMode,
                             args.screenDisplayInNs,
                             args.enablePfcMonitor,
                             args.enableFctMonitor,
@@ -385,7 +395,7 @@ def runTopoSimTest():
                             args.rdmaAppStartPort,
                             args.testPktNum,
                             workloadFile,patternFile,
-                            vm_inputFiles_path + toponame+"/"+ args.smtFileName,vm_inputFiles_path + toponame+"/"+ args.pitFileName,vm_inputFiles_path + toponame+"/"+ args.pstFileName,
+                            vm_inputFiles_path + toponame+"/"+ args.smtFileName,pitDir,pstDir,
                             enableFlowCongestTest)
                     print(Line_command)
                     os.system(Line_command)

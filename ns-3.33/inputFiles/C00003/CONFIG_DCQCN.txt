@@ -16,6 +16,9 @@ enableMultiRate true
 enableSampleFeedback false
 enableRateBound true
 enableAckHigherPrio true
+enbaleRateTrace true
+enableProbeTrace true
+enablePathDelayTraceForLaps true
 enableTest false
 enableIrn true
 ccMode Dcqcn_mlx

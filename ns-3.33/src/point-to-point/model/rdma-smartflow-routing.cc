@@ -54,7 +54,7 @@ namespace ns3
                         NS_ASSERT_MSG(pathPair.find(rPit.pid) == pathPair.end(), "The pathPair should not exist");
                         pathPair[rPit.pid] = pit.pid;
                         pathPair[pit.pid] = rPit.pid;
-                        std::cout << "PathPair: " << rPit.pid << " <-> " << pit.pid << std::endl;
+                        // std::cout << "PathPair: " << rPit.pid << " <-> " << pit.pid << std::endl;
                         isFound = true;
                     }
 
@@ -1369,10 +1369,10 @@ namespace ns3
     void RdmaSmartFlowRouting::update_PIT_after_probing(PathData *pitEntry)
     {
         NS_LOG_FUNCTION(this);
-        std::cout << "Node " << m_node->GetId() << " Sends a Probe Data Packet at time " << Simulator::Now() << std::endl;
-        pitEntry->print();
+        // std::cout << "Node " << m_node->GetId() << " Sends a Probe Data Packet at time " << Simulator::Now() << " pid " << pitEntry->pid << std::endl;
+        //   pitEntry->print();
         pitEntry->tsProbeLastSend = Simulator::Now();
-        pitEntry->print();
+        // pitEntry->print();
         return;
     }
 
@@ -1387,8 +1387,8 @@ namespace ns3
     uint32_t RdmaSmartFlowRouting::get_the_path_length_by_path_id(const uint32_t pathId, PathData *&pitEntry)
     {
         // NS_LOG_INFO ("############ Fucntion: get_the_path_length_by_path_id() ############");
-        PathData *pitEntry1 = lookup_PIT(pathId);
-        return pitEntry1->portSequence.size();
+        pitEntry = lookup_PIT(pathId);
+        return pitEntry->portSequence.size();
     }
 
     bool RdmaSmartFlowRouting::reach_the_last_hop_of_path_tag(Ipv4SmartFlowPathTag &smartFlowTag, PathData *&pitEntry)
@@ -1664,7 +1664,7 @@ namespace ns3
             return 0;
         }
         std::cout << "The probe path" << std::endl;
-        bestProbingPitEntry->print();
+        // bestProbingPitEntry->print();
 
         Ptr<Packet> probePacket = construct_probe_packet(pkt, ch);
         std::cout << "probePacket" << std::endl;
@@ -1727,7 +1727,8 @@ namespace ns3
                     << "Receive PktID:" << p->GetUid() << " "
                     );
         Ipv4SmartFlowPathTag pathTag;
-        NS_ASSERT_MSG(exist_path_tag(p, pathTag), "The path tag does not exist");
+        bool IsHavePathTag = exist_path_tag(p, pathTag);
+        NS_ASSERT_MSG(IsHavePathTag, "The path tag does not exist");
         bool ShouldUpForward = true;
 
         PathData *pitEntry;
@@ -1823,7 +1824,8 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
         // forwarding
         srcOutEntry->dataPacket = ConstCast<Packet>(p);
         Ipv4SmartFlowPathTag pathTag;
-        NS_ASSERT_MSG(!exist_path_tag(srcOutEntry->dataPacket, pathTag), "Should not have path tag");
+        bool IsHavePathTag = exist_path_tag(srcOutEntry->dataPacket, pathTag);
+        NS_ASSERT_MSG(!IsHavePathTag, "Should not have path tag");
         HostId2PathSeleKey pstKey(srcHostId, dstHostId);
         pstEntryData *pstEntry = lookup_PST(pstKey);
         std::vector<PathData *> pitEntries = batch_lookup_PIT(pstEntry->paths);
@@ -1878,13 +1880,18 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
 
 		Ptr<Packet> p = entry->dataPacket;
 		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
-		NS_ASSERT_MSG(p->PeekHeader(ch) > 0, "Failed to extract CustomHeader");
+        uint32_t size = p->PeekHeader(ch);
+        NS_ASSERT_MSG(size > 0, "Failed to extract CustomHeader");
         Ipv4SmartFlowPathTag pathTag;
-        NS_ASSERT_MSG(!exist_path_tag(p, pathTag), "Should not have path tag");
+        bool IsHavePathTag = exist_path_tag(p, pathTag);
+        NS_ASSERT_MSG(!IsHavePathTag, "Should not have path tag");
 
         // forwarding
+        // std::cout << "11111111" << std::endl;
+
         Ipv4Address srcServerAddr = Ipv4Address(ch.sip);
         Ipv4Address dstServerAddr = Ipv4Address(ch.dip);
+        // std::cout << ipv4Address2string(srcServerAddr) << " # " << ipv4Address2string(dstServerAddr) << std::endl;
         uint32_t srcHostId = lookup_SMT(srcServerAddr)->hostId;
         uint32_t dstHostId = lookup_SMT(dstServerAddr)->hostId;
         HostId2PathSeleKey pstKey(srcHostId, dstHostId);
@@ -1936,11 +1943,16 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
 
 		Ptr<Packet> p = entry->ackPacket;
 		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
-		NS_ASSERT_MSG(p->PeekHeader(ch) > 0, "Failed to extract CustomHeader");
+
+        uint32_t size = p->PeekHeader(ch);
+        NS_ASSERT_MSG(size > 0, "Failed to extract CustomHeader");
         Ipv4SmartFlowPathTag pathTag;
-        NS_ASSERT_MSG(!exist_path_tag(p, pathTag), "Should not have path tag");
+
+        bool IsHavePathTag = exist_path_tag(p, pathTag);
+        NS_ASSERT_MSG(!IsHavePathTag, "Should not have path tag");
         AckPathTag ackTag;
-        NS_ASSERT_MSG((Irn::mode == Irn::Mode::NACK) ^ (!exist_ack_tag(p, ackTag)), "Should not have ack tag xor nack tag");
+        bool ishaveAckTag = exist_ack_tag(p, ackTag);
+        NS_ASSERT_MSG((Irn::mode == Irn::Mode::NACK) ^ (!ishaveAckTag), "Should not have ack tag xor nack tag");
         // forwarding
         Ipv4Address srcServerAddr = Ipv4Address(ch.sip);
         Ipv4Address dstServerAddr = Ipv4Address(ch.dip);
@@ -2051,8 +2063,8 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
         }
         else
         {
-            print_PIT();
-            pitEntry.print();
+            // print_PIT();
+            // pitEntry.print();
             NS_ASSERT_MSG(false, "The entry already exists in PIT");
             return false;
         }

@@ -365,7 +365,7 @@ namespace ns3
         static RoutePath routePath;
 
         /* statistics (logging) */
-        static std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, uint64_t>>> m_recordPath; // timegap->pid->sendpacketsize
+        static std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, std::vector<uint64_t>>>> m_recordPath; // timegap->pid->sendpacketsize
         static uint64_t m_nReplyInitSent;              // number of reply sent
         static uint64_t m_nReplyTailSent;              // number of reply sent
         static uint64_t m_nTimelyInitReplied;          // number of reply timely arrived at TxToR

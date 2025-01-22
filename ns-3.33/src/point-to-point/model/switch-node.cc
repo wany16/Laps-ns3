@@ -27,7 +27,7 @@ namespace ns3
 	RoutePath SwitchNode::routePath;
 	std::map<uint32_t, std::map<uint64_t, std::string>> SwitchNode::congaoutinfo;
 	std::map<uint32_t, std::map<std::string, std::map<uint64_t, letflowSaveEntry>>> SwitchNode::m_letflowTestInf;
-	std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, uint64_t>>> SwitchNode::m_recordPath;
+	std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t,std::vector<uint64_t>>>> SwitchNode::m_recordPath;
 	// LB_Solution SwitchNode::lbSolution = LB_Solution::NONE;
 	uint32_t SwitchNode::GetHashValueFromCustomHeader(const CustomHeader &ch)
 	{
@@ -526,7 +526,7 @@ namespace ns3
 				PathData *pathinfo = routePath.lookup_PIT(path);
 				uint64_t pathloadgap = pathinfo->pathload - pathinfo->lastpathload;
 				pathinfo->lastpathload = pathinfo->pathload;
-				m_recordPath[key][m_recordTime.GetMilliSeconds() * recordNum][path] = pathloadgap;
+				m_recordPath[key][m_recordTime.GetMilliSeconds() ][path].push_back(pathloadgap) ;
 			}
 		}
 		recordNum++;

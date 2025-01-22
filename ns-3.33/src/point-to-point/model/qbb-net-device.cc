@@ -513,8 +513,9 @@ namespace ns3 {
 			payloadSize = m_currentPkt->GetSize()-hdr_size;
 			NS_LOG_INFO("PktId: " << pktId  << " Type: DATA, Size: " << payloadSize <<	" Pid: " << pid);
       // entry->lastQp->m_irn.m_sack.appendOutstandingData(pid, ch.udp.seq, payloadSize); /////////////////////////////
-
+			std::cout << "PktId: " << pktId << " Type: DATA, Size: " << payloadSize << " Pid: " << pid << std::endl;
 			auto e = OutStandingDataEntry(entry->lastQp->m_flow_id, ch.udp.seq, payloadSize);
+
 			m_rdmaOutStanding_cb(pid, e);
 			return true;
 		}
@@ -643,13 +644,15 @@ namespace ns3 {
 		if (entry->isData)
 		{
 			// NS_LOG_INFO("Type: DATA, PktId: "<< entry->dataPacket->GetUid() << ", Size: " << entry->dataPacket->GetSize());
-			NS_ASSERT_MSG(m_routing->exist_path_tag(entry->dataPacket, pathTag), "PathTag does not exist on DATA packet");
+			bool IsHavePathTag = m_routing->exist_path_tag(entry->dataPacket, pathTag);
+			NS_ASSERT_MSG(IsHavePathTag, "PathTag does not exist on DATA packet");
 			m_routing->update_path_tag(entry->dataPacket, pathTag);
 		}
 		else if (entry->isAck)
 		{
 			// NS_LOG_INFO("Type: ACK, PktId: "<< entry->ackPacket->GetUid() << ", Size: " << entry->ackPacket->GetSize());
-			NS_ASSERT_MSG(m_routing->exist_path_tag(entry->ackPacket, pathTag), "PathTag does not exist on ACK packet");
+			bool ishaveAckTag = m_routing->exist_path_tag(entry->ackPacket, pathTag);
+			NS_ASSERT_MSG(ishaveAckTag, "PathTag does not exist on ACK packet");
 			m_routing->update_path_tag(entry->ackPacket, pathTag);	
 		}
 		else
@@ -660,7 +663,8 @@ namespace ns3 {
 		if (entry->isProbe)
 		{
 			// NS_LOG_INFO("Type: PROBE, PktId: "<< entry->probePacket->GetUid() << ", Size: " << entry->probePacket->GetSize());
-			NS_ASSERT_MSG(m_routing->exist_path_tag(entry->probePacket, pathTag), "PathTag does not exist on Probe packet");
+			bool IsHaveProbeTag = m_routing->exist_path_tag(entry->probePacket, pathTag);
+			NS_ASSERT_MSG(IsHaveProbeTag, "PathTag does not exist on Probe packet");
 			m_routing->update_path_tag(entry->probePacket, pathTag);
 		}
 
@@ -943,7 +947,8 @@ namespace ns3 {
 		}else { // non-PFC packets (data, ACK, NACK, CNP...)
 			if (m_node->GetNodeType() == NODE_TYPE_OF_SWITCH){ // switch
 				FlowIdTag flowIdTag;
-				NS_ASSERT_MSG(!packet->PeekPacketTag(flowIdTag), "FlowIdTag already exists on packet traveling through switch");
+				bool IsHaveTag = packet->PeekPacketTag(flowIdTag);
+				NS_ASSERT_MSG(!IsHaveTag, "FlowIdTag already exists on packet traveling through switch");
 				flowIdTag.SetFlowId(m_ifIndex);
 				packet->AddPacketTag(flowIdTag);
 				DynamicCast<SwitchNode>(m_node)->SwitchReceiveFromDevice(this, packet, ch);

@@ -1129,7 +1129,8 @@ namespace ns3
   // uint32_t read_PST_from_file(std::string pstFile, std::map<uint32_t, std::map<PathSelTblKey, pstEntryData>> &PST);
   void Read_pathInfo(global_variable_t *varMap, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST, std::map<uint32_t, std::map<uint32_t, PathData>> &PIT);
   void install_LB_table(global_variable_t *varMap, Ptr<Node> curNode, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST, std::map<uint32_t, std::map<uint32_t, PathData>> &PIT);
-  void server_instal_LB_table(global_variable_t *varMap, Ptr<RdmaHw> &rdmaHw, uint32_t nodeId);
+ 
+  void server_instal_LB_table(global_variable_t *varMap, Ptr<RdmaHw> &rdmaHw, uint32_t nodeId, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT,std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST,std::map<uint32_t, std::map<uint32_t, PathData>> &PIT);
   uint32_t read_hostId_PST_Path_from_file(global_variable_t *varMap, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST);
 
   uint32_t read_SMT_from_file(std::string smtFile, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT);

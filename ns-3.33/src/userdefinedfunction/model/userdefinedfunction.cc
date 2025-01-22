@@ -1525,10 +1525,7 @@ namespace ns3
     {
       return; // LAPS does not need to install LB table
     }
-    Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(curNode);
-    std::map<Ipv4Address, hostIp2SMT_entry_t> SMT;
-    std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> PST;
-    std::map<uint32_t, std::map<uint32_t, PathData>> PIT;
+
     read_PIT_from_file(varMap->pitFile, PIT);
     read_hostId_PST_Path_from_file(varMap, PST);
     read_SMT_from_file(varMap->smtFile, SMT);
@@ -1655,7 +1652,7 @@ namespace ns3
         uint32_t nodeId = std::atoi(resLines[i][j].c_str());
         path.nodeIdSequence.push_back(nodeId);
       }
-      path.print();
+      // path.print();
       PIT.push_back(path);
     }
     return PIT;
@@ -1677,7 +1674,7 @@ namespace ns3
         SMT[curAddr] = curNode->GetId();
       }
     }
-    std::cout << "LAPS: Calculate " << SMT.size() << " entries in SMT" << std::endl;
+    // std::cout << "LAPS: Calculate " << SMT.size() << " entries in SMT" << std::endl;
     return SMT;
   }
 
@@ -1715,7 +1712,7 @@ namespace ns3
       uint64_t bdpInByte = minBwInbps * sumDelayInNs / 1000000000lu / 8;
       maxBdpInByte = std::max(maxBdpInByte, bdpInByte);
       maxPathDelayInNs = std::max(maxPathDelayInNs, sumDelayInNs);
-      path.print();
+      // path.print();
       RdmaHw::pidToThDelay[path.pid] = path.theoreticalSmallestLatencyInNs;
     }
 
@@ -1892,7 +1889,7 @@ namespace ns3
       tfcEntry.flowCount = 0;
       tfcEntry.bytesCount = 0;
       TFC[srcNodeIdx].push_back(tfcEntry);
-      tfcEntry.print();
+      // tfcEntry.print();
       trafficSize = trafficSize + 1;
     }
     fh_trafficFile.close();
@@ -2320,11 +2317,42 @@ namespace ns3
 
         for (auto pathInfo = outInfo->second.begin(); pathInfo != outInfo->second.end(); ++pathInfo)
         {
-          if (pathInfo->second == 0)
-          {
-            continue;
-          }
-          fprintf(file, "pathKey:%s TGInMill:%u pid:%u dataSizeByte:%lu\n", pathKeyStr.c_str(), timegapInMill, pathInfo->first, pathInfo->second);
+
+          std::string dataSizeList = vector2string<uint64_t>(pathInfo->second);
+          fprintf(file, "pathKey:%s TGInMill:%u pid:%u dataSizeBytelist:%lu\n", pathKeyStr.c_str(), timegapInMill, pathInfo->first, dataSizeList);
+        }
+      }
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+  void save_Conga_pathload_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save Conweave path outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-pathload.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = SwitchNode::m_recordPath.begin(); it != SwitchNode::m_recordPath.end(); ++it)
+    {
+
+      HostId2PathSeleKey pathKey = it->first;
+      std::string pathKeyStr = pathKey.to_string();
+      std::map<uint32_t, std::map<uint32_t, uint64_t>> m_outInfo = it->second;
+      for (auto outInfo = m_outInfo.begin(); outInfo != m_outInfo.end(); ++outInfo)
+      {
+        uint64_t timegapInMill = outInfo->first;
+
+        for (auto pathInfo = outInfo->second.begin(); pathInfo != outInfo->second.end(); ++pathInfo)
+        {
+
+          std::string dataSizeList = vector2string<uint64_t>(pathInfo->second);
+          fprintf(file, "pathKey:%s TGInMill:%u pid:%u dataSizeBytelist:%lu\n", pathKeyStr.c_str(), timegapInMill, pathInfo->first, dataSizeList.c_str());
         }
       }
     }
@@ -2592,7 +2620,7 @@ namespace ns3
     varMap->channels = parse_channels(s);
     for (auto & it : varMap->channels)
     {
-      it.second.print();
+      // it.second.print();
     }
 
     add_QBB_channels(varMap);
@@ -3019,6 +3047,10 @@ namespace ns3
     RdmaHw::enableRateRecord = varMap->enbaleRateTrace;
     update_EST(varMap->paraMap, "enableRateTrace", boolToString(RdmaHw::enableRateRecord));
     NS_LOG_INFO("enableRateTrace : " << RdmaHw::enableRateRecord);
+    std::map<Ipv4Address, hostIp2SMT_entry_t> SMT;
+    std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> PST;
+    std::map<uint32_t, std::map<uint32_t, PathData>> PIT;
+    Read_pathInfo(varMap, SMT, PST, PIT);
 
     NodeContainer &svNodes = varMap->svNodes;
     nic_para_entry_t &nicParas = varMap->nicParas;
@@ -3105,7 +3137,7 @@ namespace ns3
         if (varMap->lbsName == "e2elaps")
         {
           NS_LOG_INFO("Is E2E laps ,server instal LB_table");
-          server_instal_LB_table(varMap, rdmaHw, svNode->GetId());
+          server_instal_LB_table(varMap, rdmaHw, svNode->GetId(), SMT, PST, PIT);
         }
         Ptr<RdmaDriver> rdma = CreateObject<RdmaDriver>();
         rdma->SetNode(svNode);
@@ -3139,19 +3171,13 @@ namespace ns3
     }
   }
 
-  void server_instal_LB_table(global_variable_t *varMap, Ptr<RdmaHw> &rdmaHw, uint32_t nodeId)
+  void server_instal_LB_table(global_variable_t *varMap, Ptr<RdmaHw> &rdmaHw, uint32_t nodeId, std::map<Ipv4Address, hostIp2SMT_entry_t> &SMT, std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> &PST, std::map<uint32_t, std::map<uint32_t, PathData>> &PIT)
   {
     if (varMap->lbsName == "e2elaps")
     {
       return;
     }
-    
-    std::map<Ipv4Address, hostIp2SMT_entry_t> SMT;
-    std::map<uint32_t, std::map<HostId2PathSeleKey, pstEntryData>> PST;
-    std::map<uint32_t, std::map<uint32_t, PathData>> PIT;
-    read_SMT_from_file(varMap->smtFile, SMT);
-    read_PIT_from_file(varMap->pitFile, PIT);
-    read_hostId_PST_Path_from_file(varMap, PST);
+
     uint32_t pitsize = rdmaHw->m_E2ErdmaSmartFlowRouting->install_PIT(PIT[nodeId]);
     std::cout << "nodeId " << nodeId << " finished install_PIT_from_servernode" << " size " << pitsize << std::endl;
     uint32_t pstsize = rdmaHw->m_E2ErdmaSmartFlowRouting->install_PST(PST[nodeId]);
@@ -3453,12 +3479,48 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
   void install_routing_entries_for_laps(global_variable_t *varMap) {
     NS_LOG_FUNCTION(varMap->allNodes.GetN() << varMap->swNodes.GetN() << varMap->svNodes.GetN());
     NS_ASSERT_MSG(varMap->lbsName == "e2elaps", "Error in lbsName");
+    std::map<Ptr<Node>, std::map<Ptr<Node>, std::vector<Ptr<Node>>>> &nextHop = varMap->nextHop; // srcNode   dstNode   adjacentNodes ：   6         20       [0 1]
+    uint64_t entryCntSw = 0;
+    for (auto i = nextHop.begin(); i != nextHop.end(); i++)
+    {
+      Ptr<Node> node = i->first; // srcNode
+      auto &table = i->second;
+      for (auto j = table.begin(); j != table.end(); j++)
+      {
+        Ptr<Node> dst = j->first; // The destination node.
+        Ipv4Address dstAddr = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+        std::vector<Ptr<Node>> &nexts = j->second; // The adjacent nodes towards the dstNode.
+        std::vector<uint32_t> ports;               // The egress ports towards the dstNode.
+        for (int k = 0; k < (int)nexts.size(); k++)
+        {
+          Ptr<Node> next = nexts[k];
+          for (uint32_t p = 0; p < varMap->edges[node][next].size(); p++)
+          {
+            uint32_t interface = varMap->edges[node][next][p].nicIdx;
+            ports.push_back(interface);
+            if (node->GetNodeType() == SWITCH_NODE_TYPE)
+            {
+              DynamicCast<SwitchNode>(node)->AddTableEntry(dstAddr, interface);
+            }
+            else if (node->GetNodeType() == SERVER_NODE_TYPE)
+            {
+              node->GetObject<RdmaDriver>()->m_rdma->AddTableEntry(dstAddr, interface);
+            }
+            else
+            {
+              NS_ASSERT_MSG(false, "Error in unknown node type");
+            }
+          }
+        }
+      }
+    }
     std::map<Ipv4Address, uint32_t> SMT = Calulate_SMT_for_laps(varMap->svNodes);
     install_routing_entries_based_on_single_smt_entry_for_laps(varMap->svNodes, SMT);
+    NS_LOG_INFO("finished install SMT");
     std::vector<pstEntryData> PST = load_PST_from_file(varMap->pstFile);
     for (size_t i = 0; i < PST.size(); i++)
     {
-        install_routing_entries_based_on_single_pst_entry_for_laps(varMap, PST[i]);
+      install_routing_entries_based_on_single_pst_entry_for_laps(varMap, PST[i]);
     }
     std::vector<PathData> PIT = load_PIT_from_file(varMap->pitFile);
     RdmaSmartFlowRouting::setPathPair(PIT);
@@ -3468,7 +3530,6 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       install_routing_entries_based_on_single_pit_entry_for_laps(varMap, PIT[i]);
     }
   }
-
 
   void print_node_routing_tables(global_variable_t *varMap, uint32_t nodeidx)
   {
@@ -3680,7 +3741,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       {
         varMap->largeFlowCount = varMap->largeFlowCount + 1;
       }
-      // genFlow.print();
+      genFlow.print();
       startTimeInSec = startTimeInSec + poission_gen_interval(varMap->requestRate);
     }
   }
@@ -3741,6 +3802,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       auto &flow = flows[i];
       // flow.print();
       RdmaClientHelper clientHelper(flow.prioGroup, flow.srcAddr, flow.dstAddr, flow.srcPort, flow.dstPort, flow.byteCnt, flow.winInByte, flow.rttInNs);
+      clientHelper.SetAttribute("StatFlowID", IntegerValue(flow.idx));
       ApplicationContainer appCon = clientHelper.Install(flow.srcNode);
       appCon.Start(Seconds(flow.startTimeInSec));
     }
@@ -3847,7 +3909,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     // save_Conga_outinfo(&varMap);
     // save_ecmp_outinfo(&varMap);
     //
-    // save_qpFinshtest_outinfo(varMap);
+    save_qpFinshtest_outinfo(varMap);
     save_QpRateChange_outinfo(varMap);
     if (varMap->lbsName == "conweave")
     {
@@ -4148,6 +4210,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       Config::SetDefault("ns3::QbbNetDevice::QbbE2ELb", StringValue(varMap->lbsName));
       Config::SetDefault("ns3::RdmaHw::E2ELb", StringValue(varMap->lbsName));
       Config::SetDefault("ns3::RdmaSmartFlowRouting::enabledE2ELb", BooleanValue(true));
+      varMap->irnMode = "NACK";
     }
     if (varMap->lbsName == "plb")
     {
