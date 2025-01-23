@@ -272,6 +272,10 @@ namespace ns3
 	int ReceiveProbeAckForLaps(Ptr<Packet> p, CustomHeader &ch);
 	// bool isPathAvailable(uint32_t flowId);
 	Time getNxtAvailTimeForQp(uint32_t flowId);
+
+
+
+
 	};
 
 } /* namespace ns3 */

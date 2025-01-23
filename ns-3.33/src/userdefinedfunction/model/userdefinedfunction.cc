@@ -2808,6 +2808,8 @@ namespace ns3
     for (uint32_t nodeIdx = 0; nodeIdx < node_num; nodeIdx++)  {
       Ptr<SwitchNode> swNode = DynamicCast<SwitchNode>(swNodes.Get(nodeIdx));
       NS_ASSERT_MSG(swNode, "Error in config_mmu_switch on non-Switch node");
+      swNode->m_mmu->node_id = swNode->GetId();
+      std::cout << "Switch " << swNode->m_mmu->node_id << " has " << swNode->GetNDevices()-1 << " Qbb devices " << std::endl;
       // uint32_t swNodeId = swNode->GetId();
       for (uint32_t nicIdx = 1; nicIdx < swNode->GetNDevices(); nicIdx++)  {
         Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(swNode->GetDevice(nicIdx));
@@ -2819,32 +2821,42 @@ namespace ns3
         swNode->m_mmu->ConfigEcn(nicIdx, varMap->ecnParaMap[rateInGbps].kminInKb, ecnParaMap[rateInGbps].kmaxInKb, ecnParaMap[rateInGbps].pmax);
         // set pfc
         uint64_t delayInNs = DynamicCast<QbbChannel>(dev->GetChannel())->GetDelay().GetNanoSeconds();
-        uint32_t headroomInByte = rateInBit / 1000000000 * delayInNs / 8 * 2 +  2 * varMap->defaultPktSizeInByte; // 8是指byte
+        uint32_t headroomInByte = nicRateInGbps * delayInNs / 8 * 2 +  2 * (varMap->defaultPktSizeInByte + 48); // 8是指byte
         swNode->m_mmu->ConfigHdrm(nicIdx, headroomInByte);
 
         // set pfc alpha, proportional to link bw, larger bw indicates large utilization
         swNode->m_mmu->pfc_a_shift[nicIdx] = varMap->alphaShiftInLog;
-        while (rateInGbps > nicRateInGbps && swNode->m_mmu->pfc_a_shift[nicIdx] > 0)   {
-          swNode->m_mmu->pfc_a_shift[nicIdx]--;
-          rateInGbps /= 2;
-        }
-
+        // while (rateInGbps > nicRateInGbps && swNode->m_mmu->pfc_a_shift[nicIdx] > 0)   {
+        //   swNode->m_mmu->pfc_a_shift[nicIdx]--;
+        //   rateInGbps /= 2;
+        // }
+        std::cout << "Port " << nicIdx << " has rate " << rateInGbps << " Gbps, delay " << delayInNs/1000;
+        std::cout << " Us, headroom " << swNode->m_mmu->headroom[nicIdx]/1000 << " KB ";
+        std::cout << "and reserve " << swNode->m_mmu->reserve/1000 << " KB ";
+        std::cout << "alpha " << swNode->m_mmu->pfc_a_shift[nicIdx] << std::endl;
         if ((nodeIdx == 0) && (nicIdx == 1)) {
           update_EST(varMap->paraMap, "EcnParameters", varMap->ecnParaMap[rateInGbps].toStrinng());
           NS_LOG_INFO("EcnParameters : " << varMap->ecnParaMap[rateInGbps].toStrinng());
           update_EST(varMap->paraMap, "headroomInByte", headroomInByte);
           NS_LOG_INFO("headroomInByte : " << headroomInByte);
         }
-
-
       }
-      swNode->m_mmu->ConfigNPort(swNode->GetNDevices() - 1);
+
       swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024);
-      swNode->m_mmu->node_id = swNode->GetId();
+      swNode->m_mmu->ConfigNPort(swNode->GetNDevices() - 1);
+      std::cout << "Switch " << swNode->m_mmu->node_id << " MMU is " << 1.0*swNode->m_mmu->buffer_size/1000 << " KB ";
+      std::cout << "Headroom is " << 1.0*swNode->m_mmu->total_hdrm/1000 << " KB ";
+      std::cout << "Reserved is " << 1.0*swNode->m_mmu->total_rsrv/1000 << " KB ";
+      std::cout << "PFC Threshold is " << 1.0*swNode->m_mmu->shared_bytes/1000 << std::endl;
+
       if (nodeIdx == 0) {
         update_EST(varMap->paraMap, "mmuSwBufferSizeInMB", varMap->mmuSwBufferSizeInMB);
         NS_LOG_INFO("mmuSwBufferSizeInMB : " << varMap->mmuSwBufferSizeInMB);
       }
+      // std::cout << " and MMU buffer size is " << swNode->m_mmu->buffer_size/1000/1000 << " MB " << std::endl;
+
+
+
     }
   }
   void config_switch_lb(global_variable_t *varMap)

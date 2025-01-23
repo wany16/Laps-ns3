@@ -104,6 +104,10 @@ struct Irn{
 		static void SetMode(std::string mode);
 		static std::string GetMode();
 		static bool isWindowBasedForLaps;
+<<<<<<< HEAD
+=======
+		
+>>>>>>> 0154ca856f91e04749ac684fdd58f1b8748a06e3
 
 		EventId m_reTxEvent;
 		uint32_t m_lastReTxSeq{0};
@@ -312,7 +316,7 @@ public:
   typedef Callback<Time, uint32_t> getNxtAvailTimeForQp_t;
   getNxtAvailTimeForQp_t m_cb_getNxtAvailTimeForQp;
 
-  uint64_t HpGetCurWin(); // window size calculated from hp.m_curRate, used by HPCC
+	uint64_t HpGetCurWin(); // window size calculated from hp.m_curRate, used by HPCC
 };
 
 class RdmaRxQueuePair : public Object { // Rx side queue pair

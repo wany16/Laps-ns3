@@ -1,0 +1,1337 @@
+Index     Name                                                                                Value
+0         configFileName                                                                      /file-in-ctr/inputFiles/C00002/CONFIG_DCQCN.txt
+1         loadRatio                                                                           0.5000
+2         QbbNetDevice::PauseTimeInUs                                                         5
+3         QbbNetDevice::QcnEnabled                                                            true
+4         QbbNetDevice::QbbEnabled                                                            true
+5         QbbNetDevice::DynamicThreshold                                                      true
+6         SwitchNode::LbSolution                                                              e2elaps
+7         SwitchNode::FlowletTimeoutInUs                                                      10
+8         enableAckHigherPrio                                                                 true
+9         IntHeader::mode                                                                     NONE
+10        Pint::log_base                                                                      1.0100
+11        IntHeader::pint_bytes                                                               2
+12        screenDisplayInMs                                                                   10.0000
+13        NumOfSwitch                                                                         80
+14        NumOfServer                                                                         64
+15        channelWidthInGbps:                                                                 100
+16        channelDelayInUs:                                                                   1
+17        enablePfcMonitor                                                                    true
+18        pfcFileName                                                                         /file-in-ctr/outputFiles/C00002/C00002_railOnly_DCTCP_CDF_All-lr-0.5-lb-e2elaps-PFC.txt
+19        NumOfChannel                                                                        192
+20        QbbTraceNodeIds                                                                     [5, 8]
+21        enableQbbTrace                                                                      false
+22        irnMode                                                                             NACK
+23        enableRateTrace                                                                     true
+24        ClampTargetRate                                                                     false
+25        AlphaResumIntervalInUs                                                              1.0000
+26        RpTimerInUs                                                                         300.0000
+27        FastRecoveryTimes                                                                   1
+28        EwmaGain                                                                            0.00390625
+29        RateAiInMbps                                                                        5.0000
+30        RateHaiInMbps                                                                       50.0000
+31        MinRateInMbps                                                                       100
+32        EnableL2BackToZero                                                                  false
+33        L2ChunkSizeInByte                                                                   4000
+34        L2AckIntervalInByte                                                                 1
+35        CcMode                                                                              Laps
+36        RateDecreaseIntervalInUs                                                            4.0000
+37        MtuInByte                                                                           1000
+38        MiThresh                                                                            5
+39        EnableVarWin                                                                        false
+40        enableFastFeedback                                                                  false
+41        enableMultiRate                                                                     true
+42        enableSampleFeedback                                                                false
+43        TargetUtilization                                                                   0.9500
+44        EnableRateBound                                                                     true
+45        DctcpRateAiInMbps                                                                   1000.0000
+46        PintProbTresh                                                                       65536.0000
+47        enableFctMonitor                                                                    true
+48        fctFileName                                                                         /file-in-ctr/outputFiles/C00002/C00002_railOnly_DCTCP_CDF_All-lr-0.5-lb-e2elaps-FCT.txt
+49        enableKvCache                                                                       false
+50        enableFctMonitor                                                                    true
+51        enableKvCache                                                                       false
+52        enableFctMonitor                                                                    true
+53        enableKvCache                                                                       false
+54        enableFctMonitor                                                                    true
+55        enableKvCache                                                                       false
+56        enableFctMonitor                                                                    true
+57        enableKvCache                                                                       false
+58        enableFctMonitor                                                                    true
+59        enableKvCache                                                                       false
+60        enableFctMonitor                                                                    true
+61        enableKvCache                                                                       false
+62        enableFctMonitor                                                                    true
+63        enableKvCache                                                                       false
+64        enableFctMonitor                                                                    true
+65        enableKvCache                                                                       false
+66        enableFctMonitor                                                                    true
+67        enableKvCache                                                                       false
+68        enableFctMonitor                                                                    true
+69        enableKvCache                                                                       false
+70        enableFctMonitor                                                                    true
+71        enableKvCache                                                                       false
+72        enableFctMonitor                                                                    true
+73        enableKvCache                                                                       false
+74        enableFctMonitor                                                                    true
+75        enableKvCache                                                                       false
+76        enableFctMonitor                                                                    true
+77        enableKvCache                                                                       false
+78        enableFctMonitor                                                                    true
+79        enableKvCache                                                                       false
+80        enableFctMonitor                                                                    true
+81        enableKvCache                                                                       false
+82        enableFctMonitor                                                                    true
+83        enableKvCache                                                                       false
+84        enableFctMonitor                                                                    true
+85        enableKvCache                                                                       false
+86        enableFctMonitor                                                                    true
+87        enableKvCache                                                                       false
+88        enableFctMonitor                                                                    true
+89        enableKvCache                                                                       false
+90        enableFctMonitor                                                                    true
+91        enableKvCache                                                                       false
+92        enableFctMonitor                                                                    true
+93        enableKvCache                                                                       false
+94        enableFctMonitor                                                                    true
+95        enableKvCache                                                                       false
+96        enableFctMonitor                                                                    true
+97        enableKvCache                                                                       false
+98        enableFctMonitor                                                                    true
+99        enableKvCache                                                                       false
+100       enableFctMonitor                                                                    true
+101       enableKvCache                                                                       false
+102       enableFctMonitor                                                                    true
+103       enableKvCache                                                                       false
+104       enableFctMonitor                                                                    true
+105       enableKvCache                                                                       false
+106       enableFctMonitor                                                                    true
+107       enableKvCache                                                                       false
+108       enableFctMonitor                                                                    true
+109       enableKvCache                                                                       false
+110       enableFctMonitor                                                                    true
+111       enableKvCache                                                                       false
+112       enableFctMonitor                                                                    true
+113       enableKvCache                                                                       false
+114       enableFctMonitor                                                                    true
+115       enableKvCache                                                                       false
+116       enableFctMonitor                                                                    true
+117       enableKvCache                                                                       false
+118       enableFctMonitor                                                                    true
+119       enableKvCache                                                                       false
+120       enableFctMonitor                                                                    true
+121       enableKvCache                                                                       false
+122       enableFctMonitor                                                                    true
+123       enableKvCache                                                                       false
+124       enableFctMonitor                                                                    true
+125       enableKvCache                                                                       false
+126       enableFctMonitor                                                                    true
+127       enableKvCache                                                                       false
+128       enableFctMonitor                                                                    true
+129       enableKvCache                                                                       false
+130       enableFctMonitor                                                                    true
+131       enableKvCache                                                                       false
+132       enableFctMonitor                                                                    true
+133       enableKvCache                                                                       false
+134       enableFctMonitor                                                                    true
+135       enableKvCache                                                                       false
+136       enableFctMonitor                                                                    true
+137       enableKvCache                                                                       false
+138       enableFctMonitor                                                                    true
+139       enableKvCache                                                                       false
+140       enableFctMonitor                                                                    true
+141       enableKvCache                                                                       false
+142       enableFctMonitor                                                                    true
+143       enableKvCache                                                                       false
+144       enableFctMonitor                                                                    true
+145       enableKvCache                                                                       false
+146       enableFctMonitor                                                                    true
+147       enableKvCache                                                                       false
+148       enableFctMonitor                                                                    true
+149       enableKvCache                                                                       false
+150       enableFctMonitor                                                                    true
+151       enableKvCache                                                                       false
+152       enableFctMonitor                                                                    true
+153       enableKvCache                                                                       false
+154       enableFctMonitor                                                                    true
+155       enableKvCache                                                                       false
+156       enableFctMonitor                                                                    true
+157       enableKvCache                                                                       false
+158       enableFctMonitor                                                                    true
+159       enableKvCache                                                                       false
+160       enableFctMonitor                                                                    true
+161       enableKvCache                                                                       false
+162       enableFctMonitor                                                                    true
+163       enableKvCache                                                                       false
+164       enableFctMonitor                                                                    true
+165       enableKvCache                                                                       false
+166       enableFctMonitor                                                                    true
+167       enableKvCache                                                                       false
+168       enableFctMonitor                                                                    true
+169       enableKvCache                                                                       false
+170       enableFctMonitor                                                                    true
+171       enableKvCache                                                                       false
+172       enableFctMonitor                                                                    true
+173       enableKvCache                                                                       false
+174       enableFctMonitor                                                                    true
+175       enableKvCache                                                                       false
+176       node: 0interface: 1                                                                 11.0.0.1
+177       node: 0interface: 2                                                                 11.0.0.2
+178       node: 0interface: 3                                                                 11.0.0.3
+179       node: 0interface: 4                                                                 11.0.0.4
+180       node: 0interface: 5                                                                 11.0.0.5
+181       node: 0interface: 6                                                                 11.0.0.6
+182       node: 0interface: 7                                                                 11.0.0.7
+183       node: 0interface: 8                                                                 11.0.0.8
+184       node: 1interface: 1                                                                 11.0.1.1
+185       node: 1interface: 2                                                                 11.0.1.2
+186       node: 1interface: 3                                                                 11.0.1.3
+187       node: 1interface: 4                                                                 11.0.1.4
+188       node: 1interface: 5                                                                 11.0.1.5
+189       node: 1interface: 6                                                                 11.0.1.6
+190       node: 1interface: 7                                                                 11.0.1.7
+191       node: 1interface: 8                                                                 11.0.1.8
+192       node: 2interface: 1                                                                 11.0.2.1
+193       node: 2interface: 2                                                                 11.0.2.2
+194       node: 2interface: 3                                                                 11.0.2.3
+195       node: 2interface: 4                                                                 11.0.2.4
+196       node: 2interface: 5                                                                 11.0.2.5
+197       node: 2interface: 6                                                                 11.0.2.6
+198       node: 2interface: 7                                                                 11.0.2.7
+199       node: 2interface: 8                                                                 11.0.2.8
+200       node: 3interface: 1                                                                 11.0.3.1
+201       node: 3interface: 2                                                                 11.0.3.2
+202       node: 3interface: 3                                                                 11.0.3.3
+203       node: 3interface: 4                                                                 11.0.3.4
+204       node: 3interface: 5                                                                 11.0.3.5
+205       node: 3interface: 6                                                                 11.0.3.6
+206       node: 3interface: 7                                                                 11.0.3.7
+207       node: 3interface: 8                                                                 11.0.3.8
+208       node: 4interface: 1                                                                 11.0.4.1
+209       node: 4interface: 2                                                                 11.0.4.2
+210       node: 4interface: 3                                                                 11.0.4.3
+211       node: 4interface: 4                                                                 11.0.4.4
+212       node: 4interface: 5                                                                 11.0.4.5
+213       node: 4interface: 6                                                                 11.0.4.6
+214       node: 4interface: 7                                                                 11.0.4.7
+215       node: 4interface: 8                                                                 11.0.4.8
+216       node: 5interface: 1                                                                 11.0.5.1
+217       node: 5interface: 2                                                                 11.0.5.2
+218       node: 5interface: 3                                                                 11.0.5.3
+219       node: 5interface: 4                                                                 11.0.5.4
+220       node: 5interface: 5                                                                 11.0.5.5
+221       node: 5interface: 6                                                                 11.0.5.6
+222       node: 5interface: 7                                                                 11.0.5.7
+223       node: 5interface: 8                                                                 11.0.5.8
+224       node: 6interface: 1                                                                 11.0.6.1
+225       node: 6interface: 2                                                                 11.0.6.2
+226       node: 6interface: 3                                                                 11.0.6.3
+227       node: 6interface: 4                                                                 11.0.6.4
+228       node: 6interface: 5                                                                 11.0.6.5
+229       node: 6interface: 6                                                                 11.0.6.6
+230       node: 6interface: 7                                                                 11.0.6.7
+231       node: 6interface: 8                                                                 11.0.6.8
+232       node: 7interface: 1                                                                 11.0.7.1
+233       node: 7interface: 2                                                                 11.0.7.2
+234       node: 7interface: 3                                                                 11.0.7.3
+235       node: 7interface: 4                                                                 11.0.7.4
+236       node: 7interface: 5                                                                 11.0.7.5
+237       node: 7interface: 6                                                                 11.0.7.6
+238       node: 7interface: 7                                                                 11.0.7.7
+239       node: 7interface: 8                                                                 11.0.7.8
+240       node: 8interface: 1                                                                 11.0.8.1
+241       node: 8interface: 2                                                                 11.0.8.2
+242       node: 8interface: 3                                                                 11.0.8.3
+243       node: 9interface: 1                                                                 11.0.9.1
+244       node: 9interface: 2                                                                 11.0.9.2
+245       node: 9interface: 3                                                                 11.0.9.3
+246       node: 10interface: 1                                                                11.0.10.1
+247       node: 10interface: 2                                                                11.0.10.2
+248       node: 10interface: 3                                                                11.0.10.3
+249       node: 11interface: 1                                                                11.0.11.1
+250       node: 11interface: 2                                                                11.0.11.2
+251       node: 11interface: 3                                                                11.0.11.3
+252       node: 12interface: 1                                                                11.0.12.1
+253       node: 12interface: 2                                                                11.0.12.2
+254       node: 12interface: 3                                                                11.0.12.3
+255       node: 13interface: 1                                                                11.0.13.1
+256       node: 13interface: 2                                                                11.0.13.2
+257       node: 13interface: 3                                                                11.0.13.3
+258       node: 14interface: 1                                                                11.0.14.1
+259       node: 14interface: 2                                                                11.0.14.2
+260       node: 14interface: 3                                                                11.0.14.3
+261       node: 15interface: 1                                                                11.0.15.1
+262       node: 15interface: 2                                                                11.0.15.2
+263       node: 15interface: 3                                                                11.0.15.3
+264       node: 16interface: 1                                                                11.0.16.1
+265       node: 16interface: 2                                                                11.0.16.2
+266       node: 16interface: 3                                                                11.0.16.3
+267       node: 17interface: 1                                                                11.0.17.1
+268       node: 17interface: 2                                                                11.0.17.2
+269       node: 17interface: 3                                                                11.0.17.3
+270       node: 18interface: 1                                                                11.0.18.1
+271       node: 18interface: 2                                                                11.0.18.2
+272       node: 18interface: 3                                                                11.0.18.3
+273       node: 19interface: 1                                                                11.0.19.1
+274       node: 19interface: 2                                                                11.0.19.2
+275       node: 19interface: 3                                                                11.0.19.3
+276       node: 20interface: 1                                                                11.0.20.1
+277       node: 20interface: 2                                                                11.0.20.2
+278       node: 20interface: 3                                                                11.0.20.3
+279       node: 21interface: 1                                                                11.0.21.1
+280       node: 21interface: 2                                                                11.0.21.2
+281       node: 21interface: 3                                                                11.0.21.3
+282       node: 22interface: 1                                                                11.0.22.1
+283       node: 22interface: 2                                                                11.0.22.2
+284       node: 22interface: 3                                                                11.0.22.3
+285       node: 23interface: 1                                                                11.0.23.1
+286       node: 23interface: 2                                                                11.0.23.2
+287       node: 23interface: 3                                                                11.0.23.3
+288       node: 24interface: 1                                                                11.0.24.1
+289       node: 24interface: 2                                                                11.0.24.2
+290       node: 24interface: 3                                                                11.0.24.3
+291       node: 25interface: 1                                                                11.0.25.1
+292       node: 25interface: 2                                                                11.0.25.2
+293       node: 25interface: 3                                                                11.0.25.3
+294       node: 26interface: 1                                                                11.0.26.1
+295       node: 26interface: 2                                                                11.0.26.2
+296       node: 26interface: 3                                                                11.0.26.3
+297       node: 27interface: 1                                                                11.0.27.1
+298       node: 27interface: 2                                                                11.0.27.2
+299       node: 27interface: 3                                                                11.0.27.3
+300       node: 28interface: 1                                                                11.0.28.1
+301       node: 28interface: 2                                                                11.0.28.2
+302       node: 28interface: 3                                                                11.0.28.3
+303       node: 29interface: 1                                                                11.0.29.1
+304       node: 29interface: 2                                                                11.0.29.2
+305       node: 29interface: 3                                                                11.0.29.3
+306       node: 30interface: 1                                                                11.0.30.1
+307       node: 30interface: 2                                                                11.0.30.2
+308       node: 30interface: 3                                                                11.0.30.3
+309       node: 31interface: 1                                                                11.0.31.1
+310       node: 31interface: 2                                                                11.0.31.2
+311       node: 31interface: 3                                                                11.0.31.3
+312       node: 32interface: 1                                                                11.0.32.1
+313       node: 32interface: 2                                                                11.0.32.2
+314       node: 32interface: 3                                                                11.0.32.3
+315       node: 33interface: 1                                                                11.0.33.1
+316       node: 33interface: 2                                                                11.0.33.2
+317       node: 33interface: 3                                                                11.0.33.3
+318       node: 34interface: 1                                                                11.0.34.1
+319       node: 34interface: 2                                                                11.0.34.2
+320       node: 34interface: 3                                                                11.0.34.3
+321       node: 35interface: 1                                                                11.0.35.1
+322       node: 35interface: 2                                                                11.0.35.2
+323       node: 35interface: 3                                                                11.0.35.3
+324       node: 36interface: 1                                                                11.0.36.1
+325       node: 36interface: 2                                                                11.0.36.2
+326       node: 36interface: 3                                                                11.0.36.3
+327       node: 37interface: 1                                                                11.0.37.1
+328       node: 37interface: 2                                                                11.0.37.2
+329       node: 37interface: 3                                                                11.0.37.3
+330       node: 38interface: 1                                                                11.0.38.1
+331       node: 38interface: 2                                                                11.0.38.2
+332       node: 38interface: 3                                                                11.0.38.3
+333       node: 39interface: 1                                                                11.0.39.1
+334       node: 39interface: 2                                                                11.0.39.2
+335       node: 39interface: 3                                                                11.0.39.3
+336       node: 40interface: 1                                                                11.0.40.1
+337       node: 40interface: 2                                                                11.0.40.2
+338       node: 40interface: 3                                                                11.0.40.3
+339       node: 41interface: 1                                                                11.0.41.1
+340       node: 41interface: 2                                                                11.0.41.2
+341       node: 41interface: 3                                                                11.0.41.3
+342       node: 42interface: 1                                                                11.0.42.1
+343       node: 42interface: 2                                                                11.0.42.2
+344       node: 42interface: 3                                                                11.0.42.3
+345       node: 43interface: 1                                                                11.0.43.1
+346       node: 43interface: 2                                                                11.0.43.2
+347       node: 43interface: 3                                                                11.0.43.3
+348       node: 44interface: 1                                                                11.0.44.1
+349       node: 44interface: 2                                                                11.0.44.2
+350       node: 44interface: 3                                                                11.0.44.3
+351       node: 45interface: 1                                                                11.0.45.1
+352       node: 45interface: 2                                                                11.0.45.2
+353       node: 45interface: 3                                                                11.0.45.3
+354       node: 46interface: 1                                                                11.0.46.1
+355       node: 46interface: 2                                                                11.0.46.2
+356       node: 46interface: 3                                                                11.0.46.3
+357       node: 47interface: 1                                                                11.0.47.1
+358       node: 47interface: 2                                                                11.0.47.2
+359       node: 47interface: 3                                                                11.0.47.3
+360       node: 48interface: 1                                                                11.0.48.1
+361       node: 48interface: 2                                                                11.0.48.2
+362       node: 48interface: 3                                                                11.0.48.3
+363       node: 49interface: 1                                                                11.0.49.1
+364       node: 49interface: 2                                                                11.0.49.2
+365       node: 49interface: 3                                                                11.0.49.3
+366       node: 50interface: 1                                                                11.0.50.1
+367       node: 50interface: 2                                                                11.0.50.2
+368       node: 50interface: 3                                                                11.0.50.3
+369       node: 51interface: 1                                                                11.0.51.1
+370       node: 51interface: 2                                                                11.0.51.2
+371       node: 51interface: 3                                                                11.0.51.3
+372       node: 52interface: 1                                                                11.0.52.1
+373       node: 52interface: 2                                                                11.0.52.2
+374       node: 52interface: 3                                                                11.0.52.3
+375       node: 53interface: 1                                                                11.0.53.1
+376       node: 53interface: 2                                                                11.0.53.2
+377       node: 53interface: 3                                                                11.0.53.3
+378       node: 54interface: 1                                                                11.0.54.1
+379       node: 54interface: 2                                                                11.0.54.2
+380       node: 54interface: 3                                                                11.0.54.3
+381       node: 55interface: 1                                                                11.0.55.1
+382       node: 55interface: 2                                                                11.0.55.2
+383       node: 55interface: 3                                                                11.0.55.3
+384       node: 56interface: 1                                                                11.0.56.1
+385       node: 56interface: 2                                                                11.0.56.2
+386       node: 56interface: 3                                                                11.0.56.3
+387       node: 57interface: 1                                                                11.0.57.1
+388       node: 57interface: 2                                                                11.0.57.2
+389       node: 57interface: 3                                                                11.0.57.3
+390       node: 58interface: 1                                                                11.0.58.1
+391       node: 58interface: 2                                                                11.0.58.2
+392       node: 58interface: 3                                                                11.0.58.3
+393       node: 59interface: 1                                                                11.0.59.1
+394       node: 59interface: 2                                                                11.0.59.2
+395       node: 59interface: 3                                                                11.0.59.3
+396       node: 60interface: 1                                                                11.0.60.1
+397       node: 60interface: 2                                                                11.0.60.2
+398       node: 60interface: 3                                                                11.0.60.3
+399       node: 61interface: 1                                                                11.0.61.1
+400       node: 61interface: 2                                                                11.0.61.2
+401       node: 61interface: 3                                                                11.0.61.3
+402       node: 62interface: 1                                                                11.0.62.1
+403       node: 62interface: 2                                                                11.0.62.2
+404       node: 62interface: 3                                                                11.0.62.3
+405       node: 63interface: 1                                                                11.0.63.1
+406       node: 63interface: 2                                                                11.0.63.2
+407       node: 63interface: 3                                                                11.0.63.3
+408       node: 64interface: 1                                                                11.0.64.1
+409       node: 64interface: 2                                                                11.0.64.2
+410       node: 64interface: 3                                                                11.0.64.3
+411       node: 65interface: 1                                                                11.0.65.1
+412       node: 65interface: 2                                                                11.0.65.2
+413       node: 65interface: 3                                                                11.0.65.3
+414       node: 66interface: 1                                                                11.0.66.1
+415       node: 66interface: 2                                                                11.0.66.2
+416       node: 66interface: 3                                                                11.0.66.3
+417       node: 67interface: 1                                                                11.0.67.1
+418       node: 67interface: 2                                                                11.0.67.2
+419       node: 67interface: 3                                                                11.0.67.3
+420       node: 68interface: 1                                                                11.0.68.1
+421       node: 68interface: 2                                                                11.0.68.2
+422       node: 68interface: 3                                                                11.0.68.3
+423       node: 69interface: 1                                                                11.0.69.1
+424       node: 69interface: 2                                                                11.0.69.2
+425       node: 69interface: 3                                                                11.0.69.3
+426       node: 70interface: 1                                                                11.0.70.1
+427       node: 70interface: 2                                                                11.0.70.2
+428       node: 70interface: 3                                                                11.0.70.3
+429       node: 71interface: 1                                                                11.0.71.1
+430       node: 71interface: 2                                                                11.0.71.2
+431       node: 71interface: 3                                                                11.0.71.3
+432       node: 72interface: 1                                                                11.0.72.1
+433       node: 72interface: 2                                                                11.0.72.2
+434       node: 72interface: 3                                                                11.0.72.3
+435       node: 72interface: 4                                                                11.0.72.4
+436       node: 72interface: 5                                                                11.0.72.5
+437       node: 72interface: 6                                                                11.0.72.6
+438       node: 72interface: 7                                                                11.0.72.7
+439       node: 72interface: 8                                                                11.0.72.8
+440       node: 73interface: 1                                                                11.0.73.1
+441       node: 73interface: 2                                                                11.0.73.2
+442       node: 73interface: 3                                                                11.0.73.3
+443       node: 73interface: 4                                                                11.0.73.4
+444       node: 73interface: 5                                                                11.0.73.5
+445       node: 73interface: 6                                                                11.0.73.6
+446       node: 73interface: 7                                                                11.0.73.7
+447       node: 73interface: 8                                                                11.0.73.8
+448       node: 74interface: 1                                                                11.0.74.1
+449       node: 74interface: 2                                                                11.0.74.2
+450       node: 74interface: 3                                                                11.0.74.3
+451       node: 74interface: 4                                                                11.0.74.4
+452       node: 74interface: 5                                                                11.0.74.5
+453       node: 74interface: 6                                                                11.0.74.6
+454       node: 74interface: 7                                                                11.0.74.7
+455       node: 74interface: 8                                                                11.0.74.8
+456       node: 75interface: 1                                                                11.0.75.1
+457       node: 75interface: 2                                                                11.0.75.2
+458       node: 75interface: 3                                                                11.0.75.3
+459       node: 75interface: 4                                                                11.0.75.4
+460       node: 75interface: 5                                                                11.0.75.5
+461       node: 75interface: 6                                                                11.0.75.6
+462       node: 75interface: 7                                                                11.0.75.7
+463       node: 75interface: 8                                                                11.0.75.8
+464       node: 76interface: 1                                                                11.0.76.1
+465       node: 76interface: 2                                                                11.0.76.2
+466       node: 76interface: 3                                                                11.0.76.3
+467       node: 76interface: 4                                                                11.0.76.4
+468       node: 76interface: 5                                                                11.0.76.5
+469       node: 76interface: 6                                                                11.0.76.6
+470       node: 76interface: 7                                                                11.0.76.7
+471       node: 76interface: 8                                                                11.0.76.8
+472       node: 77interface: 1                                                                11.0.77.1
+473       node: 77interface: 2                                                                11.0.77.2
+474       node: 77interface: 3                                                                11.0.77.3
+475       node: 77interface: 4                                                                11.0.77.4
+476       node: 77interface: 5                                                                11.0.77.5
+477       node: 77interface: 6                                                                11.0.77.6
+478       node: 77interface: 7                                                                11.0.77.7
+479       node: 77interface: 8                                                                11.0.77.8
+480       node: 78interface: 1                                                                11.0.78.1
+481       node: 78interface: 2                                                                11.0.78.2
+482       node: 78interface: 3                                                                11.0.78.3
+483       node: 78interface: 4                                                                11.0.78.4
+484       node: 78interface: 5                                                                11.0.78.5
+485       node: 78interface: 6                                                                11.0.78.6
+486       node: 78interface: 7                                                                11.0.78.7
+487       node: 78interface: 8                                                                11.0.78.8
+488       node: 79interface: 1                                                                11.0.79.1
+489       node: 79interface: 2                                                                11.0.79.2
+490       node: 79interface: 3                                                                11.0.79.3
+491       node: 79interface: 4                                                                11.0.79.4
+492       node: 79interface: 5                                                                11.0.79.5
+493       node: 79interface: 6                                                                11.0.79.6
+494       node: 79interface: 7                                                                11.0.79.7
+495       node: 79interface: 8                                                                11.0.79.8
+496       node: 80interface: 1                                                                11.0.80.1
+497       hostIp2IdMap: 11.0.80.1                                                             80
+498       hostIp2SwitchId: 11.0.80.1                                                          8
+499       node: 81interface: 1                                                                11.0.81.1
+500       hostIp2IdMap: 11.0.81.1                                                             81
+501       hostIp2SwitchId: 11.0.81.1                                                          9
+502       node: 82interface: 1                                                                11.0.82.1
+503       hostIp2IdMap: 11.0.82.1                                                             82
+504       hostIp2SwitchId: 11.0.82.1                                                          10
+505       node: 83interface: 1                                                                11.0.83.1
+506       hostIp2IdMap: 11.0.83.1                                                             83
+507       hostIp2SwitchId: 11.0.83.1                                                          11
+508       node: 84interface: 1                                                                11.0.84.1
+509       hostIp2IdMap: 11.0.84.1                                                             84
+510       hostIp2SwitchId: 11.0.84.1                                                          12
+511       node: 85interface: 1                                                                11.0.85.1
+512       hostIp2IdMap: 11.0.85.1                                                             85
+513       hostIp2SwitchId: 11.0.85.1                                                          13
+514       node: 86interface: 1                                                                11.0.86.1
+515       hostIp2IdMap: 11.0.86.1                                                             86
+516       hostIp2SwitchId: 11.0.86.1                                                          14
+517       node: 87interface: 1                                                                11.0.87.1
+518       hostIp2IdMap: 11.0.87.1                                                             87
+519       hostIp2SwitchId: 11.0.87.1                                                          15
+520       node: 88interface: 1                                                                11.0.88.1
+521       hostIp2IdMap: 11.0.88.1                                                             88
+522       hostIp2SwitchId: 11.0.88.1                                                          16
+523       node: 89interface: 1                                                                11.0.89.1
+524       hostIp2IdMap: 11.0.89.1                                                             89
+525       hostIp2SwitchId: 11.0.89.1                                                          17
+526       node: 90interface: 1                                                                11.0.90.1
+527       hostIp2IdMap: 11.0.90.1                                                             90
+528       hostIp2SwitchId: 11.0.90.1                                                          18
+529       node: 91interface: 1                                                                11.0.91.1
+530       hostIp2IdMap: 11.0.91.1                                                             91
+531       hostIp2SwitchId: 11.0.91.1                                                          19
+532       node: 92interface: 1                                                                11.0.92.1
+533       hostIp2IdMap: 11.0.92.1                                                             92
+534       hostIp2SwitchId: 11.0.92.1                                                          20
+535       node: 93interface: 1                                                                11.0.93.1
+536       hostIp2IdMap: 11.0.93.1                                                             93
+537       hostIp2SwitchId: 11.0.93.1                                                          21
+538       node: 94interface: 1                                                                11.0.94.1
+539       hostIp2IdMap: 11.0.94.1                                                             94
+540       hostIp2SwitchId: 11.0.94.1                                                          22
+541       node: 95interface: 1                                                                11.0.95.1
+542       hostIp2IdMap: 11.0.95.1                                                             95
+543       hostIp2SwitchId: 11.0.95.1                                                          23
+544       node: 96interface: 1                                                                11.0.96.1
+545       hostIp2IdMap: 11.0.96.1                                                             96
+546       hostIp2SwitchId: 11.0.96.1                                                          24
+547       node: 97interface: 1                                                                11.0.97.1
+548       hostIp2IdMap: 11.0.97.1                                                             97
+549       hostIp2SwitchId: 11.0.97.1                                                          25
+550       node: 98interface: 1                                                                11.0.98.1
+551       hostIp2IdMap: 11.0.98.1                                                             98
+552       hostIp2SwitchId: 11.0.98.1                                                          26
+553       node: 99interface: 1                                                                11.0.99.1
+554       hostIp2IdMap: 11.0.99.1                                                             99
+555       hostIp2SwitchId: 11.0.99.1                                                          27
+556       node: 100interface: 1                                                               11.0.100.1
+557       hostIp2IdMap: 11.0.100.1                                                            100
+558       hostIp2SwitchId: 11.0.100.1                                                         28
+559       node: 101interface: 1                                                               11.0.101.1
+560       hostIp2IdMap: 11.0.101.1                                                            101
+561       hostIp2SwitchId: 11.0.101.1                                                         29
+562       node: 102interface: 1                                                               11.0.102.1
+563       hostIp2IdMap: 11.0.102.1                                                            102
+564       hostIp2SwitchId: 11.0.102.1                                                         30
+565       node: 103interface: 1                                                               11.0.103.1
+566       hostIp2IdMap: 11.0.103.1                                                            103
+567       hostIp2SwitchId: 11.0.103.1                                                         31
+568       node: 104interface: 1                                                               11.0.104.1
+569       hostIp2IdMap: 11.0.104.1                                                            104
+570       hostIp2SwitchId: 11.0.104.1                                                         32
+571       node: 105interface: 1                                                               11.0.105.1
+572       hostIp2IdMap: 11.0.105.1                                                            105
+573       hostIp2SwitchId: 11.0.105.1                                                         33
+574       node: 106interface: 1                                                               11.0.106.1
+575       hostIp2IdMap: 11.0.106.1                                                            106
+576       hostIp2SwitchId: 11.0.106.1                                                         34
+577       node: 107interface: 1                                                               11.0.107.1
+578       hostIp2IdMap: 11.0.107.1                                                            107
+579       hostIp2SwitchId: 11.0.107.1                                                         35
+580       node: 108interface: 1                                                               11.0.108.1
+581       hostIp2IdMap: 11.0.108.1                                                            108
+582       hostIp2SwitchId: 11.0.108.1                                                         36
+583       node: 109interface: 1                                                               11.0.109.1
+584       hostIp2IdMap: 11.0.109.1                                                            109
+585       hostIp2SwitchId: 11.0.109.1                                                         37
+586       node: 110interface: 1                                                               11.0.110.1
+587       hostIp2IdMap: 11.0.110.1                                                            110
+588       hostIp2SwitchId: 11.0.110.1                                                         38
+589       node: 111interface: 1                                                               11.0.111.1
+590       hostIp2IdMap: 11.0.111.1                                                            111
+591       hostIp2SwitchId: 11.0.111.1                                                         39
+592       node: 112interface: 1                                                               11.0.112.1
+593       hostIp2IdMap: 11.0.112.1                                                            112
+594       hostIp2SwitchId: 11.0.112.1                                                         40
+595       node: 113interface: 1                                                               11.0.113.1
+596       hostIp2IdMap: 11.0.113.1                                                            113
+597       hostIp2SwitchId: 11.0.113.1                                                         41
+598       node: 114interface: 1                                                               11.0.114.1
+599       hostIp2IdMap: 11.0.114.1                                                            114
+600       hostIp2SwitchId: 11.0.114.1                                                         42
+601       node: 115interface: 1                                                               11.0.115.1
+602       hostIp2IdMap: 11.0.115.1                                                            115
+603       hostIp2SwitchId: 11.0.115.1                                                         43
+604       node: 116interface: 1                                                               11.0.116.1
+605       hostIp2IdMap: 11.0.116.1                                                            116
+606       hostIp2SwitchId: 11.0.116.1                                                         44
+607       node: 117interface: 1                                                               11.0.117.1
+608       hostIp2IdMap: 11.0.117.1                                                            117
+609       hostIp2SwitchId: 11.0.117.1                                                         45
+610       node: 118interface: 1                                                               11.0.118.1
+611       hostIp2IdMap: 11.0.118.1                                                            118
+612       hostIp2SwitchId: 11.0.118.1                                                         46
+613       node: 119interface: 1                                                               11.0.119.1
+614       hostIp2IdMap: 11.0.119.1                                                            119
+615       hostIp2SwitchId: 11.0.119.1                                                         47
+616       node: 120interface: 1                                                               11.0.120.1
+617       hostIp2IdMap: 11.0.120.1                                                            120
+618       hostIp2SwitchId: 11.0.120.1                                                         48
+619       node: 121interface: 1                                                               11.0.121.1
+620       hostIp2IdMap: 11.0.121.1                                                            121
+621       hostIp2SwitchId: 11.0.121.1                                                         49
+622       node: 122interface: 1                                                               11.0.122.1
+623       hostIp2IdMap: 11.0.122.1                                                            122
+624       hostIp2SwitchId: 11.0.122.1                                                         50
+625       node: 123interface: 1                                                               11.0.123.1
+626       hostIp2IdMap: 11.0.123.1                                                            123
+627       hostIp2SwitchId: 11.0.123.1                                                         51
+628       node: 124interface: 1                                                               11.0.124.1
+629       hostIp2IdMap: 11.0.124.1                                                            124
+630       hostIp2SwitchId: 11.0.124.1                                                         52
+631       node: 125interface: 1                                                               11.0.125.1
+632       hostIp2IdMap: 11.0.125.1                                                            125
+633       hostIp2SwitchId: 11.0.125.1                                                         53
+634       node: 126interface: 1                                                               11.0.126.1
+635       hostIp2IdMap: 11.0.126.1                                                            126
+636       hostIp2SwitchId: 11.0.126.1                                                         54
+637       node: 127interface: 1                                                               11.0.127.1
+638       hostIp2IdMap: 11.0.127.1                                                            127
+639       hostIp2SwitchId: 11.0.127.1                                                         55
+640       node: 128interface: 1                                                               11.0.128.1
+641       hostIp2IdMap: 11.0.128.1                                                            128
+642       hostIp2SwitchId: 11.0.128.1                                                         56
+643       node: 129interface: 1                                                               11.0.129.1
+644       hostIp2IdMap: 11.0.129.1                                                            129
+645       hostIp2SwitchId: 11.0.129.1                                                         57
+646       node: 130interface: 1                                                               11.0.130.1
+647       hostIp2IdMap: 11.0.130.1                                                            130
+648       hostIp2SwitchId: 11.0.130.1                                                         58
+649       node: 131interface: 1                                                               11.0.131.1
+650       hostIp2IdMap: 11.0.131.1                                                            131
+651       hostIp2SwitchId: 11.0.131.1                                                         59
+652       node: 132interface: 1                                                               11.0.132.1
+653       hostIp2IdMap: 11.0.132.1                                                            132
+654       hostIp2SwitchId: 11.0.132.1                                                         60
+655       node: 133interface: 1                                                               11.0.133.1
+656       hostIp2IdMap: 11.0.133.1                                                            133
+657       hostIp2SwitchId: 11.0.133.1                                                         61
+658       node: 134interface: 1                                                               11.0.134.1
+659       hostIp2IdMap: 11.0.134.1                                                            134
+660       hostIp2SwitchId: 11.0.134.1                                                         62
+661       node: 135interface: 1                                                               11.0.135.1
+662       hostIp2IdMap: 11.0.135.1                                                            135
+663       hostIp2SwitchId: 11.0.135.1                                                         63
+664       node: 136interface: 1                                                               11.0.136.1
+665       hostIp2IdMap: 11.0.136.1                                                            136
+666       hostIp2SwitchId: 11.0.136.1                                                         64
+667       node: 137interface: 1                                                               11.0.137.1
+668       hostIp2IdMap: 11.0.137.1                                                            137
+669       hostIp2SwitchId: 11.0.137.1                                                         65
+670       node: 138interface: 1                                                               11.0.138.1
+671       hostIp2IdMap: 11.0.138.1                                                            138
+672       hostIp2SwitchId: 11.0.138.1                                                         66
+673       node: 139interface: 1                                                               11.0.139.1
+674       hostIp2IdMap: 11.0.139.1                                                            139
+675       hostIp2SwitchId: 11.0.139.1                                                         67
+676       node: 140interface: 1                                                               11.0.140.1
+677       hostIp2IdMap: 11.0.140.1                                                            140
+678       hostIp2SwitchId: 11.0.140.1                                                         68
+679       node: 141interface: 1                                                               11.0.141.1
+680       hostIp2IdMap: 11.0.141.1                                                            141
+681       hostIp2SwitchId: 11.0.141.1                                                         69
+682       node: 142interface: 1                                                               11.0.142.1
+683       hostIp2IdMap: 11.0.142.1                                                            142
+684       hostIp2SwitchId: 11.0.142.1                                                         70
+685       node: 143interface: 1                                                               11.0.143.1
+686       hostIp2IdMap: 11.0.143.1                                                            143
+687       hostIp2SwitchId: 11.0.143.1                                                         71
+688       EcnParameters                                                                       [400, 1600, 0.800000]
+689       headroomInByte                                                                      52192
+690       mmuSwBufferSizeInMB                                                                 32
+691       flowCount:                                                                          4665
+692       smallFlowCount:                                                                     0
+693       largeFlowCount:                                                                     4665
+694       QbbTraceNodeIds                                                                     [5, 8]
+695       enableQbbTrace                                                                      false
+696       nodeID: 0,portIdx: 1,packetcount                                                    176802
+697       nodeID: 0,portIdx: 1,packetsize                                                     91364705
+698       nodeID: 0,portIdx: 2,packetcount                                                    162286
+699       nodeID: 0,portIdx: 2,packetsize                                                     94465495
+700       nodeID: 0,portIdx: 3,packetcount                                                    168904
+701       nodeID: 0,portIdx: 3,packetsize                                                     85914766
+702       nodeID: 0,portIdx: 4,packetcount                                                    178133
+703       nodeID: 0,portIdx: 4,packetsize                                                     95364815
+704       nodeID: 0,portIdx: 5,packetcount                                                    185068
+705       nodeID: 0,portIdx: 5,packetsize                                                     103498321
+706       nodeID: 0,portIdx: 6,packetcount                                                    184765
+707       nodeID: 0,portIdx: 6,packetsize                                                     109646493
+708       nodeID: 0,portIdx: 7,packetcount                                                    183414
+709       nodeID: 0,portIdx: 7,packetsize                                                     106095546
+710       nodeID: 0,portIdx: 8,packetcount                                                    162166
+711       nodeID: 0,portIdx: 8,packetsize                                                     84252618
+712       nodeID: 1,portIdx: 1,packetcount                                                    186927
+713       nodeID: 1,portIdx: 1,packetsize                                                     113824122
+714       nodeID: 1,portIdx: 2,packetcount                                                    167973
+715       nodeID: 1,portIdx: 2,packetsize                                                     103876341
+716       nodeID: 1,portIdx: 3,packetcount                                                    174306
+717       nodeID: 1,portIdx: 3,packetsize                                                     93762068
+718       nodeID: 1,portIdx: 4,packetcount                                                    183769
+719       nodeID: 1,portIdx: 4,packetsize                                                     81086146
+720       nodeID: 1,portIdx: 5,packetcount                                                    211218
+721       nodeID: 1,portIdx: 5,packetsize                                                     101735774
+722       nodeID: 1,portIdx: 6,packetcount                                                    170412
+723       nodeID: 1,portIdx: 6,packetsize                                                     94878696
+724       nodeID: 1,portIdx: 7,packetcount                                                    177847
+725       nodeID: 1,portIdx: 7,packetsize                                                     98510649
+726       nodeID: 1,portIdx: 8,packetcount                                                    184280
+727       nodeID: 1,portIdx: 8,packetsize                                                     113267583
+728       nodeID: 2,portIdx: 1,packetcount                                                    189877
+729       nodeID: 2,portIdx: 1,packetsize                                                     113839629
+730       nodeID: 2,portIdx: 2,packetcount                                                    172747
+731       nodeID: 2,portIdx: 2,packetsize                                                     108166088
+732       nodeID: 2,portIdx: 3,packetcount                                                    188419
+733       nodeID: 2,portIdx: 3,packetsize                                                     83320938
+734       nodeID: 2,portIdx: 4,packetcount                                                    182285
+735       nodeID: 2,portIdx: 4,packetsize                                                     95790612
+736       nodeID: 2,portIdx: 5,packetcount                                                    196934
+737       nodeID: 2,portIdx: 5,packetsize                                                     105632251
+738       nodeID: 2,portIdx: 6,packetcount                                                    187889
+739       nodeID: 2,portIdx: 6,packetsize                                                     104815281
+740       nodeID: 2,portIdx: 7,packetcount                                                    185302
+741       nodeID: 2,portIdx: 7,packetsize                                                     103962743
+742       nodeID: 2,portIdx: 8,packetcount                                                    161671
+743       nodeID: 2,portIdx: 8,packetsize                                                     90056500
+744       nodeID: 3,portIdx: 1,packetcount                                                    171230
+745       nodeID: 3,portIdx: 1,packetsize                                                     89786793
+746       nodeID: 3,portIdx: 2,packetcount                                                    163794
+747       nodeID: 3,portIdx: 2,packetsize                                                     100693781
+748       nodeID: 3,portIdx: 3,packetcount                                                    177548
+749       nodeID: 3,portIdx: 3,packetsize                                                     90086910
+750       nodeID: 3,portIdx: 4,packetcount                                                    182914
+751       nodeID: 3,portIdx: 4,packetsize                                                     82151766
+752       nodeID: 3,portIdx: 5,packetcount                                                    197785
+753       nodeID: 3,portIdx: 5,packetsize                                                     115629910
+754       nodeID: 3,portIdx: 6,packetcount                                                    183692
+755       nodeID: 3,portIdx: 6,packetsize                                                     104226505
+756       nodeID: 3,portIdx: 7,packetcount                                                    172992
+757       nodeID: 3,portIdx: 7,packetsize                                                     98070035
+758       nodeID: 3,portIdx: 8,packetcount                                                    167097
+759       nodeID: 3,portIdx: 8,packetsize                                                     98486491
+760       nodeID: 4,portIdx: 1,packetcount                                                    169864
+761       nodeID: 4,portIdx: 1,packetsize                                                     102407284
+762       nodeID: 4,portIdx: 2,packetcount                                                    161932
+763       nodeID: 4,portIdx: 2,packetsize                                                     82336325
+764       nodeID: 4,portIdx: 3,packetcount                                                    194577
+765       nodeID: 4,portIdx: 3,packetsize                                                     121044547
+766       nodeID: 4,portIdx: 4,packetcount                                                    165574
+767       nodeID: 4,portIdx: 4,packetsize                                                     82211747
+768       nodeID: 4,portIdx: 5,packetcount                                                    203746
+769       nodeID: 4,portIdx: 5,packetsize                                                     107737697
+770       nodeID: 4,portIdx: 6,packetcount                                                    177009
+771       nodeID: 4,portIdx: 6,packetsize                                                     96184286
+772       nodeID: 4,portIdx: 7,packetcount                                                    168774
+773       nodeID: 4,portIdx: 7,packetsize                                                     86155401
+774       nodeID: 4,portIdx: 8,packetcount                                                    178214
+775       nodeID: 4,portIdx: 8,packetsize                                                     102512796
+776       nodeID: 5,portIdx: 1,packetcount                                                    183771
+777       nodeID: 5,portIdx: 1,packetsize                                                     102334678
+778       nodeID: 5,portIdx: 2,packetcount                                                    173090
+779       nodeID: 5,portIdx: 2,packetsize                                                     106532024
+780       nodeID: 5,portIdx: 3,packetcount                                                    196113
+781       nodeID: 5,portIdx: 3,packetsize                                                     110120409
+782       nodeID: 5,portIdx: 4,packetcount                                                    187428
+783       nodeID: 5,portIdx: 4,packetsize                                                     86169426
+784       nodeID: 5,portIdx: 5,packetcount                                                    212995
+785       nodeID: 5,portIdx: 5,packetsize                                                     129735976
+786       nodeID: 5,portIdx: 6,packetcount                                                    180090
+787       nodeID: 5,portIdx: 6,packetsize                                                     98558884
+788       nodeID: 5,portIdx: 7,packetcount                                                    181153
+789       nodeID: 5,portIdx: 7,packetsize                                                     93456282
+790       nodeID: 5,portIdx: 8,packetcount                                                    173126
+791       nodeID: 5,portIdx: 8,packetsize                                                     91139194
+792       nodeID: 6,portIdx: 1,packetcount                                                    208426
+793       nodeID: 6,portIdx: 1,packetsize                                                     119775229
+794       nodeID: 6,portIdx: 2,packetcount                                                    203957
+795       nodeID: 6,portIdx: 2,packetsize                                                     133378844
+796       nodeID: 6,portIdx: 3,packetcount                                                    206689
+797       nodeID: 6,portIdx: 3,packetsize                                                     107476366
+798       nodeID: 6,portIdx: 4,packetcount                                                    226809
+799       nodeID: 6,portIdx: 4,packetsize                                                     127600498
+800       nodeID: 6,portIdx: 5,packetcount                                                    214156
+801       nodeID: 6,portIdx: 5,packetsize                                                     113568549
+802       nodeID: 6,portIdx: 6,packetcount                                                    224110
+803       nodeID: 6,portIdx: 6,packetsize                                                     104525991
+804       nodeID: 6,portIdx: 7,packetcount                                                    200047
+805       nodeID: 6,portIdx: 7,packetsize                                                     98246591
+806       nodeID: 6,portIdx: 8,packetcount                                                    189110
+807       nodeID: 6,portIdx: 8,packetsize                                                     115489929
+808       nodeID: 7,portIdx: 1,packetcount                                                    370606
+809       nodeID: 7,portIdx: 1,packetsize                                                     203521525
+810       nodeID: 7,portIdx: 2,packetcount                                                    347853
+811       nodeID: 7,portIdx: 2,packetsize                                                     224880855
+812       nodeID: 7,portIdx: 3,packetcount                                                    363662
+813       nodeID: 7,portIdx: 3,packetsize                                                     199089672
+814       nodeID: 7,portIdx: 4,packetcount                                                    373088
+815       nodeID: 7,portIdx: 4,packetsize                                                     196182409
+816       nodeID: 7,portIdx: 5,packetcount                                                    379826
+817       nodeID: 7,portIdx: 5,packetsize                                                     194330832
+818       nodeID: 7,portIdx: 6,packetcount                                                    367842
+819       nodeID: 7,portIdx: 6,packetsize                                                     194080854
+820       nodeID: 7,portIdx: 7,packetcount                                                    374077
+821       nodeID: 7,portIdx: 7,packetsize                                                     212835337
+822       nodeID: 7,portIdx: 8,packetcount                                                    349338
+823       nodeID: 7,portIdx: 8,packetsize                                                     184178217
+824       nodeID: 8,portIdx: 1,packetcount                                                    176802
+825       nodeID: 8,portIdx: 1,packetsize                                                     103062174
+826       nodeID: 8,portIdx: 2,packetcount                                                    328305
+827       nodeID: 8,portIdx: 2,packetsize                                                     188556627
+828       nodeID: 8,portIdx: 3,packetcount                                                    248537
+829       nodeID: 8,portIdx: 3,packetsize                                                     122774156
+830       nodeID: 9,portIdx: 1,packetcount                                                    186927
+831       nodeID: 9,portIdx: 1,packetsize                                                     91724350
+832       nodeID: 9,portIdx: 2,packetcount                                                    287121
+833       nodeID: 9,portIdx: 2,packetsize                                                     151739706
+834       nodeID: 9,portIdx: 3,packetcount                                                    175444
+835       nodeID: 9,portIdx: 3,packetsize                                                     113630226
+836       nodeID: 10,portIdx: 1,packetcount                                                   189877
+837       nodeID: 10,portIdx: 1,packetsize                                                    94958901
+838       nodeID: 10,portIdx: 2,packetcount                                                   292025
+839       nodeID: 10,portIdx: 2,packetsize                                                    151194243
+840       nodeID: 10,portIdx: 3,packetcount                                                   180304
+841       nodeID: 10,portIdx: 3,packetsize                                                    117938080
+842       nodeID: 11,portIdx: 1,packetcount                                                   171230
+843       nodeID: 11,portIdx: 1,packetsize                                                    98505704
+844       nodeID: 11,portIdx: 2,packetcount                                                   333465
+845       nodeID: 11,portIdx: 2,packetsize                                                    196506998
+846       nodeID: 11,portIdx: 3,packetcount                                                   257487
+847       nodeID: 11,portIdx: 3,packetsize                                                    124063201
+848       nodeID: 12,portIdx: 1,packetcount                                                   169864
+849       nodeID: 12,portIdx: 1,packetsize                                                    84377670
+850       nodeID: 12,portIdx: 2,packetcount                                                   304736
+851       nodeID: 12,portIdx: 2,packetsize                                                    156451541
+852       nodeID: 12,portIdx: 3,packetcount                                                   204562
+853       nodeID: 12,portIdx: 3,packetsize                                                    132582454
+854       nodeID: 13,portIdx: 1,packetcount                                                   183771
+855       nodeID: 13,portIdx: 1,packetsize                                                    99761100
+856       nodeID: 13,portIdx: 2,packetcount                                                   351960
+857       nodeID: 13,portIdx: 2,packetsize                                                    199716957
+858       nodeID: 13,portIdx: 3,packetcount                                                   307125
+859       nodeID: 13,portIdx: 3,packetsize                                                    163978654
+860       nodeID: 14,portIdx: 1,packetcount                                                   208426
+861       nodeID: 14,portIdx: 1,packetsize                                                    109425672
+862       nodeID: 14,portIdx: 2,packetcount                                                   313884
+863       nodeID: 14,portIdx: 2,packetsize                                                    169333049
+864       nodeID: 14,portIdx: 3,packetcount                                                   199344
+865       nodeID: 14,portIdx: 3,packetsize                                                    118021098
+866       nodeID: 15,portIdx: 1,packetcount                                                   370606
+867       nodeID: 15,portIdx: 1,packetsize                                                    204054272
+868       nodeID: 15,portIdx: 2,packetcount                                                   488568
+869       nodeID: 15,portIdx: 2,packetsize                                                    271091986
+870       nodeID: 15,portIdx: 3,packetcount                                                   243292
+871       nodeID: 15,portIdx: 3,packetsize                                                    131061262
+872       nodeID: 16,portIdx: 1,packetcount                                                   162286
+873       nodeID: 16,portIdx: 1,packetsize                                                    83980517
+874       nodeID: 16,portIdx: 2,packetcount                                                   301338
+875       nodeID: 16,portIdx: 2,packetsize                                                    163313942
+876       nodeID: 16,portIdx: 3,packetcount                                                   228662
+877       nodeID: 16,portIdx: 3,packetsize                                                    133334836
+878       nodeID: 17,portIdx: 1,packetcount                                                   167973
+879       nodeID: 17,portIdx: 1,packetsize                                                    80832088
+880       nodeID: 17,portIdx: 2,packetcount                                                   324110
+881       nodeID: 17,portIdx: 2,packetsize                                                    208444766
+882       nodeID: 17,portIdx: 3,packetcount                                                   250535
+883       nodeID: 17,portIdx: 3,packetsize                                                    119038541
+884       nodeID: 18,portIdx: 1,packetcount                                                   172747
+885       nodeID: 18,portIdx: 1,packetsize                                                    81798398
+886       nodeID: 18,portIdx: 2,packetcount                                                   289814
+887       nodeID: 18,portIdx: 2,packetsize                                                    150099162
+888       nodeID: 18,portIdx: 3,packetcount                                                   224695
+889       nodeID: 18,portIdx: 3,packetsize                                                    145968686
+890       nodeID: 19,portIdx: 1,packetcount                                                   163794
+891       nodeID: 19,portIdx: 1,packetsize                                                    79421052
+892       nodeID: 19,portIdx: 2,packetcount                                                   320427
+893       nodeID: 19,portIdx: 2,packetsize                                                    172973182
+894       nodeID: 19,portIdx: 3,packetcount                                                   228775
+895       nodeID: 19,portIdx: 3,packetsize                                                    139646364
+896       nodeID: 20,portIdx: 1,packetcount                                                   161932
+897       nodeID: 20,portIdx: 1,packetsize                                                    95728419
+898       nodeID: 20,portIdx: 2,packetcount                                                   324818
+899       nodeID: 20,portIdx: 2,packetsize                                                    211564178
+900       nodeID: 20,portIdx: 3,packetcount                                                   253380
+901       nodeID: 20,portIdx: 3,packetsize                                                    99659289
+902       nodeID: 21,portIdx: 1,packetcount                                                   173090
+903       nodeID: 21,portIdx: 1,packetsize                                                    83814612
+904       nodeID: 21,portIdx: 2,packetcount                                                   297436
+905       nodeID: 21,portIdx: 2,packetsize                                                    155761202
+906       nodeID: 21,portIdx: 3,packetcount                                                   225906
+907       nodeID: 21,portIdx: 3,packetsize                                                    143345339
+908       nodeID: 22,portIdx: 1,packetcount                                                   203957
+909       nodeID: 22,portIdx: 1,packetsize                                                    90910202
+910       nodeID: 22,portIdx: 2,packetcount                                                   316539
+911       nodeID: 22,portIdx: 2,packetsize                                                    158653478
+912       nodeID: 22,portIdx: 3,packetcount                                                   215758
+913       nodeID: 22,portIdx: 3,packetsize                                                    155252564
+914       nodeID: 23,portIdx: 1,packetcount                                                   347853
+915       nodeID: 23,portIdx: 1,packetsize                                                    157661142
+916       nodeID: 23,portIdx: 2,packetcount                                                   448270
+917       nodeID: 23,portIdx: 2,packetsize                                                    221267897
+918       nodeID: 23,portIdx: 3,packetcount                                                   241609
+919       nodeID: 23,portIdx: 3,packetsize                                                    191677140
+920       nodeID: 24,portIdx: 1,packetcount                                                   168904
+921       nodeID: 24,portIdx: 1,packetsize                                                    99818987
+922       nodeID: 24,portIdx: 2,packetcount                                                   275758
+923       nodeID: 24,portIdx: 2,packetsize                                                    139918074
+924       nodeID: 24,portIdx: 3,packetcount                                                   174542
+925       nodeID: 24,portIdx: 3,packetsize                                                    100705050
+926       nodeID: 25,portIdx: 1,packetcount                                                   174306
+927       nodeID: 25,portIdx: 1,packetsize                                                    97904460
+928       nodeID: 25,portIdx: 2,packetcount                                                   296849
+929       nodeID: 25,portIdx: 2,packetsize                                                    180978070
+930       nodeID: 25,portIdx: 3,packetcount                                                   217121
+931       nodeID: 25,portIdx: 3,packetsize                                                    99548208
+932       nodeID: 26,portIdx: 1,packetcount                                                   188419
+933       nodeID: 26,portIdx: 1,packetsize                                                    123886028
+934       nodeID: 26,portIdx: 2,packetcount                                                   318926
+935       nodeID: 26,portIdx: 2,packetsize                                                    208702339
+936       nodeID: 26,portIdx: 3,packetcount                                                   260149
+937       nodeID: 26,portIdx: 3,packetsize                                                    89416976
+938       nodeID: 27,portIdx: 1,packetcount                                                   177548
+939       nodeID: 27,portIdx: 1,packetsize                                                    105155454
+940       nodeID: 27,portIdx: 2,packetcount                                                   324248
+941       nodeID: 27,portIdx: 2,packetsize                                                    188122352
+942       nodeID: 27,portIdx: 3,packetcount                                                   247158
+943       nodeID: 27,portIdx: 3,packetsize                                                    118528538
+944       nodeID: 28,portIdx: 1,packetcount                                                   194577
+945       nodeID: 28,portIdx: 1,packetsize                                                    92929314
+946       nodeID: 28,portIdx: 2,packetcount                                                   326899
+947       nodeID: 28,portIdx: 2,packetsize                                                    156251481
+948       nodeID: 28,portIdx: 3,packetcount                                                   242254
+949       nodeID: 28,portIdx: 3,packetsize                                                    170761139
+950       nodeID: 29,portIdx: 1,packetcount                                                   196113
+951       nodeID: 29,portIdx: 1,packetsize                                                    105547541
+952       nodeID: 29,portIdx: 2,packetcount                                                   334294
+953       nodeID: 29,portIdx: 2,packetsize                                                    163160400
+954       nodeID: 29,portIdx: 3,packetcount                                                   271903
+955       nodeID: 29,portIdx: 3,packetsize                                                    172442819
+956       nodeID: 30,portIdx: 1,packetcount                                                   206689
+957       nodeID: 30,portIdx: 1,packetsize                                                    119818188
+958       nodeID: 30,portIdx: 2,packetcount                                                   329562
+959       nodeID: 30,portIdx: 2,packetsize                                                    178860142
+960       nodeID: 30,portIdx: 3,packetcount                                                   219137
+961       nodeID: 30,portIdx: 3,packetsize                                                    116666899
+962       nodeID: 31,portIdx: 1,packetcount                                                   363662
+963       nodeID: 31,portIdx: 1,packetsize                                                    200848513
+964       nodeID: 31,portIdx: 2,packetcount                                                   486240
+965       nodeID: 31,portIdx: 2,packetsize                                                    264599832
+966       nodeID: 31,portIdx: 3,packetcount                                                   255974
+967       nodeID: 31,portIdx: 3,packetsize                                                    142626416
+968       nodeID: 32,portIdx: 1,packetcount                                                   178133
+969       nodeID: 32,portIdx: 1,packetsize                                                    100522181
+970       nodeID: 32,portIdx: 2,packetcount                                                   306014
+971       nodeID: 32,portIdx: 2,packetsize                                                    152488612
+972       nodeID: 32,portIdx: 3,packetcount                                                   228777
+973       nodeID: 32,portIdx: 3,packetsize                                                    138979559
+974       nodeID: 33,portIdx: 1,packetcount                                                   183769
+975       nodeID: 33,portIdx: 1,packetsize                                                    121003730
+976       nodeID: 33,portIdx: 2,packetcount                                                   315175
+977       nodeID: 33,portIdx: 2,packetsize                                                    202978378
+978       nodeID: 33,portIdx: 3,packetcount                                                   249966
+979       nodeID: 33,portIdx: 3,packetsize                                                    87809905
+980       nodeID: 34,portIdx: 1,packetcount                                                   182285
+981       nodeID: 34,portIdx: 1,packetsize                                                    104662746
+982       nodeID: 34,portIdx: 2,packetcount                                                   348958
+983       nodeID: 34,portIdx: 2,packetsize                                                    180007241
+984       nodeID: 34,portIdx: 3,packetcount                                                   286327
+985       nodeID: 34,portIdx: 3,packetsize                                                    164876097
+986       nodeID: 35,portIdx: 1,packetcount                                                   182914
+987       nodeID: 35,portIdx: 1,packetsize                                                    118991880
+988       nodeID: 35,portIdx: 2,packetcount                                                   329094
+989       nodeID: 35,portIdx: 2,packetsize                                                    209821177
+990       nodeID: 35,portIdx: 3,packetcount                                                   246394
+991       nodeID: 35,portIdx: 3,packetsize                                                    88194013
+992       nodeID: 36,portIdx: 1,packetcount                                                   165574
+993       nodeID: 36,portIdx: 1,packetsize                                                    99857348
+994       nodeID: 36,portIdx: 2,packetcount                                                   283831
+995       nodeID: 36,portIdx: 2,packetsize                                                    174270209
+996       nodeID: 36,portIdx: 3,packetcount                                                   172205
+997       nodeID: 36,portIdx: 3,packetsize                                                    67642926
+998       nodeID: 37,portIdx: 1,packetcount                                                   187428
+999       nodeID: 37,portIdx: 1,packetsize                                                    119937804
+1000      nodeID: 37,portIdx: 2,packetcount                                                   305357
+1001      nodeID: 37,portIdx: 2,packetsize                                                    152130691
+1002      nodeID: 37,portIdx: 3,packetcount                                                   189491
+1003      nodeID: 37,portIdx: 3,packetsize                                                    103059440
+1004      nodeID: 38,portIdx: 1,packetcount                                                   226809
+1005      nodeID: 38,portIdx: 1,packetsize                                                    121828525
+1006      nodeID: 38,portIdx: 2,packetcount                                                   358113
+1007      nodeID: 38,portIdx: 2,packetsize                                                    187867873
+1008      nodeID: 38,portIdx: 3,packetcount                                                   287734
+1009      nodeID: 38,portIdx: 3,packetsize                                                    170146993
+1010      nodeID: 39,portIdx: 1,packetcount                                                   373088
+1011      nodeID: 39,portIdx: 1,packetsize                                                    214120613
+1012      nodeID: 39,portIdx: 2,packetcount                                                   465308
+1013      nodeID: 39,portIdx: 2,packetsize                                                    231531725
+1014      nodeID: 39,portIdx: 3,packetcount                                                   242716
+1015      nodeID: 39,portIdx: 3,packetsize                                                    148803748
+1016      nodeID: 40,portIdx: 1,packetcount                                                   185068
+1017      nodeID: 40,portIdx: 1,packetsize                                                    100016623
+1018      nodeID: 40,portIdx: 2,packetcount                                                   309329
+1019      nodeID: 40,portIdx: 2,packetsize                                                    169317232
+1020      nodeID: 40,portIdx: 3,packetcount                                                   216011
+1021      nodeID: 40,portIdx: 3,packetsize                                                    121274058
+1022      nodeID: 41,portIdx: 1,packetcount                                                   211218
+1023      nodeID: 41,portIdx: 1,packetsize                                                    130538183
+1024      nodeID: 41,portIdx: 2,packetcount                                                   369053
+1025      nodeID: 41,portIdx: 2,packetsize                                                    224709942
+1026      nodeID: 41,portIdx: 3,packetcount                                                   328835
+1027      nodeID: 41,portIdx: 3,packetsize                                                    144634726
+1028      nodeID: 42,portIdx: 1,packetcount                                                   196934
+1029      nodeID: 42,portIdx: 1,packetsize                                                    110938349
+1030      nodeID: 42,portIdx: 2,packetcount                                                   376758
+1031      nodeID: 42,portIdx: 2,packetsize                                                    218820281
+1032      nodeID: 42,portIdx: 3,packetcount                                                   303730
+1033      nodeID: 42,portIdx: 3,packetsize                                                    152711128
+1034      nodeID: 43,portIdx: 1,packetcount                                                   197785
+1035      nodeID: 43,portIdx: 1,packetsize                                                    101870526
+1036      nodeID: 43,portIdx: 2,packetcount                                                   362807
+1037      nodeID: 43,portIdx: 2,packetsize                                                    190927637
+1038      nodeID: 43,portIdx: 3,packetcount                                                   302386
+1039      nodeID: 43,portIdx: 3,packetsize                                                    181711374
+1040      nodeID: 44,portIdx: 1,packetcount                                                   203746
+1041      nodeID: 44,portIdx: 1,packetsize                                                    116316002
+1042      nodeID: 44,portIdx: 2,packetcount                                                   331023
+1043      nodeID: 44,portIdx: 2,packetsize                                                    189505498
+1044      nodeID: 44,portIdx: 3,packetcount                                                   251565
+1045      nodeID: 44,portIdx: 3,packetsize                                                    126535462
+1046      nodeID: 45,portIdx: 1,packetcount                                                   212995
+1047      nodeID: 45,portIdx: 1,packetsize                                                    104498520
+1048      nodeID: 45,portIdx: 2,packetcount                                                   357971
+1049      nodeID: 45,portIdx: 2,packetsize                                                    159454300
+1050      nodeID: 45,portIdx: 3,packetcount                                                   300890
+1051      nodeID: 45,portIdx: 3,packetsize                                                    215455251
+1052      nodeID: 46,portIdx: 1,packetcount                                                   214156
+1053      nodeID: 46,portIdx: 1,packetsize                                                    121943913
+1054      nodeID: 46,portIdx: 2,packetcount                                                   331687
+1055      nodeID: 46,portIdx: 2,packetsize                                                    181184748
+1056      nodeID: 46,portIdx: 3,packetcount                                                   217347
+1057      nodeID: 46,portIdx: 3,packetsize                                                    116508114
+1058      nodeID: 47,portIdx: 1,packetcount                                                   379826
+1059      nodeID: 47,portIdx: 1,packetsize                                                    223395200
+1060      nodeID: 47,portIdx: 2,packetcount                                                   514374
+1061      nodeID: 47,portIdx: 2,packetsize                                                    289806714
+1062      nodeID: 47,portIdx: 3,packetcount                                                   280880
+1063      nodeID: 47,portIdx: 3,packetsize                                                    132952790
+1064      nodeID: 48,portIdx: 1,packetcount                                                   184765
+1065      nodeID: 48,portIdx: 1,packetsize                                                    93531737
+1066      nodeID: 48,portIdx: 2,packetcount                                                   332752
+1067      nodeID: 48,portIdx: 2,packetsize                                                    160121126
+1068      nodeID: 48,portIdx: 3,packetcount                                                   239591
+1069      nodeID: 48,portIdx: 3,packetsize                                                    162633512
+1070      nodeID: 49,portIdx: 1,packetcount                                                   170412
+1071      nodeID: 49,portIdx: 1,packetsize                                                    92511173
+1072      nodeID: 49,portIdx: 2,packetcount                                                   306161
+1073      nodeID: 49,portIdx: 2,packetsize                                                    167265456
+1074      nodeID: 49,portIdx: 3,packetcount                                                   193367
+1075      nodeID: 49,portIdx: 3,packetsize                                                    108566592
+1076      nodeID: 50,portIdx: 1,packetcount                                                   187889
+1077      nodeID: 50,portIdx: 1,packetsize                                                    101802792
+1078      nodeID: 50,portIdx: 2,packetcount                                                   343304
+1079      nodeID: 50,portIdx: 2,packetsize                                                    191081665
+1080      nodeID: 50,portIdx: 3,packetcount                                                   248473
+1081      nodeID: 50,portIdx: 3,packetsize                                                    135815562
+1082      nodeID: 51,portIdx: 1,packetcount                                                   183692
+1083      nodeID: 51,portIdx: 1,packetsize                                                    97770652
+1084      nodeID: 51,portIdx: 2,packetcount                                                   302418
+1085      nodeID: 51,portIdx: 2,packetsize                                                    187042126
+1086      nodeID: 51,portIdx: 3,packetcount                                                   211978
+1087      nodeID: 51,portIdx: 3,packetsize                                                    99020870
+1088      nodeID: 52,portIdx: 1,packetcount                                                   177009
+1089      nodeID: 52,portIdx: 1,packetsize                                                    98471693
+1090      nodeID: 52,portIdx: 2,packetcount                                                   306327
+1091      nodeID: 52,portIdx: 2,packetsize                                                    171211252
+1092      nodeID: 52,portIdx: 3,packetcount                                                   230178
+1093      nodeID: 52,portIdx: 3,packetsize                                                    122646434
+1094      nodeID: 53,portIdx: 1,packetcount                                                   180090
+1095      nodeID: 53,portIdx: 1,packetsize                                                    99497446
+1096      nodeID: 53,portIdx: 2,packetcount                                                   278987
+1097      nodeID: 53,portIdx: 2,packetsize                                                    130932353
+1098      nodeID: 53,portIdx: 3,packetcount                                                   184967
+1099      nodeID: 53,portIdx: 3,packetsize                                                    123696231
+1100      nodeID: 54,portIdx: 1,packetcount                                                   224110
+1101      nodeID: 54,portIdx: 1,packetsize                                                    141926237
+1102      nodeID: 54,portIdx: 2,packetcount                                                   368365
+1103      nodeID: 54,portIdx: 2,packetsize                                                    226778459
+1104      nodeID: 54,portIdx: 3,packetcount                                                   310253
+1105      nodeID: 54,portIdx: 3,packetsize                                                    127667631
+1106      nodeID: 55,portIdx: 1,packetcount                                                   367842
+1107      nodeID: 55,portIdx: 1,packetsize                                                    210448865
+1108      nodeID: 55,portIdx: 2,packetcount                                                   500566
+1109      nodeID: 55,portIdx: 2,packetsize                                                    271532893
+1110      nodeID: 55,portIdx: 3,packetcount                                                   263778
+1111      nodeID: 55,portIdx: 3,packetsize                                                    140568651
+1112      nodeID: 56,portIdx: 1,packetcount                                                   183414
+1113      nodeID: 56,portIdx: 1,packetsize                                                    95597217
+1114      nodeID: 56,portIdx: 2,packetcount                                                   301351
+1115      nodeID: 56,portIdx: 2,packetsize                                                    153343288
+1116      nodeID: 56,portIdx: 3,packetcount                                                   197231
+1117      nodeID: 56,portIdx: 3,packetsize                                                    126036592
+1118      nodeID: 57,portIdx: 1,packetcount                                                   177847
+1119      nodeID: 57,portIdx: 1,packetsize                                                    97053449
+1120      nodeID: 57,portIdx: 2,packetcount                                                   349737
+1121      nodeID: 57,portIdx: 2,packetsize                                                    185846329
+1122      nodeID: 57,portIdx: 3,packetcount                                                   281356
+1123      nodeID: 57,portIdx: 3,packetsize                                                    161894737
+1124      nodeID: 58,portIdx: 1,packetcount                                                   185302
+1125      nodeID: 58,portIdx: 1,packetsize                                                    99818834
+1126      nodeID: 58,portIdx: 2,packetcount                                                   310595
+1127      nodeID: 58,portIdx: 2,packetsize                                                    159868342
+1128      nodeID: 58,portIdx: 3,packetcount                                                   238253
+1129      nodeID: 58,portIdx: 3,packetsize                                                    143989635
+1130      nodeID: 59,portIdx: 1,packetcount                                                   172992
+1131      nodeID: 59,portIdx: 1,packetsize                                                    92155671
+1132      nodeID: 59,portIdx: 2,packetcount                                                   302476
+1133      nodeID: 59,portIdx: 2,packetsize                                                    180314328
+1134      nodeID: 59,portIdx: 3,packetcount                                                   223610
+1135      nodeID: 59,portIdx: 3,packetsize                                                    111894112
+1136      nodeID: 60,portIdx: 1,packetcount                                                   168774
+1137      nodeID: 60,portIdx: 1,packetsize                                                    99444719
+1138      nodeID: 60,portIdx: 2,packetcount                                                   314409
+1139      nodeID: 60,portIdx: 2,packetsize                                                    188833865
+1140      nodeID: 60,portIdx: 3,packetcount                                                   218207
+1141      nodeID: 60,portIdx: 3,packetsize                                                    97380575
+1142      nodeID: 61,portIdx: 1,packetcount                                                   181153
+1143      nodeID: 61,portIdx: 1,packetsize                                                    105755355
+1144      nodeID: 61,portIdx: 2,packetcount                                                   288369
+1145      nodeID: 61,portIdx: 2,packetsize                                                    157920646
+1146      nodeID: 61,portIdx: 3,packetcount                                                   173892
+1147      nodeID: 61,portIdx: 3,packetsize                                                    90087349
+1148      nodeID: 62,portIdx: 1,packetcount                                                   200047
+1149      nodeID: 62,portIdx: 1,packetsize                                                    121744790
+1150      nodeID: 62,portIdx: 2,packetcount                                                   336984
+1151      nodeID: 62,portIdx: 2,packetsize                                                    202069042
+1152      nodeID: 62,portIdx: 3,packetcount                                                   238581
+1153      nodeID: 62,portIdx: 3,packetsize                                                    102658448
+1154      nodeID: 63,portIdx: 1,packetcount                                                   374077
+1155      nodeID: 63,portIdx: 1,packetsize                                                    198571612
+1156      nodeID: 63,portIdx: 2,packetcount                                                   480775
+1157      nodeID: 63,portIdx: 2,packetsize                                                    247972484
+1158      nodeID: 63,portIdx: 3,packetcount                                                   241880
+1159      nodeID: 63,portIdx: 3,packetsize                                                    156526883
+1160      nodeID: 64,portIdx: 1,packetcount                                                   162166
+1161      nodeID: 64,portIdx: 1,packetsize                                                    94073323
+1162      nodeID: 64,portIdx: 2,packetcount                                                   270730
+1163      nodeID: 64,portIdx: 2,packetsize                                                    142347603
+1164      nodeID: 64,portIdx: 3,packetcount                                                   182366
+1165      nodeID: 64,portIdx: 3,packetsize                                                    101853012
+1166      nodeID: 65,portIdx: 1,packetcount                                                   184280
+1167      nodeID: 65,portIdx: 1,packetsize                                                    89373946
+1168      nodeID: 65,portIdx: 2,packetcount                                                   343564
+1169      nodeID: 65,portIdx: 2,packetsize                                                    191067308
+1170      nodeID: 65,portIdx: 3,packetcount                                                   293456
+1171      nodeID: 65,portIdx: 3,packetsize                                                    171135479
+1172      nodeID: 66,portIdx: 1,packetcount                                                   161671
+1173      nodeID: 66,portIdx: 1,packetsize                                                    87717994
+1174      nodeID: 66,portIdx: 2,packetcount                                                   276279
+1175      nodeID: 66,portIdx: 2,packetsize                                                    141706571
+1176      nodeID: 66,portIdx: 3,packetcount                                                   210676
+1177      nodeID: 66,portIdx: 3,packetsize                                                    127202902
+1178      nodeID: 67,portIdx: 1,packetcount                                                   167097
+1179      nodeID: 67,portIdx: 1,packetsize                                                    85261252
+1180      nodeID: 67,portIdx: 2,packetcount                                                   263727
+1181      nodeID: 67,portIdx: 2,packetsize                                                    166766612
+1182      nodeID: 67,portIdx: 3,packetcount                                                   154662
+1183      nodeID: 67,portIdx: 3,packetsize                                                    69866505
+1184      nodeID: 68,portIdx: 1,packetcount                                                   178214
+1185      nodeID: 68,portIdx: 1,packetsize                                                    93464918
+1186      nodeID: 68,portIdx: 2,packetcount                                                   337026
+1187      nodeID: 68,portIdx: 2,packetsize                                                    195580474
+1188      nodeID: 68,portIdx: 3,packetcount                                                   299282
+1189      nodeID: 68,portIdx: 3,packetsize                                                    158829458
+1190      nodeID: 69,portIdx: 1,packetcount                                                   173126
+1191      nodeID: 69,portIdx: 1,packetsize                                                    99234495
+1192      nodeID: 69,portIdx: 2,packetcount                                                   297086
+1193      nodeID: 69,portIdx: 2,packetsize                                                    182964282
+1194      nodeID: 69,portIdx: 3,packetcount                                                   199670
+1195      nodeID: 69,portIdx: 3,packetsize                                                    86116003
+1196      nodeID: 70,portIdx: 1,packetcount                                                   189110
+1197      nodeID: 70,portIdx: 1,packetsize                                                    92464470
+1198      nodeID: 70,portIdx: 2,packetcount                                                   274315
+1199      nodeID: 70,portIdx: 2,packetsize                                                    130775712
+1200      nodeID: 70,portIdx: 3,packetcount                                                   168775
+1201      nodeID: 70,portIdx: 3,packetsize                                                    124344631
+1202      nodeID: 71,portIdx: 1,packetcount                                                   349338
+1203      nodeID: 71,portIdx: 1,packetsize                                                    199999484
+1204      nodeID: 71,portIdx: 2,packetcount                                                   448249
+1205      nodeID: 71,portIdx: 2,packetsize                                                    229381396
+1206      nodeID: 71,portIdx: 3,packetcount                                                   192015
+1207      nodeID: 71,portIdx: 3,packetsize                                                    114751149
+1208      nodeID: 72,portIdx: 1,packetcount                                                   328305
+1209      nodeID: 72,portIdx: 1,packetsize                                                    172480695
+1210      nodeID: 72,portIdx: 2,packetcount                                                   287121
+1211      nodeID: 72,portIdx: 2,packetsize                                                    163982852
+1212      nodeID: 72,portIdx: 3,packetcount                                                   292025
+1213      nodeID: 72,portIdx: 3,packetsize                                                    169924494
+1214      nodeID: 72,portIdx: 4,packetcount                                                   333465
+1215      nodeID: 72,portIdx: 4,packetsize                                                    170195093
+1216      nodeID: 72,portIdx: 5,packetcount                                                   304736
+1217      nodeID: 72,portIdx: 5,packetsize                                                    178642945
+1218      nodeID: 72,portIdx: 6,packetcount                                                   351960
+1219      nodeID: 72,portIdx: 6,packetsize                                                    187340038
+1220      nodeID: 72,portIdx: 7,packetcount                                                   313884
+1221      nodeID: 72,portIdx: 7,packetsize                                                    175824076
+1222      nodeID: 72,portIdx: 8,packetcount                                                   488568
+1223      nodeID: 72,portIdx: 8,packetsize                                                    266200914
+1224      nodeID: 73,portIdx: 1,packetcount                                                   301338
+1225      nodeID: 73,portIdx: 1,packetsize                                                    168046128
+1226      nodeID: 73,portIdx: 2,packetcount                                                   324110
+1227      nodeID: 73,portIdx: 2,packetsize                                                    147963575
+1228      nodeID: 73,portIdx: 3,packetcount                                                   289814
+1229      nodeID: 73,portIdx: 3,packetsize                                                    168583839
+1230      nodeID: 73,portIdx: 4,packetcount                                                   320427
+1231      nodeID: 73,portIdx: 4,packetsize                                                    179405957
+1232      nodeID: 73,portIdx: 5,packetcount                                                   324818
+1233      nodeID: 73,portIdx: 5,packetsize                                                    145628399
+1234      nodeID: 73,portIdx: 6,packetcount                                                   297436
+1235      nodeID: 73,portIdx: 6,packetsize                                                    171315801
+1236      nodeID: 73,portIdx: 7,packetcount                                                   316539
+1237      nodeID: 73,portIdx: 7,packetsize                                                    189436413
+1238      nodeID: 73,portIdx: 8,packetcount                                                   448270
+1239      nodeID: 73,portIdx: 8,packetsize                                                    271697695
+1240      nodeID: 74,portIdx: 1,packetcount                                                   275758
+1241      nodeID: 74,portIdx: 1,packetsize                                                    163307937
+1242      nodeID: 74,portIdx: 2,packetcount                                                   296849
+1243      nodeID: 74,portIdx: 2,packetsize                                                    145448534
+1244      nodeID: 74,portIdx: 3,packetcount                                                   318926
+1245      nodeID: 74,portIdx: 3,packetsize                                                    142010168
+1246      nodeID: 74,portIdx: 4,packetcount                                                   324248
+1247      nodeID: 74,portIdx: 4,packetsize                                                    168446811
+1248      nodeID: 74,portIdx: 5,packetcount                                                   326899
+1249      nodeID: 74,portIdx: 5,packetsize                                                    203242272
+1250      nodeID: 74,portIdx: 6,packetcount                                                   334294
+1251      nodeID: 74,portIdx: 6,packetsize                                                    204456308
+1252      nodeID: 74,portIdx: 7,packetcount                                                   329562
+1253      nodeID: 74,portIdx: 7,packetsize                                                    183553069
+1254      nodeID: 74,portIdx: 8,packetcount                                                   486240
+1255      nodeID: 74,portIdx: 8,packetsize                                                    270127591
+1256      nodeID: 75,portIdx: 1,packetcount                                                   306014
+1257      nodeID: 75,portIdx: 1,packetsize                                                    184024457
+1258      nodeID: 75,portIdx: 2,packetcount                                                   315175
+1259      nodeID: 75,portIdx: 2,packetsize                                                    143617980
+1260      nodeID: 75,portIdx: 3,packetcount                                                   348958
+1261      nodeID: 75,portIdx: 3,packetsize                                                    203746648
+1262      nodeID: 75,portIdx: 4,packetcount                                                   329094
+1263      nodeID: 75,portIdx: 4,packetsize                                                    152079322
+1264      nodeID: 75,portIdx: 5,packetcount                                                   283831
+1265      nodeID: 75,portIdx: 5,packetsize                                                    137842483
+1266      nodeID: 75,portIdx: 6,packetcount                                                   305357
+1267      nodeID: 75,portIdx: 6,packetsize                                                    183651771
+1268      nodeID: 75,portIdx: 7,packetcount                                                   358113
+1269      nodeID: 75,portIdx: 7,packetsize                                                    205959234
+1270      nodeID: 75,portIdx: 8,packetcount                                                   465308
+1271      nodeID: 75,portIdx: 8,packetsize                                                    280174011
+1272      nodeID: 76,portIdx: 1,packetcount                                                   309329
+1273      nodeID: 76,portIdx: 1,packetsize                                                    170842263
+1274      nodeID: 76,portIdx: 2,packetcount                                                   369053
+1275      nodeID: 76,portIdx: 2,packetsize                                                    181143683
+1276      nodeID: 76,portIdx: 3,packetcount                                                   376758
+1277      nodeID: 76,portIdx: 3,packetsize                                                    195517261
+1278      nodeID: 76,portIdx: 4,packetcount                                                   362807
+1279      nodeID: 76,portIdx: 4,packetsize                                                    208044928
+1280      nodeID: 76,portIdx: 5,packetcount                                                   331023
+1281      nodeID: 76,portIdx: 5,packetsize                                                    174510626
+1282      nodeID: 76,portIdx: 6,packetcount                                                   357971
+1283      nodeID: 76,portIdx: 6,packetsize                                                    234216525
+1284      nodeID: 76,portIdx: 7,packetcount                                                   331687
+1285      nodeID: 76,portIdx: 7,packetsize                                                    183566643
+1286      nodeID: 76,portIdx: 8,packetcount                                                   514374
+1287      nodeID: 76,portIdx: 8,packetsize                                                    275884423
+1288      nodeID: 77,portIdx: 1,packetcount                                                   332752
+1289      nodeID: 77,portIdx: 1,packetsize                                                    205792810
+1290      nodeID: 77,portIdx: 2,packetcount                                                   306161
+1291      nodeID: 77,portIdx: 2,packetsize                                                    169404805
+1292      nodeID: 77,portIdx: 3,packetcount                                                   343304
+1293      nodeID: 77,portIdx: 3,packetsize                                                    186453514
+1294      nodeID: 77,portIdx: 4,packetcount                                                   302418
+1295      nodeID: 77,portIdx: 4,packetsize                                                    145518566
+1296      nodeID: 77,portIdx: 5,packetcount                                                   306327
+1297      nodeID: 77,portIdx: 5,packetsize                                                    165656729
+1298      nodeID: 77,portIdx: 6,packetcount                                                   278987
+1299      nodeID: 77,portIdx: 6,packetsize                                                    175868046
+1300      nodeID: 77,portIdx: 7,packetcount                                                   368365
+1301      nodeID: 77,portIdx: 7,packetsize                                                    178314223
+1302      nodeID: 77,portIdx: 8,packetcount                                                   500566
+1303      nodeID: 77,portIdx: 8,packetsize                                                    278956637
+1304      nodeID: 78,portIdx: 1,packetcount                                                   301351
+1305      nodeID: 78,portIdx: 1,packetsize                                                    178038167
+1306      nodeID: 78,portIdx: 2,packetcount                                                   349737
+1307      nodeID: 78,portIdx: 2,packetsize                                                    198756509
+1308      nodeID: 78,portIdx: 3,packetcount                                                   310595
+1309      nodeID: 78,portIdx: 3,packetsize                                                    181696102
+1310      nodeID: 78,portIdx: 4,packetcount                                                   302476
+1311      nodeID: 78,portIdx: 4,packetsize                                                    152297123
+1312      nodeID: 78,portIdx: 5,packetcount                                                   314409
+1313      nodeID: 78,portIdx: 5,packetsize                                                    156922692
+1314      nodeID: 78,portIdx: 6,packetcount                                                   288369
+1315      nodeID: 78,portIdx: 6,packetsize                                                    159180271
+1316      nodeID: 78,portIdx: 7,packetcount                                                   336984
+1317      nodeID: 78,portIdx: 7,packetsize                                                    168509819
+1318      nodeID: 78,portIdx: 8,packetcount                                                   480775
+1319      nodeID: 78,portIdx: 8,packetsize                                                    280767641
+1320      nodeID: 79,portIdx: 1,packetcount                                                   270730
+1321      nodeID: 79,portIdx: 1,packetsize                                                    155348762
+1322      nodeID: 79,portIdx: 2,packetcount                                                   343564
+1323      nodeID: 79,portIdx: 2,packetsize                                                    186729815
+1324      nodeID: 79,portIdx: 3,packetcount                                                   276279
+1325      nodeID: 79,portIdx: 3,packetsize                                                    162100118
+1326      nodeID: 79,portIdx: 4,packetcount                                                   263727
+1327      nodeID: 79,portIdx: 4,packetsize                                                    123223312
+1328      nodeID: 79,portIdx: 5,packetcount                                                   337026
+1329      nodeID: 79,portIdx: 5,packetsize                                                    175045406
+1330      nodeID: 79,portIdx: 6,packetcount                                                   297086
+1331      nodeID: 79,portIdx: 6,packetsize                                                    143727528
+1332      nodeID: 79,portIdx: 7,packetcount                                                   274315
+1333      nodeID: 79,portIdx: 7,packetsize                                                    170859911
+1334      nodeID: 79,portIdx: 8,packetcount                                                   448249
+1335      nodeID: 79,portIdx: 8,packetsize                                                    263555106

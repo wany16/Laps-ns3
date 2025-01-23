@@ -20,7 +20,7 @@ public:
 	Ptr<RdmaSmartFlowRouting> m_SmartFlowRouting;
 	Ptr<ConWeaveRouting> m_ConWeaveRouting;
 	static TypeId GetTypeId (void);
-
+	// static bool isDynamicPfcThreshold;
 	SwitchMmu(void);
 
 	bool CheckIngressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize);
@@ -58,6 +58,7 @@ public:
 	double pmax[pCnt];
 	uint32_t total_hdrm;
 	uint32_t total_rsrv;
+	uint32_t shared_bytes = 0;
 
 	// runtime
 	uint32_t shared_used_bytes;

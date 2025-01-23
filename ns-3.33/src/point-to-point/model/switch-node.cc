@@ -1307,10 +1307,11 @@ namespace ns3
 				else
 				{
 					Ipv4SmartFlowPathTag pathTag;
-					if (p->PeekPacketTag(pathTag))
+					if(p->PeekPacketTag(pathTag))
 					{
-						// std::cout << "Drop packet on path " << pathTag.get_path_id() << " with seq " << ch.udp.seq << " ";
-						// std::cout << "due to admission control on switch " << GetId() << std::endl;
+						std::cout << "Drop packet on path " << pathTag.get_path_id() << " with seq " << ch.udp.seq << " ";
+						std::cout << "due to admission control on switch " << GetId() << std::endl;
+
 					}
 
 					return; // Drop

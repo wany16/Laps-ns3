@@ -159,15 +159,14 @@ namespace ns3 {
 			Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
 			if (qp->IsFinishedConst()) m_qpGrp->SetQpFinished(idx);
       if (m_qpGrp->IsQpFinished(idx)) continue;
-	  if (!qp->m_cb_isPathsValid(qp->m_flow_id))
-		  continue;
-	  qp->CheckAndUpdateQpStateForLaps();
-	  bool isPfcAllowed = !paused[qp->m_pg];
-	  bool isWinAllowed = !qp->IsWinBoundForLaps();
-	  bool isIrnAllowed = qp->CanIrnTransmitForLaps(mtuInByte);
-	  bool isDataLeft = qp->GetBytesLeftForLaps() > 0 ? true : false;
-	  bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
-	  int32_t flowid = qp->m_flow_id;
+			if(!qp->m_cb_isPathsValid(qp->m_flow_id)) continue;
+			qp->CheckAndUpdateQpStateForLaps();
+			bool isPfcAllowed = !paused[qp->m_pg];
+			bool isWinAllowed = !qp->IsWinBoundForLaps();
+			bool isIrnAllowed = qp->CanIrnTransmitForLaps(mtuInByte);
+			bool isDataLeft = qp->GetBytesLeftForLaps() > 0 ? true : false;
+			bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
+			int32_t flowid = qp->m_flow_id;
 
 	  if (!isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed)
 	  {
@@ -515,7 +514,7 @@ namespace ns3 {
 			hdr_size = ch.GetSerializedSize();
 			payloadSize = m_currentPkt->GetSize()-hdr_size;
 			NS_LOG_INFO("PktId: " << pktId  << " Type: DATA, Size: " << payloadSize <<	" Pid: " << pid);
-			// entry->lastQp->m_irn.m_sack.appendOutstandingData(pid, ch.udp.seq, payloadSize); /////////////////////////////
+      // entry->lastQp->m_irn.m_sack.appendOutstandingData(pid, ch.udp.seq, payloadSize); /////////////////////////////
 			// std::cout << "PktId: " << pktId << " Type: DATA, Size: " << payloadSize << " Pid: " << pid << std::endl;
 			auto e = OutStandingDataEntry(entry->lastQp->m_flow_id, ch.udp.seq, payloadSize);
 
@@ -583,6 +582,7 @@ namespace ns3 {
 			t = Min(qp->m_nextAvail, t);
 			valid = true;
 		}
+
 
 		if (valid && m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime() && t > Simulator::Now())
 		{

@@ -20,6 +20,7 @@ namespace ns3 {
 			.AddConstructor<SwitchMmu>();
 		return tid;
 	}
+	// bool SwitchMmu::isDynamicPfcThreshold = false;
 
 	SwitchMmu::SwitchMmu(void){
 		buffer_size = 12 * 1024 * 1024;
@@ -45,7 +46,8 @@ namespace ns3 {
 		}
 	}
 	bool SwitchMmu::CheckIngressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize){
-		if (psize + hdrm_bytes[port][qIndex] > headroom[port] && psize + GetSharedUsed(port, qIndex) > GetPfcThreshold(port)){
+		// if (psize + hdrm_bytes[port][qIndex] > headroom[port] && psize + GetSharedUsed(port, qIndex) > GetPfcThreshold(port)){
+		if (psize + hdrm_bytes[port][qIndex] > headroom[port]){
 			std::ostringstream oss;
 			oss << Simulator::Now().GetTimeStep() << " " << node_id << " Drop: queue:" << port << "," << qIndex << ": Headroom full";
 			NS_LOG_INFO(oss.str());
@@ -67,8 +69,19 @@ namespace ns3 {
 		}else {
 			uint32_t thresh = GetPfcThreshold(port);
 			if (new_bytes - reserve > thresh){
-				hdrm_bytes[port][qIndex] += psize;
+				uint32_t tmp_shared_used = ingress_bytes[port][qIndex] - reserve;
+				int32_t tmp_shared_inc = thresh - tmp_shared_used;
+				if (tmp_shared_inc < 0)
+				{
+					std::cerr << "tmp_shared_inc < 0" << std::endl;
+					exit(1);
+				}
+				shared_used_bytes += tmp_shared_inc; // ying
+				ingress_bytes[port][qIndex] += psize; // ying
+				hdrm_bytes[port][qIndex] += std::min(psize, new_bytes - reserve - thresh); //ying
+				//hdrm_bytes[port][qIndex] += psize;
 			}else {
+				// uint32_t reserve_left = ingress_bytes[port][qIndex]
 				ingress_bytes[port][qIndex] += psize;
 				shared_used_bytes += std::min(psize, new_bytes - reserve);
 			}
@@ -81,7 +94,8 @@ namespace ns3 {
 		uint32_t from_hdrm = std::min(hdrm_bytes[port][qIndex], psize);
 		uint32_t from_shared = std::min(psize - from_hdrm, ingress_bytes[port][qIndex] > reserve ? ingress_bytes[port][qIndex] - reserve : 0);
 		hdrm_bytes[port][qIndex] -= from_hdrm;
-		ingress_bytes[port][qIndex] -= psize - from_hdrm;
+		// ingress_bytes[port][qIndex] -= psize - from_hdrm;
+		ingress_bytes[port][qIndex] -= psize; // ying
 		shared_used_bytes -= from_shared;
 	}
 	void SwitchMmu::RemoveFromEgressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize){
@@ -104,11 +118,21 @@ namespace ns3 {
 	}
 
 	uint32_t SwitchMmu::GetPfcThreshold(uint32_t port){
-		return (buffer_size - total_hdrm - total_rsrv - shared_used_bytes) >> pfc_a_shift[port];
+		// return (buffer_size - total_hdrm - total_rsrv - shared_used_bytes) >> pfc_a_shift[port];
+		return shared_bytes;
+
 	}
 	uint32_t SwitchMmu::GetSharedUsed(uint32_t port, uint32_t qIndex){
 		uint32_t used = ingress_bytes[port][qIndex];
-		return used > reserve ? used - reserve : 0;
+		if (used > reserve) // ying
+		{
+			return std::min(used - reserve, shared_bytes);
+		}
+		else	// ying
+		{
+			return 0; // ying
+		} // ying
+		// return used > reserve ? used - reserve : 0;
 	}
 	bool SwitchMmu::ShouldSendCN(uint32_t ifindex, uint32_t qIndex){
 		if (qIndex == 0)
@@ -138,6 +162,8 @@ namespace ns3 {
 			total_hdrm += headroom[i];
 			total_rsrv += reserve;
 		}
+		shared_bytes = (buffer_size - total_hdrm - total_rsrv)/n_port;// ying
+
 	}
 	void SwitchMmu::ConfigBufferSize(uint32_t size){
 		buffer_size = size;

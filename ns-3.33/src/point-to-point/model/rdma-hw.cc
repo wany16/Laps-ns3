@@ -34,6 +34,7 @@ namespace ns3
 	uint32_t RdmaHw::qpFlowIndex;
 	std::map<std::string, QpRecordEntry> RdmaHw::m_recordQpExec;
 
+
 	bool RdmaHw::enablePathDelayRecord = true;
 
 	void RdmaHw::insertRateRecord(uint32_t flowId, uint64_t curRateInMbps)
@@ -497,65 +498,66 @@ namespace ns3
 		m_nic[nic_idx].dev->NewQp(qp);
 	}
 
-	Time RdmaHw::getNxtAvailTimeForQp(uint32_t flowId)
-	{
-		Time t = Simulator::GetMaximumSimulationTime();
-		auto it = flowToPstEntry.find(flowId);
-		if (it == flowToPstEntry.end())
+		Time RdmaHw::getNxtAvailTimeForQp(uint32_t flowId)
 		{
-			std::cerr << "flowId " << flowId << " is not in flowToPstEntry" << std::endl;
-			exit(1);
-			return t;
-		}
-		else
-		{
-			pstEntryData *pstEntry = it->second;
-			std::vector<PathData *> pitEntries = m_E2ErdmaSmartFlowRouting->batch_lookup_PIT(pstEntry->paths);
-			if (pitEntries.size() == 0)
+			Time t = Simulator::GetMaximumSimulationTime();
+			auto it = flowToPstEntry.find(flowId);
+			if (it == flowToPstEntry.end())
 			{
-				std::cerr << "flowId " << flowId << " has no available path" << std::endl;
+				std::cerr << "flowId " << flowId << " is not in flowToPstEntry" << std::endl;
 				exit(1);
 				return t;
 			}
-			for (auto &pitEntry : pitEntries)
+			else
 			{
-				t = std::min(t, pitEntry->nextAvailableTime);
+				pstEntryData * pstEntry = it->second;
+				std::vector<PathData *> pitEntries = m_E2ErdmaSmartFlowRouting->batch_lookup_PIT(pstEntry->paths);
+				if (pitEntries.size() == 0)
+				{
+					std::cerr << "flowId " << flowId << " has no available path" << std::endl;
+					exit(1);
+					return t;
+				}
+				for (auto & pitEntry : pitEntries)
+				{
+					t = std::min(t, pitEntry->nextAvailableTime);
+				}
 			}
+			t = std::max(t, Simulator::Now());
+			return t;
 		}
-		t = std::max(t, Simulator::Now());
-		return t;
-	}
 
-	bool RdmaHw::isPathAvailable(uint32_t flowId)
-	{
-		auto it = flowToPstEntry.find(flowId);
-		if (it == flowToPstEntry.end())
+		bool RdmaHw::isPathAvailable(uint32_t flowId)
 		{
-			std::cerr << "flowId " << flowId << " is not in flowToPstEntry" << std::endl;
-			exit(1);
-			return false;
-		}
-		else
-		{
-			pstEntryData *pstEntry = it->second;
-			std::vector<PathData *> pitEntries = m_E2ErdmaSmartFlowRouting->batch_lookup_PIT(pstEntry->paths);
-			if (pitEntries.size() == 0)
+			auto it = flowToPstEntry.find(flowId);
+			if (it == flowToPstEntry.end())
 			{
-				std::cerr << "flowId " << flowId << " has no available path" << std::endl;
+				std::cerr << "flowId " << flowId << " is not in flowToPstEntry" << std::endl;
 				exit(1);
 				return false;
 			}
-			Time t = Simulator::Now();
-			for (auto &pitEntry : pitEntries)
+			else
 			{
-				if (pitEntry->nextAvailableTime <= t)
+				pstEntryData * pstEntry = it->second;
+				std::vector<PathData *> pitEntries = m_E2ErdmaSmartFlowRouting->batch_lookup_PIT(pstEntry->paths);
+				if (pitEntries.size() == 0)
 				{
-					return true;
+					std::cerr << "flowId " << flowId << " has no available path" << std::endl;
+					exit(1);
+					return false;
+				}
+				Time t = Simulator::Now();
+				for (auto & pitEntry : pitEntries)
+				{
+					if (pitEntry->nextAvailableTime <= t)
+					{
+						return true;
+					}
 				}
 			}
+			return false;
 		}
-		return false;
-	}
+
 
 	void RdmaHw::AddQueuePairForLaps(uint64_t size, uint16_t pg, Ipv4Address sip, Ipv4Address dip, uint16_t sport, uint16_t dport, uint32_t win, uint64_t baseRtt, int32_t flowId, Callback<void> notifyAppFinish)
 	{
@@ -634,8 +636,8 @@ namespace ns3
 
 		uint64_t winInByte = uint64_t(1.0 * qp->laps.m_tgtDelayInNs * 2 * m_bps.GetBitRate() / 8 / 1000000000lu);
 		qp->SetWin(winInByte);
-		// std::cout << "Flow " << flowId << " maxRateInGbps " << qp->m_max_rate.GetBitRate() / 1000000000lu << " target delay in us " << 1.0 * qp->laps.m_tgtDelayInNs / 1000 << " winInByte " << qp->m_win << " baseRtt " << qp->m_baseRtt << std::endl;
-		//  std::cout << "Flow " << flowId << " maxRateInGbps " << qp->m_max_rate.GetBitRate() / 1000000000lu << " target delay " << qp->laps.m_tgtDelayInNs << " winInByte " << qp->m_win << std::endl;
+		// std::cout << "Time " << Simulator::Now().GetNanoSeconds() << " Flow " << flowId << " maxRateInGbps " << qp->m_max_rate.GetBitRate() / 1000000000lu << " target delay in us " << 1.0*qp->laps.m_tgtDelayInNs/1000 << " winInByte " << qp->m_win << " baseRtt " << qp->m_baseRtt << std::endl;
+		// std::cout << "Flow " << flowId << " maxRateInGbps " << qp->m_max_rate.GetBitRate() / 1000000000lu << " target delay " << qp->laps.m_tgtDelayInNs << " winInByte " << qp->m_win << std::endl;
 		m_nic[nic_idx].dev->NewQp(qp);
 	}
 
@@ -1633,7 +1635,7 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 		// if (pid == 26320)
 		// {
 		// 	std::cout << "Pid " << pid << ", flowId " << flowId << " " << " seq " << seq << " size " << size << std::endl;
-		// 	std::cout << "Outstanding Data ";
+   	// 	std::cout << "Outstanding Data ";
 
 		// 	for (auto it3 = dataList.begin(); it3 != dataList.end(); it3++)
 		// 	{
@@ -1643,6 +1645,7 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 
 		// }
 
+		
 		while (it2 != dataList.end())
 		{
 			if(it2->flow_id == flowId && it2->seq == seq && it2->size == size){
@@ -1656,7 +1659,8 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 				NS_ASSERT_MSG(it3 != m_flowId2Qp.end(), "Invalid flow id");
 				auto qp = it3->second;
 				qp->m_irn.m_sack.m_lossy_data.emplace_back(it2->seq, it2->size);
-				// std::cout << "Time " << Simulator::Now().GetNanoSeconds() << ", Lossy data for PathID " << pid << " with " << it2->to_string() << std::endl;
+				std::cout << "Time " << Simulator::Now().GetNanoSeconds() << " FlowID " << qp->m_flow_id << " Rate " <<  1.0*qp->laps.m_curRate.GetBitRate()/1000000000 << " Gbps ";
+				std::cout << ", Lossy data for PathID " << pid << " with " << it2->to_string() << std::endl;
 				NS_LOG_INFO ("LossyData: flowId=" << flowId << ", seq=[" << it2->seq << ", " << it2->size << ")");
 				it2 = it->second.erase(it2);
 				lossy = true;
@@ -1668,7 +1672,7 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 			std::cout << "Time " << Simulator::Now().GetNanoSeconds() << ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq << std::endl;
 			exit(1);
 		}
-
+		
 		if (dataList.size() == 0)
 		{
 			CancelRtoPerPath(pid);
@@ -3490,11 +3494,11 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 				congPathCnt++;
 			}
 		}
-
+		
 		NS_ASSERT_MSG(pitEntries.size() > 0, "The pitEntries is empty");
 
 		// auto maxElement = std::max_element(pitEntries.begin(), pitEntries.end(),
-		// 				[](const PathData* lhs, const PathData* rhs)
+		// 				[](const PathData* lhs, const PathData* rhs) 
 		// 				{
 		// 						return lhs->theoreticalSmallestLatencyInNs < rhs->theoreticalSmallestLatencyInNs;
 		// 				}
@@ -3514,7 +3518,7 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 				// }
 
 				NS_LOG_INFO("Decrease rate for LAPS");
-				int64_t timeGap = DecreaseRateForLaps(qp, tgtDelayInNs * 2);
+				int64_t timeGap = DecreaseRateForLaps(qp, tgtDelayInNs*2);
 				insertRateRecord(qp->m_flow_id, qp->laps.m_curRate.GetBitRate()/1000000/8);
 				UpdateNxtQpAvailTimeForLaps(qp, timeGap);
 			}
@@ -3523,7 +3527,7 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		{
 			if (qp->laps.m_nxtRateIncTimeInNs < curTimeInNs)
 			{
-				int64_t timeGap = IncreaseRateForLaps(qp, tgtDelayInNs * 2);
+				int64_t timeGap = IncreaseRateForLaps(qp, tgtDelayInNs*2);
 				UpdateNxtQpAvailTimeForLaps(qp, timeGap);
    			insertRateRecord(qp->m_flow_id, qp->laps.m_curRate.GetBitRate()/1000000/8);
 			}
