@@ -56,7 +56,8 @@ namespace ns3
 		static TypeId GetTypeId(void);
 		RdmaHw();
 		std::map<uint32_t, std::list<OutStandingDataEntry>> m_outstanding_data;
-
+		static std::map<uint32_t, pstEntryData *> flowToPstEntry;
+		bool isPathAvailable(uint32_t flowId);
 		std::map<std::pair<uint32_t, uint32_t>, EventId> m_rtoEvents;
 		std::map<uint32_t, EventId> m_rtoEventsPerPath;
   	void HandleTimeoutForLaps(Ptr<RdmaQueuePair> qp, uint32_t pid) ;
@@ -268,6 +269,8 @@ namespace ns3
 	Ptr<Packet> ConstructAckForProbe(const CustomHeader &ch);
 	int ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch);
 	int ReceiveProbeAckForLaps(Ptr<Packet> p, CustomHeader &ch);
+	// bool isPathAvailable(uint32_t flowId);
+	Time getNxtAvailTimeForQp(uint32_t flowId);
 
 
 

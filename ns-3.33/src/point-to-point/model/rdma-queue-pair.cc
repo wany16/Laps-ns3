@@ -257,7 +257,8 @@ std::string RdmaQueuePair::GetStringHashValueFromQp()
 		else if (Irn::mode == Irn::NACK)
 		{
 			size_t undSize = m_size >= snd_nxt ? m_size - snd_nxt : 0;
-			return undSize;
+			size_t lossySize = m_irn.m_sack.getLossyDataSize();
+			return undSize + lossySize;
 		}
 		else
 		{
@@ -790,6 +791,7 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 		}
 		return w;
 	}
+
 
 	uint64_t RdmaQueuePair::GetWinForLaps()
 	{

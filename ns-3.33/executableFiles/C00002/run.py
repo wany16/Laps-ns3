@@ -107,7 +107,7 @@ parser.add_argument("--simEndTimeInSec",
                     default="2",
                     help="simulation end time")
 parser.add_argument("--flowLunchEndTimeInSec",
-                    default="0.001",
+                    default="0.01",
                     help="flow end time")
 parser.add_argument("--qlenMonitorIntervalInNs",
                     default="10000000",

@@ -105,6 +105,7 @@ struct Irn{
 		static std::string GetMode();
 		static bool isWindowBasedForLaps;
 		
+
 		EventId m_reTxEvent;
 		uint32_t m_lastReTxSeq{0};
 		uint32_t m_nextReTxSeq{0};		
@@ -305,6 +306,12 @@ public:
 
   typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t> CancelRtoForPath;
   CancelRtoForPath m_cb_cancelRtoForPath;
+
+  typedef Callback<bool, uint32_t> IsPathsValid;
+  IsPathsValid m_cb_isPathsValid;
+
+  typedef Callback<Time, uint32_t> getNxtAvailTimeForQp_t;
+  getNxtAvailTimeForQp_t m_cb_getNxtAvailTimeForQp;
 
 	uint64_t HpGetCurWin(); // window size calculated from hp.m_curRate, used by HPCC
 };
