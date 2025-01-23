@@ -313,9 +313,7 @@ void RdmaQueuePair::RecoverQueue()
 		uint32_t firstSackSeq, firstSackLen;
 		if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
 		{
-			size_t undSize = m_size >= snd_nxt ? m_size - snd_nxt : 0;
-			size_t lossySize = m_irn.m_sack.getLossyDataSize();
-			return undSize + lossySize;
+			m_irn.m_recovery_seq = firstSackSeq;
 		}
 		else
 		{

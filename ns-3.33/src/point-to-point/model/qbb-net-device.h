@@ -229,7 +229,7 @@ public:
   //  callback for processing packet in RDMA
   typedef Callback<int, Ptr<Packet>, CustomHeader &> RdmaReceiveCb;
   RdmaReceiveCb m_rdmaReceiveCb;
-
+  static std::map<std::string, std::string> qpSendInfo;
   typedef Callback<uint32_t, std::string> PlbTableDataCb;
   PlbTableDataCb m_plbTableDataCb;
   bool PLB_LBSolution(int qIndex);

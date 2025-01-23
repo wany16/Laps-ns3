@@ -2293,8 +2293,31 @@ namespace ns3
     fclose(file);
     return;
   }
+  void save_QPSend_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save QP exec info()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-QpSend.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
 
-  void save_QpRateChange_outinfo(global_variable_t *varMap)
+    for (auto it = QbbNetDevice::qpSendInfo.begin(); it != QbbNetDevice::qpSendInfo.end(); ++it)
+    {
+      std::string qpId = it->first;
+      std::string outInfo = it->second;
+
+      fprintf(file, "flowID:%s OutInfo:%s\n", qpId.c_str(), outInfo.c_str());
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+
+  void
+  save_QpRateChange_outinfo(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save QpRateChange outinfo()----------");
     std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-QpRateChange.txt";
@@ -3941,6 +3964,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     save_qpFinshtest_outinfo(varMap);
     save_QPExec_outinfo(varMap);
     save_QpRateChange_outinfo(varMap);
+    save_QPSend_outinfo(varMap);
     if (varMap->lbsName == "conweave")
     {
       save_Conweave_pathload_outinfo(varMap);

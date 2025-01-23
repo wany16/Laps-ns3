@@ -1180,7 +1180,7 @@ namespace ns3
   void save_Conweave_pathload_outinfo(global_variable_t *varMap);
   void sim_finish(global_variable_t *varMap);
   void save_qpFinshtest_outinfo(global_variable_t *varMap);
-
+   void save_QPSend_outinfo(global_variable_t *varMap);
   void save_QPExec_outinfo(global_variable_t *varMap);
   // void print_nic_info(global_variable_t *varMap);
   void generate_rdma_flows_for_node_pair(global_variable_t *varMap);

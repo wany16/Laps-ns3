@@ -104,10 +104,6 @@ struct Irn{
 		static void SetMode(std::string mode);
 		static std::string GetMode();
 		static bool isWindowBasedForLaps;
-<<<<<<< HEAD
-=======
-		
->>>>>>> 0154ca856f91e04749ac684fdd58f1b8748a06e3
 
 		EventId m_reTxEvent;
 		uint32_t m_lastReTxSeq{0};

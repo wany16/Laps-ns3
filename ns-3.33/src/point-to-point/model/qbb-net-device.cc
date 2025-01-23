@@ -60,7 +60,7 @@ namespace ns3 {
 	uint32_t RdmaEgressQueue::mtuInByte = 1400;
   std::unordered_map<int32_t, Time> RdmaEgressQueue::cumulative_pause_time;
 	bool RdmaEgressQueue::isAckHighPriority = true;
-
+	std::map<std::string, std::string> QbbNetDevice::qpSendInfo;
 
 	// RdmaEgressQueue
 	TypeId RdmaEgressQueue::GetTypeId (void)
@@ -121,11 +121,15 @@ namespace ns3 {
 			bool isDataLeft = qp->GetBytesLeft() > 0 ? true : false;
 			bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
 			int32_t flowid = qp->m_flow_id;
-			//  if (Simulator::Now() >= Seconds(0.9))
-			// {
-			// 	std::cout << qp->GetStringHashValueFromQp() << " curtime " << Simulator::Now().GetNanoSeconds() << std::endl;
-			// 	std::cout << " FLOWId " << flowid << " SIZE " << qp->m_size << " una " << qp->snd_una << " Pfc " << isPfcAllowed << " Win " << isWinAllowed << " irn " << isIrnAllowed << " Data " << isDataLeft << " isTime " << isTimeAvail << std::endl;
-			// }
+			if (qp->snd_una == 0 && qp->snd_nxt == 0)
+			{
+				std::cout << qp->GetStringHashValueFromQp() << " curtime " << Simulator::Now().GetNanoSeconds();
+				std::cout << " FLOWId " << flowid << " SIZE " << qp->m_size << " una " << qp->snd_una << " Pfc " << isPfcAllowed << " Win " << isWinAllowed << " irn " << isIrnAllowed << " Data " << isDataLeft << " isTime " << isTimeAvail << std::endl;
+				std::ostringstream oss;
+				oss << " curtime " << Simulator::Now().GetNanoSeconds();
+				oss << " FLOWId " << flowid << " SIZE " << qp->m_size << " una " << qp->snd_una << " Pfc " << isPfcAllowed << " Win " << isWinAllowed << " irn " << isIrnAllowed << " Data " << isDataLeft << " isTime " << isTimeAvail;
+				QbbNetDevice::qpSendInfo[qp->GetStringHashValueFromQp()] = oss.str();
+			}
 			if (!isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed) {
 					if (!isTimeAvail) { // not available now
 					} else {// blocked by PFC
@@ -792,7 +796,8 @@ namespace ns3 {
 		{													// for netdevice in host, has 8 virtual queues
 			int qIndex = m_rdmaEQ->GetNextQindex(m_paused); // the index of the qp (NOT queue or virtual queue) to send next
 			if (qIndex != int(QINDEX_OF_NONE_PACKET_IN_SERVER))
-			{ // exist packet to send
+			{
+				// exist packet to send
 				if (m_lbSolution == LB_Solution::LB_PLB)
 				{
 					PLB_LBSolution(qIndex);
@@ -801,15 +806,35 @@ namespace ns3 {
 				else
 				{
 					if (qIndex == QINDEX_OF_ACK_PACKET_IN_SERVER)
-					{																 // exist ack packets in the highest priority queue
+					{
+						// extract customheader
+						CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header |
+										CustomHeader::L4_Header);
+
+						// exist ack packets in the highest priority queue
 						p = m_rdmaEQ->DequeueQindex(QINDEX_OF_ACK_PACKET_IN_SERVER); // get the actual packet to send
+						p->PeekHeader(ch);
 						m_traceDequeue(p, 0);										 // trace the current packet
 						TransmitStart(p);											 // start the sending action
+
+						std::string stringhash = ipv4Address2string(Ipv4Address(ch.dip)) + "#" + ipv4Address2string(Ipv4Address(ch.sip)) + "#" + std::to_string(ch.ack.sport); // srcPort=dstPort
+
+						std::string flowId = stringhash;
+						RdmaHw::m_recordQpExec[flowId].sendAckInbyte += p->GetSize();
+						RdmaHw::m_recordQpExec[flowId].sendAckPacketNum++;
+
 						return;
 					}
 					// no ack packet in the highest priority queue, so to process the qIndex-th queue
 					Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex); // to dequeue a packet in a RR manner
 					p = m_rdmaEQ->DequeueQindex(qIndex);
+					CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header |
+									CustomHeader::L4_Header);
+					p->PeekHeader(ch);
+					std::string stringhash = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(ch.udp.sport);
+					std::string flowId = stringhash;
+					RdmaHw::m_recordQpExec[flowId].sendSizeInbyte += p->GetSize();
+					RdmaHw::m_recordQpExec[flowId].sendPacketNum++;
 					// transmit
 					m_traceQpDequeue(p, lastQp);
 					TransmitStart(p);
@@ -828,9 +853,20 @@ namespace ns3 {
 					t = Min(qp->m_nextAvail, t);
 					valid = true;
 				}
-				if (valid && m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime() && t > Simulator::Now())
+				// if (valid && m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime() && t > Simulator::Now())
+				// {
+				// 	m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
+				// }
+				if (valid && m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime())
 				{
-					m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
+					if (t > Simulator::Now())
+					{
+						m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
+					}
+					else
+					{
+						m_nextSend = Simulator::Schedule(MicroSeconds(5), &QbbNetDevice::DequeueAndTransmit, this);
+					}
 				}
 			}
 			return;

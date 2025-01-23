@@ -104,10 +104,10 @@ parser.add_argument("--simStartTimeInSec",
                     default="0",
                     help="simulation start time")
 parser.add_argument("--simEndTimeInSec",
-                    default="10",
+                    default="2",
                     help="simulation end time")
 parser.add_argument("--flowLunchEndTimeInSec",
-                    default="0.01",
+                    default="0.001",
                     help="flow end time")
 parser.add_argument("--qlenMonitorIntervalInNs",
                     default="10000000",
@@ -129,7 +129,7 @@ parser.add_argument(
     help="Physical Server 30 is DCTCP_CDF',29 is RPC_CDF,28 is VL2_CDF")
 parser.add_argument("--ccMode", default="Dcqcn_mlx",  help="congestion control algorithm")
 parser.add_argument("--screenDisplayInNs", default="10000000",  help="screen display interval in Ns")
-parser.add_argument("--enablePfcMonitor", default="true",  help="trace Pfc packets or not ")
+parser.add_argument("--enablePfcMonitor", default="false",  help="trace Pfc packets or not ")
 parser.add_argument("--enableFctMonitor", default="true",  help="trace Fct or not")
 parser.add_argument("--enableQlenMonitor", default="false",  help="trace queue length or not")
 parser.add_argument("--rdmaAppStartPort", default="1000",  help="minimal port for rdma client")
