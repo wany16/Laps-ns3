@@ -85,6 +85,7 @@ namespace ns3
 
         uint64_t lastpathload = 0;
         uint64_t pathload = 0;
+        Time nextAvailableTime = Seconds(0);
         Time tsGeneration=Seconds(0);
         Time tsProbeLastSend=Seconds(0);
         Time tsLatencyLastSend=Seconds(0);

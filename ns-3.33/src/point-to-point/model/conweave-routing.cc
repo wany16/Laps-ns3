@@ -27,7 +27,7 @@ namespace ns3
     NS_OBJECT_ENSURE_REGISTERED(ConWeaveRouting);
 
     RoutePath ConWeaveRouting::routePath;
-    std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, std::vector<uint64_t>>>> ConWeaveRouting::m_recordPath;
+    std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, uint64_t>>> ConWeaveRouting::m_recordPath;
     ConWeaveDataTag::ConWeaveDataTag() : Tag() {}
     TypeId ConWeaveDataTag::GetTypeId(void)
     {
@@ -1472,10 +1472,13 @@ namespace ns3
             for (uint32_t path : paths)
             {
                 PathData *pathinfo = routePath.lookup_PIT(path);
-                
+                if (pathinfo->pathload == 0)
+                {
+                    continue;
+                }
                 uint64_t pathloadgap = pathinfo->pathload - pathinfo->lastpathload;
                 pathinfo->lastpathload = pathinfo->pathload;
-                m_recordPath[key][m_recordTime.GetMilliSeconds() ][path].push_back(pathloadgap);
+                m_recordPath[key][m_recordTime.GetMilliSeconds() * recordNum][path] = pathloadgap;
             }
         }
         recordNum++;

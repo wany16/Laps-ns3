@@ -121,11 +121,11 @@ namespace ns3 {
 			bool isDataLeft = qp->GetBytesLeft() > 0 ? true : false;
 			bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
 			int32_t flowid = qp->m_flow_id;
-			if (Simulator::Now() >= Seconds(0.9))
-			{
-				std::cout << qp->GetStringHashValueFromQp() << " curtime " << Simulator::Now().GetNanoSeconds() << std::endl;
-				std::cout << " FLOWId " << flowid << " SIZE " << qp->m_size << " una " << qp->snd_una << " Pfc " << isPfcAllowed << " Win " << isWinAllowed << " irn " << isIrnAllowed << " Data " << isDataLeft << " isTime " << isTimeAvail << std::endl;
-			}
+			//  if (Simulator::Now() >= Seconds(0.9))
+			// {
+			// 	std::cout << qp->GetStringHashValueFromQp() << " curtime " << Simulator::Now().GetNanoSeconds() << std::endl;
+			// 	std::cout << " FLOWId " << flowid << " SIZE " << qp->m_size << " una " << qp->snd_una << " Pfc " << isPfcAllowed << " Win " << isWinAllowed << " irn " << isIrnAllowed << " Data " << isDataLeft << " isTime " << isTimeAvail << std::endl;
+			// }
 			if (!isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed) {
 					if (!isTimeAvail) { // not available now
 					} else {// blocked by PFC
@@ -159,21 +159,24 @@ namespace ns3 {
 			Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
 			if (qp->IsFinishedConst()) m_qpGrp->SetQpFinished(idx);
       if (m_qpGrp->IsQpFinished(idx)) continue;
-			qp->CheckAndUpdateQpStateForLaps();
-			bool isPfcAllowed = !paused[qp->m_pg];
-			bool isWinAllowed = !qp->IsWinBoundForLaps();
-			bool isIrnAllowed = qp->CanIrnTransmitForLaps(mtuInByte);
-			bool isDataLeft = qp->GetBytesLeftForLaps() > 0 ? true : false;
-			bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
-			int32_t flowid = qp->m_flow_id;
+	  if (!qp->m_cb_isPathsValid(qp->m_flow_id))
+		  continue;
+	  qp->CheckAndUpdateQpStateForLaps();
+	  bool isPfcAllowed = !paused[qp->m_pg];
+	  bool isWinAllowed = !qp->IsWinBoundForLaps();
+	  bool isIrnAllowed = qp->CanIrnTransmitForLaps(mtuInByte);
+	  bool isDataLeft = qp->GetBytesLeftForLaps() > 0 ? true : false;
+	  bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
+	  int32_t flowid = qp->m_flow_id;
 
-			if (!isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed)
-			{
-				if(isTimeAvail)
-				{// blocked by PFC
-					if (!MAP_KEY_EXISTS(m_startPauseTime, flowid)) m_startPauseTime[flowid] = Simulator::Now();
-				}
-			}
+	  if (!isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed)
+	  {
+		  if (isTimeAvail)
+		  { // blocked by PFC
+			  if (!MAP_KEY_EXISTS(m_startPauseTime, flowid))
+				  m_startPauseTime[flowid] = Simulator::Now();
+		  }
+	  }
 			else if (isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed)
 			{
 				if (!isTimeAvail)  continue; // not available now
@@ -512,8 +515,8 @@ namespace ns3 {
 			hdr_size = ch.GetSerializedSize();
 			payloadSize = m_currentPkt->GetSize()-hdr_size;
 			NS_LOG_INFO("PktId: " << pktId  << " Type: DATA, Size: " << payloadSize <<	" Pid: " << pid);
-      // entry->lastQp->m_irn.m_sack.appendOutstandingData(pid, ch.udp.seq, payloadSize); /////////////////////////////
-			std::cout << "PktId: " << pktId << " Type: DATA, Size: " << payloadSize << " Pid: " << pid << std::endl;
+			// entry->lastQp->m_irn.m_sack.appendOutstandingData(pid, ch.udp.seq, payloadSize); /////////////////////////////
+			// std::cout << "PktId: " << pktId << " Type: DATA, Size: " << payloadSize << " Pid: " << pid << std::endl;
 			auto e = OutStandingDataEntry(entry->lastQp->m_flow_id, ch.udp.seq, payloadSize);
 
 			m_rdmaOutStanding_cb(pid, e);
@@ -570,6 +573,13 @@ namespace ns3 {
 		{
 			Ptr<RdmaQueuePair> qp = m_rdmaEQ->GetQp(i);
 			if (qp->GetBytesLeftForLaps() == 0)	continue;
+			Time t1 = qp->m_cb_getNxtAvailTimeForQp(qp->m_flow_id);
+			qp->m_nextAvail = std::max(qp->m_nextAvail, t1);
+			// bool ispathavail = qp->m_cb_isPathsValid(qp->m_flow_id);
+			// if (!ispathavail)
+			// {
+			// 	qp->m_nextAvail = qp->m_nextAvail + NanoSeconds(5000);
+			// }
 			t = Min(qp->m_nextAvail, t);
 			valid = true;
 		}
@@ -578,9 +588,7 @@ namespace ns3 {
 		{
 			m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
 		}
-
 	}
-
 
 	Ptr<E2ESrcOutPackets> QbbNetDevice::GetTransmitQpContentOnSrcHostForLaps(int32_t qpFlowIndex)
 	{
@@ -598,7 +606,7 @@ namespace ns3 {
 		{
 			entry->isData = true;
 			entry->lastQp = m_rdmaEQ->GetQp(qpFlowIndex);
-			entry->dataPacket = m_rdmaEQ->DequeueQindex(qpFlowIndex); 
+			entry->dataPacket = m_rdmaEQ->DequeueQindex(qpFlowIndex);
 			m_traceQpDequeue(entry->dataPacket, entry->lastQp);
 		}
 		else
@@ -607,7 +615,6 @@ namespace ns3 {
 		}
 		return entry;
 	}
-
 
 	void QbbNetDevice::AddPathTagOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry)
 	{
@@ -628,18 +635,17 @@ namespace ns3 {
 		{
 			NS_ASSERT_MSG(false, "Invalid entry");
 		}
-
 	}
 
 	void QbbNetDevice::UpdatePathTagOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry)
 	{
 
 		NS_LOG_FUNCTION(this);
-    // NS_LOG_INFO("#Node: " << m_node->GetId() << ", Time: " << Simulator::Now().GetNanoSeconds() <<	" ns, Action: Update PathTag on Src Host for LAPS");
+		// NS_LOG_INFO("#Node: " << m_node->GetId() << ", Time: " << Simulator::Now().GetNanoSeconds() <<	" ns, Action: Update PathTag on Src Host for LAPS");
 		NS_ASSERT_MSG(entry && (entry->isData ^ entry->isAck), "dataPacket or ackPacket, not both");
 
 		Ptr<RdmaSmartFlowRouting> m_routing = m_rdmaGetE2ELapsLBouting();
-    Ipv4SmartFlowPathTag pathTag;
+		Ipv4SmartFlowPathTag pathTag;
 
 		if (entry->isData)
 		{
@@ -653,7 +659,7 @@ namespace ns3 {
 			// NS_LOG_INFO("Type: ACK, PktId: "<< entry->ackPacket->GetUid() << ", Size: " << entry->ackPacket->GetSize());
 			bool ishaveAckTag = m_routing->exist_path_tag(entry->ackPacket, pathTag);
 			NS_ASSERT_MSG(ishaveAckTag, "PathTag does not exist on ACK packet");
-			m_routing->update_path_tag(entry->ackPacket, pathTag);	
+			m_routing->update_path_tag(entry->ackPacket, pathTag);
 		}
 		else
 		{
@@ -667,7 +673,6 @@ namespace ns3 {
 			NS_ASSERT_MSG(IsHaveProbeTag, "PathTag does not exist on Probe packet");
 			m_routing->update_path_tag(entry->probePacket, pathTag);
 		}
-
 	}
 	bool QbbNetDevice::PLB_LBSolution(int qIndex)
 	{
@@ -685,9 +690,13 @@ namespace ns3 {
 			{
 				NS_LOG_INFO("QbbNetDevice::ApplyLoadBalancingSolution Extracted CustomHeader:");
 			}
-			std::string stringhash = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(ch.l3Prot); // srcPort=dstPort
+			std::string stringhash = ipv4Address2string(Ipv4Address(ch.dip)) + "#" + ipv4Address2string(Ipv4Address(ch.sip)) + "#" + std::to_string(ch.ack.sport); // srcPort=dstPort
 			NS_LOG_INFO("stringhash is " << stringhash);
 			uint32_t randNum = m_plbTableDataCb(stringhash);
+			std::string flowId = stringhash;
+			RdmaHw::m_recordQpExec[flowId].sendAckInbyte += p->GetSize();
+			RdmaHw::m_recordQpExec[flowId].sendAckPacketNum++;
+
 			plbtag.SetRandomNum(randNum);
 			p->AddPacketTag(plbtag);
 			m_traceDequeue(p, 0);
@@ -695,13 +704,18 @@ namespace ns3 {
 			Isack = true;
 			return Isack;
 		}
+
 		Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex);
 		p = m_rdmaEQ->DequeueQindex(qIndex);
+
 		if (p->PeekHeader(ch) > 0)
 		{
 			NS_LOG_INFO("QbbNetDevice::ApplyLoadBalancingSolution Extracted CustomHeader:");
 		}
-		std::string stringhash = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(ch.l3Prot);
+		std::string stringhash = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(ch.udp.sport);
+		std::string flowId = stringhash;
+		RdmaHw::m_recordQpExec[flowId].sendSizeInbyte += p->GetSize();
+		RdmaHw::m_recordQpExec[flowId].sendPacketNum++;
 		NS_LOG_INFO("stringhash is " << stringhash);
 		uint32_t randNum = m_plbTableDataCb(stringhash);
 		plbtag.SetRandomNum(randNum);
@@ -988,6 +1002,7 @@ namespace ns3 {
 	}
 
 	uint32_t QbbNetDevice::SendPfc(uint32_t qIndex, uint32_t type){
+		// std::cout << "pfc enable" << m_qbbEnabled;
 		if (!m_qbbEnabled) return 0;
 		Ptr<Packet> p = Create<Packet>(0);
 		Ptr<UniformRandomVariable> x = CreateObject<UniformRandomVariable> ();
@@ -995,8 +1010,10 @@ namespace ns3 {
 		if (type == PfcPktType::PAUSE)
 		{
 			NS_LOG_INFO("TimeInNs: " << Simulator::Now().GetNanoSeconds() << " Node: " << m_node->GetId() << " Nic: " << m_ifIndex << " Qindex: " << qIndex << " Send PAUSE");
+			// std::cout << "TimeInNs: " << Simulator::Now().GetNanoSeconds() << " Node: " << m_node->GetId() << " Nic: " << m_ifIndex << " Qindex: " << qIndex << " Send PAUSE" << std::endl;
 		}else{
 			NS_LOG_INFO("TimeInNs: " << Simulator::Now().GetNanoSeconds() << " Node: " << m_node->GetId() << " Nic: " << m_ifIndex << " Qindex: " << qIndex << " ");
+			// std::cout << "TimeInNs: " << Simulator::Now().GetNanoSeconds() << " Node: " << m_node->GetId() << " Nic: " << m_ifIndex << " Qindex: " << qIndex << " " << std::endl;
 		}
 		
 

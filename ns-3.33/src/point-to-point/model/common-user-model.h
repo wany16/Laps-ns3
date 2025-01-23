@@ -436,6 +436,20 @@ namespace ns3
 #define PLB_REHASH_ROUNDS 12
 #define PLB_SUSPEND_RTO_SEC 60
 
+    struct QpRecordEntry
+    {
+        std::string flowId;
+        uint32_t sendSizeInbyte = 0;
+        uint32_t receSizeInbyte = 0;
+        uint32_t sendAckInbyte = 0;
+        uint32_t receAckInbyte = 0;
+        uint32_t sendPacketNum = 0;
+        uint32_t recePacketNum = 0;
+        uint32_t sendAckPacketNum = 0;
+        uint32_t receAckPacketNum = 0;
+        uint32_t flowsize;
+    };
+
     struct PlbEntry
     {
         uint32_t congested_rounds;

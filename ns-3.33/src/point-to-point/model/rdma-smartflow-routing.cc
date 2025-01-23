@@ -29,7 +29,7 @@ namespace ns3
     // 在类外部初始化静态成员变量
     std::vector<probeInfoEntry> RdmaSmartFlowRouting::m_prbInfoTable(0);
     std::map<std::string, reorder_entry_t> RdmaSmartFlowRouting::m_reorderTable;
-    double RdmaSmartFlowRouting::laps_alpha = 4;
+    double RdmaSmartFlowRouting::laps_alpha = 1;
     std::uniform_real_distribution<double> RdmaSmartFlowRouting::rndGen(0.0, 1.0);
     std::default_random_engine RdmaSmartFlowRouting::generator(std::random_device{}());
     std::map<uint32_t,uint32_t> RdmaSmartFlowRouting::pathPair;
@@ -1767,13 +1767,41 @@ std::vector<double> RdmaSmartFlowRouting::CalPathWeightBasedOnDelay(const std::v
     NS_LOG_INFO("The targetDelay is " << maxBastDelay << " ns");
     std::vector<double> weights(paths.size());
     double sum_weights = 0.0;
+    bool is9604 = false;
+    Time t = Simulator::Now();
     for (size_t i = 0; i < weights.size(); i++)
     {
+        if (paths[i]->nextAvailableTime < t)
+        {
+            // paths[i]->latency = paths[i]->theoreticalSmallestLatencyInNs;
+            // paths[i]->nextAvailableTime = t + paths[i]->theoreticalSmallestLatency;
+            weights[i] = 0.0;
+        }
+
+        // if (paths[i]->latency > paths[i]->theoreticalSmallestLatencyInNs)
+        // {
+        //     weights[i] = 0.0;
+        // }
+        else
+        {
+            double ratio = -1.0 * paths[i]->latency / maxBastDelay * laps_alpha;
+            weights[i] = std::exp(ratio);
+            sum_weights += weights[i];
+        }
         double ratio = -1.0 * paths[i]->latency/maxBastDelay  * laps_alpha;
         weights[i] = std::exp(ratio);
         sum_weights += weights[i];
+        if (paths[i]->pid == 9604)
+        {
+            is9604 = true;
+        }
     }
-    NS_ASSERT_MSG(sum_weights > 0.0, "The sum_weights is zero");
+    NS_ASSERT_MSG(sum_weights >= 0.0, "The sum_weights is zero");
+    if (sum_weights == 0.0)
+    {
+        return weights;
+    }
+
     for (size_t i = 0; i < weights.size(); i++)
     {
         weights[i] /= sum_weights;
@@ -1782,6 +1810,15 @@ std::vector<double> RdmaSmartFlowRouting::CalPathWeightBasedOnDelay(const std::v
                     "Mininal Delay: " << paths[i]->theoreticalSmallestLatencyInNs << ", " <<
                     "Weight: " << weights[i]
                    );
+        if (is9604)
+        {
+            // std::cout << "Path: " << paths[i]->pid << ", " <<
+            //                 "Realtime Delay: " << paths[i]->latency << ", " <<
+            //                 "Mininal Delay: " << paths[i]->theoreticalSmallestLatencyInNs << ", " <<
+            //                 "Now: " << t.GetNanoSeconds() << ", " <<
+            //                 "nextAvailableTime: " << paths[i]->nextAvailableTime.GetNanoSeconds() << ", " <<
+            //                 "Weight: " << weights[i] << std::endl;
+        }
     }
 
     return weights;
@@ -1792,6 +1829,17 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
     const double random_value = rndGen(generator);
     NS_ASSERT_MSG(random_value >= 0.0 && random_value <= 1.0, "Wrong random value");
     NS_ASSERT_MSG(weights.size() > 0, "The weights is empty");
+
+    double sum_weights = 0.0;
+    for (size_t i = 0; i < weights.size(); i++)
+    {
+        sum_weights += weights[i];
+    }
+    if (sum_weights == 0.0)
+    {
+        return std::rand() % weights.size();
+    }
+
     double cumulative_weight = 0.0;
     for (size_t i = 0; i < weights.size(); ++i) 
     {

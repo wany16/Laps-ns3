@@ -196,313 +196,323 @@ std::string RdmaQueuePair::GetStringHashValueFromQp()
 	return stringhash;
 }
 
-	void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish)
+void RdmaQueuePair::SetAppNotifyCallback(Callback<void> notifyAppFinish)
+{
+	m_notifyAppFinish = notifyAppFinish;
+}
+
+uint64_t RdmaQueuePair::GetBytesLeft()
+{
+	NS_LOG_FUNCTION(this << "m_flow_id" << m_flow_id);
+
+	if (Irn::mode == Irn::Mode::IRN_OPT)
 	{
-		m_notifyAppFinish = notifyAppFinish;
+		uint32_t sack_seq, sack_sz;
+		if (m_irn.m_sack.peekFrontBlock(&sack_seq, &sack_sz))
+		{
+			if (snd_nxt == sack_seq)
+			{
+				snd_nxt += sack_sz;
+			}
+		}
 	}
-
-	uint64_t RdmaQueuePair::GetBytesLeft()
+	else if (Irn::mode == Irn::Mode::IRN)
 	{
-		NS_LOG_FUNCTION(this << "m_flow_id" << m_flow_id);
+		uint32_t sack_seq, sack_sz;
+		if (m_irn.m_sack.peekFrontBlock(&sack_seq, &sack_sz))
+		{
+			if (snd_nxt == sack_seq)
+			{
+				snd_nxt += sack_sz;
+				m_irn.m_sack.discardUpTo(snd_nxt);
+			}
+		}
+	}
+	else if (Irn::mode == Irn::Mode::NACK)
+	{
+		return GetBytesLeftForLaps();
+	}
+	else if (Irn::mode == Irn::Mode::GBN)
+	{
+		return m_size >= snd_nxt ? m_size - snd_nxt : 0;
+	}
+	NS_LOG_ERROR("IRN::mode error:GetBytesLeft()");
+	exit(1);
+}
 
-		if (Irn::mode == Irn::Mode::IRN_OPT)
+uint64_t RdmaQueuePair::GetBytesLeftForLaps()
+{
+	NS_LOG_FUNCTION(this);
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called Only When Laps is enabled");
+	if (Irn::mode == Irn::IRN_OPT)
+	{
+		uint32_t sack_seq, sack_sz;
+		if (m_irn.m_sack.peekFrontBlock(&sack_seq, &sack_sz))
 		{
-			uint32_t sack_seq, sack_sz;
-			if (m_irn.m_sack.peekFrontBlock(&sack_seq, &sack_sz)) 
+			if (snd_nxt == sack_seq)
 			{
-				if (snd_nxt == sack_seq) 
-				{
-					snd_nxt += sack_sz;
-				}
+				snd_nxt += sack_sz;
 			}
 		}
-		else if (Irn::mode == Irn::Mode::IRN)
-		{
-			uint32_t sack_seq, sack_sz;
-			if (m_irn.m_sack.peekFrontBlock(&sack_seq, &sack_sz)) 
-			{
-				if (snd_nxt == sack_seq) 
-				{
-					snd_nxt += sack_sz;
-					m_irn.m_sack.discardUpTo(snd_nxt);
-				}
-			}
-		}
-		else if (Irn::mode == Irn::Mode::NACK)
-		{
-			return GetBytesLeftForLaps();
-		}
-		else if (Irn::mode == Irn::Mode::GBN)
-		{
-			return m_size >= snd_nxt ? m_size - snd_nxt : 0;
-		}
-		NS_LOG_ERROR("IRN::mode error:GetBytesLeft()");
+		return m_size >= snd_nxt ? m_size - snd_nxt : 0;
+	}
+	else if (Irn::mode == Irn::NACK)
+	{
+		size_t undSize = m_size >= snd_nxt ? m_size - snd_nxt : 0;
+		size_t lossySize = m_irn.m_sack.getLossyDataSize();
+		return undSize + lossySize;
+	}
+	else
+	{
+		NS_ASSERT_MSG(false, "Unknown mode");
 		exit(1);
-		}
+	}
+}
 
-	uint64_t RdmaQueuePair::GetBytesLeftForLaps()
+uint32_t RdmaQueuePair::GetHash(void)
+{
+	union
 	{
-		NS_LOG_FUNCTION(this);
-    NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called Only When Laps is enabled");
-		if (Irn::mode == Irn::IRN_OPT)
+		struct
 		{
-			uint32_t sack_seq, sack_sz;
-			if (m_irn.m_sack.peekFrontBlock(&sack_seq, &sack_sz)) {
-				if (snd_nxt == sack_seq) {
-					snd_nxt += sack_sz;
-				}
-			}
-			return m_size >= snd_nxt ? m_size - snd_nxt : 0;
-		}
-		else if (Irn::mode == Irn::NACK)
+			uint32_t sip, dip;
+			uint16_t sport, dport;
+		};
+		char c[12];
+	} buf;
+	buf.sip = sip.Get();
+	buf.dip = dip.Get();
+	buf.sport = sport;
+	buf.dport = dport;
+	return Hash32(buf.c, 12);
+}
+
+void RdmaQueuePair::ResumeQueue()
+{
+	NS_LOG_FUNCTION(this);
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT, "Called Only When TrnOptimized is enabled");
+	// std::cout << "Time " << Simulator::Now().GetNanoSeconds() << " " << m_node_id << " Should exits recovery mode\n";
+	m_irn.m_recovery = false;
+	m_irn.m_last_recovery_time_in_ns = Simulator::Now().GetNanoSeconds();
+	if (snd_una < m_irn.m_recovery_seq)
+	{
+		m_irn.m_dupAckCnt = 0;
+	}
+	snd_nxt = m_irn.m_max_next_seq > snd_nxt ? m_irn.m_max_next_seq : snd_nxt;
+	return;
+}
+
+void RdmaQueuePair::RecoverQueue()
+{
+	if (Irn::mode == Irn::Mode::IRN_OPT)
+	{
+		m_irn.m_recovery = true;
+		m_irn.m_dupAckCnt = 0;
+		m_irn.m_max_next_seq = snd_nxt;
+		snd_nxt = snd_una;
+		uint32_t firstSackSeq, firstSackLen;
+		if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
 		{
-			size_t undSize = m_size >= snd_nxt ? m_size - snd_nxt : 0;
-			return undSize;
+			m_irn.m_recovery_seq = firstSackSeq;
 		}
 		else
 		{
-			NS_ASSERT_MSG(false, "Unknown mode");
-			exit(1);
-		}
-	}
-
-
-	uint32_t RdmaQueuePair::GetHash(void)
-	{
-		union
-		{
-			struct
-			{
-				uint32_t sip, dip;
-				uint16_t sport, dport;
-			};
-			char c[12];
-		} buf;
-		buf.sip = sip.Get();
-		buf.dip = dip.Get();
-		buf.sport = sport;
-		buf.dport = dport;
-		return Hash32(buf.c, 12);
-	}
-
-	void RdmaQueuePair::ResumeQueue()
-	{
-		NS_LOG_FUNCTION(this);
-		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT, "Called Only When TrnOptimized is enabled");
-		// std::cout << "Time " << Simulator::Now().GetNanoSeconds() << " " << m_node_id << " Should exits recovery mode\n";
-		m_irn.m_recovery = false;
-		m_irn.m_last_recovery_time_in_ns = Simulator::Now().GetNanoSeconds();
-		if (snd_una < m_irn.m_recovery_seq)
-		{
-			m_irn.m_dupAckCnt = 0;
-		}
-		snd_nxt = m_irn.m_max_next_seq > snd_nxt ? m_irn.m_max_next_seq : snd_nxt;
-		return ;
-	}
-
-	void RdmaQueuePair::RecoverQueue()
-	{
-		if (Irn::mode == Irn::Mode::IRN_OPT)
-		{
-			m_irn.m_recovery = true;
-			m_irn.m_dupAckCnt = 0;
-			m_irn.m_max_next_seq = snd_nxt;
-			snd_nxt = snd_una;
-			uint32_t firstSackSeq, firstSackLen;
-			if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
-			{
-				m_irn.m_recovery_seq = firstSackSeq;
-			}
-			else
-			{
-				m_irn.m_recovery_seq = m_irn.m_max_next_seq;
-			}
-		}
-		else{
-			std::cout << "ERROR: RdmaQueuePair::RecoverQueue() is not implemented\n";
-		}
-			return ;
-	}
-
-	void RdmaQueuePair::RecoverQueueLaps()
-	{
-		NS_LOG_FUNCTION(this);
-		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT, "Called Only When TrnOptimized is enabled");
-		// std::cout << "Time " << Simulator::Now().GetNanoSeconds() << " " << m_node_id << " enters recovery mode, ";
-		// std::cout << "snd_nxt: " << snd_nxt << ", snd_una: " << snd_una << ", ";
-			m_irn.m_recovery = true;
-			m_irn.m_dupAckCnt = 0;
-			m_irn.m_max_next_seq = m_irn.m_max_next_seq < snd_nxt ? snd_nxt : m_irn.m_max_next_seq;
-			snd_nxt = snd_una;
-			uint32_t firstSackSeq, firstSackLen;
-			if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
-			{
-				m_irn.m_recovery_seq = firstSackSeq;
-				// std::cout << "Recovery seq: " << m_irn.m_recovery_seq << std::endl;
-			}
-			else
-			{
-				NS_ASSERT_MSG(false, m_node_id << " has No SACK block to recover");
-				exit(1);
-			}
-	}
-
-
-	void RdmaQueuePair::RecoverQueueUponTimeout()
-	{
-		if (Irn::mode == Irn::Mode::IRN_OPT)
-		{
-			m_irn.m_recovery = true;
-			m_irn.m_dupAckCnt = 0;
-			m_irn.m_max_next_seq = m_irn.m_max_next_seq < snd_nxt ? snd_nxt : m_irn.m_max_next_seq;
-			snd_nxt = snd_una;
 			m_irn.m_recovery_seq = m_irn.m_max_next_seq;
 		}
-		else{
-			std::cerr << "ERROR: RdmaQueuePair::RecoverQueueUponTimeout() is not implemented\n";
-		}
 	}
-
-	void RdmaQueuePair::Acknowledge(uint64_t ack)
+	else
 	{
+		std::cout << "ERROR: RdmaQueuePair::RecoverQueue() is not implemented\n";
+	}
+	return;
+}
 
-		if (Irn::mode == Irn::Mode::IRN_OPT)
-		{
-			if (ack > snd_una)
-			{
-				snd_una = ack;
-				m_irn.m_dupAckCnt = 0;
-			}
-			else if (ack == snd_una)
-			{
-					m_irn.m_dupAckCnt += 1;
-			}
-			uint32_t firstSackSeq, firstSackLen;
-			if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
-			{
-				if (snd_una == firstSackSeq && firstSackLen!=0)
-					{
-						snd_una += firstSackLen;
-						m_irn.m_dupAckCnt = 0;	
-					}
-			}
-			m_irn.m_sack.discardUpTo(snd_una);
-			m_irn.m_highest_ack = snd_una > m_irn.m_highest_ack ? snd_una : m_irn.m_highest_ack;
-			if (snd_una > snd_nxt) { snd_nxt = snd_una;	}
+void RdmaQueuePair::RecoverQueueLaps()
+{
+	NS_LOG_FUNCTION(this);
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT, "Called Only When TrnOptimized is enabled");
+	// std::cout << "Time " << Simulator::Now().GetNanoSeconds() << " " << m_node_id << " enters recovery mode, ";
+	// std::cout << "snd_nxt: " << snd_nxt << ", snd_una: " << snd_una << ", ";
+	m_irn.m_recovery = true;
+	m_irn.m_dupAckCnt = 0;
+	m_irn.m_max_next_seq = m_irn.m_max_next_seq < snd_nxt ? snd_nxt : m_irn.m_max_next_seq;
+	snd_nxt = snd_una;
+	uint32_t firstSackSeq, firstSackLen;
+	if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
+	{
+		m_irn.m_recovery_seq = firstSackSeq;
+		// std::cout << "Recovery seq: " << m_irn.m_recovery_seq << std::endl;
+	}
+	else
+	{
+		NS_ASSERT_MSG(false, m_node_id << " has No SACK block to recover");
+		exit(1);
+	}
+}
 
-			if (m_irn.m_recovery)
-			{
-				if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
-				{
-					if (snd_nxt == firstSackSeq)
-						{
-							snd_nxt += firstSackLen;
-						}
-				}
-				if(snd_nxt >= m_irn.m_recovery_seq)
-				{
-					ResumeQueue();
-				}
-			}else
-			{
-				if (m_irn.m_dupAckCnt >= Irn::reTxThresholdNPackets)
-				{
-					if ((m_irn.m_recovery_seq > snd_una)&&(Simulator::Now().GetNanoSeconds() - m_irn.m_last_recovery_time_in_ns < m_baseRtt))
-					{
-					}
-					else
-					{
-						RecoverQueue();
-					}
-				}
-			}
-			return ;
-		}
-		else if (ack > snd_una)
+void RdmaQueuePair::RecoverQueueUponTimeout()
+{
+	if (Irn::mode == Irn::Mode::IRN_OPT)
+	{
+		m_irn.m_recovery = true;
+		m_irn.m_dupAckCnt = 0;
+		m_irn.m_max_next_seq = m_irn.m_max_next_seq < snd_nxt ? snd_nxt : m_irn.m_max_next_seq;
+		snd_nxt = snd_una;
+		m_irn.m_recovery_seq = m_irn.m_max_next_seq;
+	}
+	else
+	{
+		std::cerr << "ERROR: RdmaQueuePair::RecoverQueueUponTimeout() is not implemented\n";
+	}
+}
+
+void RdmaQueuePair::Acknowledge(uint64_t ack)
+{
+
+	if (Irn::mode == Irn::Mode::IRN_OPT)
+	{
+		if (ack > snd_una)
 		{
 			snd_una = ack;
+			m_irn.m_dupAckCnt = 0;
 		}
-
-	}
-
-	bool IrnSackManager::checkNackedBlockAndUpdateSndNxt(uint64_t &snd_nxt){
-		NS_LOG_FUNCTION(this << "snd_nxt" << snd_nxt);
-    // query if block exists inside SACK table
-    NS_LOG_INFO ("ExistingBlocks=" << *this);
-    auto it = m_data.begin();
-    for (; it != m_data.end(); ++it) {
-        NS_LOG_INFO ("curBlock=[" << it->first << ", " << it->first + it->second << ")");
-				NS_ASSERT_MSG(it->second != 0, "Block size should be positive");
-        if (it->first <= snd_nxt && snd_nxt <= it->first + it->second) {
-						snd_nxt = it->first + it->second;
-            return true;
-        }     
-    }
-    return false;
-	}
-
-	bool IrnSackManager::checkFirstNackedBlockAndUpdateSndUna(uint64_t &snd_una){
-		NS_LOG_FUNCTION(this << "snd_una" << snd_una);
+		else if (ack == snd_una)
+		{
+			m_irn.m_dupAckCnt += 1;
+		}
 		uint32_t firstSackSeq, firstSackLen;
-		if (peekFrontBlock(&firstSackSeq, &firstSackLen))
+		if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
 		{
 			if (snd_una == firstSackSeq && firstSackLen != 0)
+			{
+				snd_una += firstSackLen;
+				m_irn.m_dupAckCnt = 0;
+			}
+		}
+		m_irn.m_sack.discardUpTo(snd_una);
+		m_irn.m_highest_ack = snd_una > m_irn.m_highest_ack ? snd_una : m_irn.m_highest_ack;
+		if (snd_una > snd_nxt)
+		{
+			snd_nxt = snd_una;
+		}
+
+		if (m_irn.m_recovery)
+		{
+			if (m_irn.m_sack.peekFrontBlock(&firstSackSeq, &firstSackLen))
+			{
+				if (snd_nxt == firstSackSeq)
 				{
-					snd_una += firstSackLen;
-					NS_LOG_INFO ("Sender advances snd_una from " << snd_una-firstSackLen << " to " << snd_una);
-					return true;
+					snd_nxt += firstSackLen;
 				}
+			}
+			if (snd_nxt >= m_irn.m_recovery_seq)
+			{
+				ResumeQueue();
+			}
 		}
+		else
+		{
+			if (m_irn.m_dupAckCnt >= Irn::reTxThresholdNPackets)
+			{
+				if ((m_irn.m_recovery_seq > snd_una) && (Simulator::Now().GetNanoSeconds() - m_irn.m_last_recovery_time_in_ns < m_baseRtt))
+				{
+				}
+				else
+				{
+					RecoverQueue();
+				}
+			}
+		}
+		return;
+	}
+	else if (ack > snd_una)
+	{
+		snd_una = ack;
+	}
+}
+
+bool IrnSackManager::checkNackedBlockAndUpdateSndNxt(uint64_t &snd_nxt)
+{
+	NS_LOG_FUNCTION(this << "snd_nxt" << snd_nxt);
+	// query if block exists inside SACK table
+	NS_LOG_INFO("ExistingBlocks=" << *this);
+	auto it = m_data.begin();
+	for (; it != m_data.end(); ++it)
+	{
+		NS_LOG_INFO("curBlock=[" << it->first << ", " << it->first + it->second << ")");
+		NS_ASSERT_MSG(it->second != 0, "Block size should be positive");
+		if (it->first <= snd_nxt && snd_nxt <= it->first + it->second)
+		{
+			snd_nxt = it->first + it->second;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool IrnSackManager::checkFirstNackedBlockAndUpdateSndUna(uint64_t &snd_una)
+{
+	NS_LOG_FUNCTION(this << "snd_una" << snd_una);
+	uint32_t firstSackSeq, firstSackLen;
+	if (peekFrontBlock(&firstSackSeq, &firstSackLen))
+	{
+		if (snd_una == firstSackSeq && firstSackLen != 0)
+		{
+			snd_una += firstSackLen;
+			NS_LOG_INFO("Sender advances snd_una from " << snd_una - firstSackLen << " to " << snd_una);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool IrnSackManager::checkOutstandingDataAndUpdateLossyData(uint32_t pid, uint32_t seq)
+{
+	NS_LOG_FUNCTION(this);
+	NS_LOG_INFO("AckTag with pid=" << pid << ", seq=" << seq);
+	NS_LOG_INFO("ExistingOutstandingData: ");
+	for (auto it = m_outstanding_data.begin(); it != m_outstanding_data.end(); ++it)
+	{
+		NS_LOG_INFO("pid=" << it->first << ", seq= " << ListToString(it->second));
+	}
+
+	std::cout << "Time " << Simulator::Now().GetNanoSeconds() << ", Acknowledge the data with flowID=" << socketId << ", pid=" << pid << " and seq=" << seq << std::endl;
+	auto it = m_outstanding_data.find(pid);
+	if (it == m_outstanding_data.end())
+	{
+		NS_ASSERT_MSG(false, "Invalid pid");
 		return false;
-
 	}
-
-	bool IrnSackManager::checkOutstandingDataAndUpdateLossyData(uint32_t pid, uint32_t seq){
-		NS_LOG_FUNCTION(this);
-		NS_LOG_INFO("AckTag with pid=" << pid << ", seq=" << seq);
-		NS_LOG_INFO ("ExistingOutstandingData: ");
-		for (auto it = m_outstanding_data.begin(); it != m_outstanding_data.end(); ++it)
+	std::cout << "FlowID=" << socketId << ", PathID=" << it->first << ", Original OutStandingSeqs= " << ListToString(it->second) << std::endl;
+	NS_ASSERT_MSG(it->second.size() > 0, "Invalid outstanding data");
+	bool valid = false;
+	bool lossy = false;
+	auto it2 = it->second.begin();
+	while (it2 != it->second.end())
+	{
+		if (it2->first != seq)
 		{
-			NS_LOG_INFO ("pid=" << it->first << ", seq= " << ListToString(it->second));
+			m_lossy_data.emplace_back(it2->first, it2->second);
+			NS_LOG_INFO("LossyData: pid=" << pid << ", seq=[" << it2->first << ", " << it2->second << ")");
+			it2 = it->second.erase(it2);
+			lossy = true;
 		}
-
-		std::cout << "Time " << Simulator::Now().GetNanoSeconds() << ", Acknowledge the data with flowID=" << socketId << ", pid=" << pid << " and seq=" << seq << std::endl;
-		auto it = m_outstanding_data.find(pid);
-		if (it == m_outstanding_data.end())
+		else
 		{
-			NS_ASSERT_MSG(false, "Invalid pid");
-			return false;
+			it2 = it->second.erase(it2);
+			valid = true;
+			break;
 		}
-		std::cout << "FlowID=" << socketId << ", PathID=" << it->first << ", Original OutStandingSeqs= " << ListToString(it->second) << std::endl;
-		NS_ASSERT_MSG(it->second.size() > 0, "Invalid outstanding data");
-		bool valid = false;
-		bool lossy = false;
-		auto it2 = it->second.begin();
-		while (it2 != it->second.end())
-		{
-			if (it2->first != seq)
-			{
-				m_lossy_data.emplace_back(it2->first, it2->second);
-				NS_LOG_INFO ("LossyData: pid=" << pid << ", seq=[" << it2->first << ", " << it2->second << ")");
-				it2 = it->second.erase(it2);
-				lossy = true;
-			}
-			else
-			{
-				it2 = it->second.erase(it2);
-				valid = true;
-				break;
-			}
-		}
-		NS_LOG_INFO ("FinalOutstandingData: ");
-		for (auto it = m_outstanding_data.begin(); it != m_outstanding_data.end(); ++it)
-		{
-			NS_LOG_INFO ("pid=" << it->first << ", seq= " << ListToString(it->second));
-		}
-		std::cout << "FlowID=" << socketId << ", PathID=" << it->first << ", Updated OutStandingSeqs= " << ListToString(it->second) << std::endl;
-		NS_ASSERT_MSG(valid, "Invalid seq");
-		return lossy;
 	}
+	NS_LOG_INFO("FinalOutstandingData: ");
+	for (auto it = m_outstanding_data.begin(); it != m_outstanding_data.end(); ++it)
+	{
+		NS_LOG_INFO("pid=" << it->first << ", seq= " << ListToString(it->second));
+	}
+	std::cout << "FlowID=" << socketId << ", PathID=" << it->first << ", Updated OutStandingSeqs= " << ListToString(it->second) << std::endl;
+	NS_ASSERT_MSG(valid, "Invalid seq");
+	return lossy;
+}
 
 void IrnSackManager::handleRto(uint32_t pid)
 {
@@ -515,80 +525,78 @@ void IrnSackManager::handleRto(uint32_t pid)
 	while (it2 != it->second.end())
 	{
 		m_lossy_data.emplace_back(it2->first, it2->second);
-		std::cout << "FlowID " << socketId <<", PathID=" << pid << ", seq=[" << it2->first << ", " << it2->second << "]" << std::endl;
+		std::cout << "FlowID " << socketId << ", PathID=" << pid << ", seq=[" << it2->first << ", " << it2->second << "]" << std::endl;
 		it2 = it->second.erase(it2);
 	}
 }
 
+void RdmaQueuePair::AcknowledgeForLaps(uint64_t ack, uint32_t nackSeq, uint16_t nackSize, uint32_t fpid)
+{
+	NS_LOG_FUNCTION(this << ack);
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called Only When Laps is enabled");
 
-	void RdmaQueuePair::AcknowledgeForLaps(uint64_t ack, uint32_t nackSeq, uint16_t nackSize, uint32_t fpid)
+	if (Irn::mode == Irn::Mode::NACK)
 	{
-		NS_LOG_FUNCTION(this << ack);
-    NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called Only When Laps is enabled");
-
-		if (Irn::mode == Irn::Mode::NACK)
+		NS_ASSERT_MSG(nackSize != 0, "Invalid nackSize");
+		NS_ASSERT_MSG(nackSeq >= snd_una, "Invalid nackSeq " << nackSeq << " snd_una " << snd_una);
+		m_irn.m_sack.sack(nackSeq, nackSize);
+		m_irn.m_sack.checkFirstNackedBlockAndUpdateSndUna(snd_una);
+		m_irn.m_sack.discardUpTo(snd_una);
+		// m_irn.m_sack.checkOutstandingDataAndUpdateLossyData(fpid, nackSeq);
+		// auto it = m_irn.m_sack.m_outstanding_data.find(fpid);
+		// NS_ASSERT_MSG( it != m_irn.m_sack.m_outstanding_data.end(), "Invalid fpid");
+		// if (it->second.size() > 0)
+		// {
+		// 	Time rto =  m_cb_getRtoTimeForPath(fpid);
+		// 	m_rtoSetCb(this, fpid, rto);
+		// }
+		// else
+		// {
+		// 	m_cb_cancelRtoForPath(this, fpid);
+		// }
+	}
+	else if (Irn::mode == Irn::Mode::IRN_OPT)
+	{
+		if (nackSize != 0)
 		{
-			NS_ASSERT_MSG(nackSize != 0, "Invalid nackSize");
-			NS_ASSERT_MSG(nackSeq >= snd_una, "Invalid nackSeq " << nackSeq << " snd_una " << snd_una);
 			m_irn.m_sack.sack(nackSeq, nackSize);
-			m_irn.m_sack.checkFirstNackedBlockAndUpdateSndUna(snd_una);
+		}
+		if (ack > snd_una)
+		{
+			snd_una = ack;
+			m_irn.m_dupAckCnt = 0;
 			m_irn.m_sack.discardUpTo(snd_una);
-			// m_irn.m_sack.checkOutstandingDataAndUpdateLossyData(fpid, nackSeq);
-			// auto it = m_irn.m_sack.m_outstanding_data.find(fpid);
-			// NS_ASSERT_MSG( it != m_irn.m_sack.m_outstanding_data.end(), "Invalid fpid");
-			// if (it->second.size() > 0)
-			// {
-			// 	Time rto =  m_cb_getRtoTimeForPath(fpid);
-			// 	m_rtoSetCb(this, fpid, rto);
-			// }
-			// else
-			// {
-			// 	m_cb_cancelRtoForPath(this, fpid);
-			// }
-			
-		}
-		else if (Irn::mode == Irn::Mode::IRN_OPT)
-		{
-			if (nackSize != 0)
+			if (m_irn.m_sack.checkFirstNackedBlockAndUpdateSndUna(snd_una))
 			{
-				m_irn.m_sack.sack(nackSeq, nackSize);
-			}
-			if (ack > snd_una)
-			{
-				snd_una = ack;
-				m_irn.m_dupAckCnt = 0;
 				m_irn.m_sack.discardUpTo(snd_una);
-				if(m_irn.m_sack.checkFirstNackedBlockAndUpdateSndUna(snd_una))
-				{
-					m_irn.m_sack.discardUpTo(snd_una);
-				}
-				m_irn.m_highest_ack = snd_una > m_irn.m_highest_ack ? snd_una : m_irn.m_highest_ack;
 			}
-			else if (ack == snd_una)
-			{
-				if (nackSize == 0)
-				{
-					m_irn.m_dupAckCnt = 0;
-				}
-				else
-				{
-					m_irn.m_dupAckCnt += 1;
-				}
-			}
+			m_irn.m_highest_ack = snd_una > m_irn.m_highest_ack ? snd_una : m_irn.m_highest_ack;
 		}
-		else
+		else if (ack == snd_una)
 		{
-			NS_ASSERT_MSG(false, "Invalid mode");
+			if (nackSize == 0)
+			{
+				m_irn.m_dupAckCnt = 0;
+			}
+			else
+			{
+				m_irn.m_dupAckCnt += 1;
+			}
 		}
 	}
+	else
+	{
+		NS_ASSERT_MSG(false, "Invalid mode");
+	}
+}
 
-
-std::pair<uint32_t, uint16_t> IrnSackManager::GetAndRemoveFirstLossyData() {
+std::pair<uint32_t, uint16_t> IrnSackManager::GetAndRemoveFirstLossyData()
+{
 	NS_LOG_FUNCTION(this);
 	NS_ASSERT_MSG(m_lossy_data.size(), "m_lossy_data is empty");
-  std::pair<uint32_t, uint16_t> firstElement = m_lossy_data.front();
-  m_lossy_data.pop_front();
-  return firstElement;
+	std::pair<uint32_t, uint16_t> firstElement = m_lossy_data.front();
+	m_lossy_data.pop_front();
+	return firstElement;
 }
 
 void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
@@ -603,7 +611,7 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 
 		if (m_irn.m_recovery && (snd_nxt >= m_irn.m_recovery_seq))
 		{
-				ResumeQueue();
+			ResumeQueue();
 		}
 		else if (!m_irn.m_recovery && m_irn.m_dupAckCnt >= Irn::reTxThresholdNPackets)
 		{
@@ -611,7 +619,7 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 			bool isLastReTxExpired = Simulator::Now().GetNanoSeconds() - m_irn.m_last_recovery_time_in_ns > m_baseRtt;
 			if (!isAlreadlyReTx || isLastReTxExpired)
 			{
-					RecoverQueueLaps();
+				RecoverQueueLaps();
 			}
 		}
 	}
@@ -634,162 +642,156 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 	}
 }
 
-
-
-
-	uint64_t RdmaQueuePair::GetOnTheFly()
+uint64_t RdmaQueuePair::GetOnTheFly()
+{
+	NS_LOG_FUNCTION(this);
+	NS_ASSERT(snd_nxt >= snd_una);
+	if (Irn::mode == Irn::Mode::IRN_OPT)
 	{
-		NS_LOG_FUNCTION(this);
-    NS_ASSERT(snd_nxt >= snd_una);
-		if (Irn::mode == Irn::Mode::IRN_OPT){
-			return GetOnTheFlyForLaps();
-		}
-		else if (Irn::mode == Irn::Mode::NACK)
-		{
-			return GetOnTheFlyForLaps();
-		}
-
-		return snd_nxt - snd_una;
+		return GetOnTheFlyForLaps();
 	}
-
-	uint64_t RdmaQueuePair::GetOnTheFlyForLaps()
+	else if (Irn::mode == Irn::Mode::NACK)
 	{
-		NS_LOG_FUNCTION(this);
-    NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called Only When Laps is enabled");
-		if (Irn::mode == Irn::Mode::IRN_OPT)
-		{
-			int64_t nacked = m_irn.m_sack.getSackBufferOverhead();
-			int64_t onTheFly = m_irn.m_max_next_seq - snd_una - nacked;		
-			NS_ASSERT_MSG(onTheFly >= 0, "onTheFly should be non-negative");
-			return onTheFly;
-		}
-		else if (Irn::mode == Irn::Mode::NACK)
-		{
-			int32_t onTheFly = snd_nxt - snd_una;
-			NS_ASSERT_MSG(onTheFly >= 0, "onTheFly should be non-negative");
-			return onTheFly;
-		}
-		else
-		{
-			NS_ASSERT_MSG(false, "Invalid mode");
-			return 0;
-		}
-
+		return GetOnTheFlyForLaps();
 	}
 
-	bool RdmaQueuePair::CanIrnTransmitForLaps(uint32_t mtu) {
-		NS_LOG_FUNCTION(this << "MtuInByte " << mtu);
-    NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called Only When Laps is enabled");
-		if (Irn::mode == Irn::Mode::IRN_OPT)
-		{
-			uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
-			uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
-			uint64_t byteOnFly = GetOnTheFlyForLaps();
-			bool isBdpAllowed = (byteOnFly + byteTx) < GetWinForLaps() ? true : false;
-			return isBdpAllowed;
-		}
-		else if (Irn::mode == Irn::Mode::NACK)
-		{
-			if (!Irn::isWindowBasedForLaps)
-			{
-				return true;
-			}
-			int32_t lossy = m_irn.m_sack.getLossyDataSize();
-			uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
-			uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
-			uint64_t byteOnFly = GetOnTheFlyForLaps();
-			bool isBdpAllowed = (byteOnFly + byteTx) <= GetWinForLaps() ? true : false;
-			return isBdpAllowed;
-		}
-		else
-		{
-			NS_ASSERT_MSG(false, "Invalid mode");
-			return false;
-		}
+	return snd_nxt - snd_una;
+}
 
+uint64_t RdmaQueuePair::GetOnTheFlyForLaps()
+{
+	NS_LOG_FUNCTION(this);
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called Only When Laps is enabled");
+	if (Irn::mode == Irn::Mode::IRN_OPT)
+	{
+		int64_t nacked = m_irn.m_sack.getSackBufferOverhead();
+		int64_t onTheFly = m_irn.m_max_next_seq - snd_una - nacked;
+		NS_ASSERT_MSG(onTheFly >= 0, "onTheFly should be non-negative");
+		return onTheFly;
 	}
+	else if (Irn::mode == Irn::Mode::NACK)
+	{
+		int32_t onTheFly = snd_nxt - snd_una;
+		NS_ASSERT_MSG(onTheFly >= 0, "onTheFly should be non-negative");
+		return onTheFly;
+	}
+	else
+	{
+		NS_ASSERT_MSG(false, "Invalid mode");
+		return 0;
+	}
+}
 
-
-	bool RdmaQueuePair::CanIrnTransmit(uint32_t mtu) {
-		NS_LOG_FUNCTION(this << "MtuInByte " << mtu);
-		if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
-		{
-			return CanIrnTransmitForLaps(mtu);
-		}
-		else if (Irn::mode == Irn::Mode::GBN)
+bool RdmaQueuePair::CanIrnTransmitForLaps(uint32_t mtu)
+{
+	NS_LOG_FUNCTION(this << "MtuInByte " << mtu);
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called Only When Laps is enabled");
+	if (Irn::mode == Irn::Mode::IRN_OPT)
+	{
+		uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
+		uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
+		uint64_t byteOnFly = GetOnTheFlyForLaps();
+		bool isBdpAllowed = (byteOnFly + byteTx) < GetWinForLaps() ? true : false;
+		return isBdpAllowed;
+	}
+	else if (Irn::mode == Irn::Mode::NACK)
+	{
+		if (!Irn::isWindowBasedForLaps)
 		{
 			return true;
 		}
-
-		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN, "Called Only when Irn is enabled");
+		int32_t lossy = m_irn.m_sack.getLossyDataSize();
 		uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
 		uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
-		uint64_t byteOnFly = m_irn.GetOnTheFly();
-		bool isBdpAllowed = (byteOnFly + byteTx) < m_irn.m_bdp ? true : false;
-		if (isBdpAllowed) {
-			bool isBdpExceeded = (m_irn.m_highest_ack + m_irn.m_bdp) > snd_nxt ? false : true;
-			return !isBdpExceeded;
-		}
+		uint64_t byteOnFly = GetOnTheFlyForLaps();
+		bool isBdpAllowed = (byteOnFly + byteTx) <= GetWinForLaps() ? true : false;
+		return isBdpAllowed;
+	}
+	else
+	{
+		NS_ASSERT_MSG(false, "Invalid mode");
 		return false;
-	
 	}
+}
 
-
-
-	bool RdmaQueuePair::IsWinBound()
+bool RdmaQueuePair::CanIrnTransmit(uint32_t mtu)
+{
+	NS_LOG_FUNCTION(this << "MtuInByte " << mtu);
+	if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
 	{
-		NS_LOG_FUNCTION(this << "enableVarWin" << m_var_win
-												 << "maxWinInByte" << m_win
-									 );
-		if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
-		{
-			return IsWinBoundForLaps();
-		}
-
-		uint64_t w = GetWin();
-		return w != 0 && GetOnTheFly() >= w;
+		return CanIrnTransmitForLaps(mtu);
 	}
-
-	bool RdmaQueuePair::IsWinBoundForLaps()
+	else if (Irn::mode == Irn::Mode::GBN)
 	{
-		NS_LOG_FUNCTION(this);
-		if (!Irn::isWindowBasedForLaps)
-		{
-			return false;
-		}
-		
-		uint64_t w = GetWinForLaps();
-		return w != 0 && GetOnTheFlyForLaps() >= w;
+		return true;
 	}
 
-	uint64_t RdmaQueuePair::GetWin()
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN, "Called Only when Irn is enabled");
+	uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
+	uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
+	uint64_t byteOnFly = m_irn.GetOnTheFly();
+	bool isBdpAllowed = (byteOnFly + byteTx) < m_irn.m_bdp ? true : false;
+	if (isBdpAllowed)
 	{
-		NS_LOG_FUNCTION(this);
-		if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
-		{
-			return GetWinForLaps();
-		}
-
-		if (m_win == 0)
-		{
-			return 0;
-		}
-
-		uint64_t w;
-		if (m_var_win)
-		{
-			w = m_win * m_rate.GetBitRate() / m_max_rate.GetBitRate();
-			if (w == 0)
-			{
-				w = 1; // must > 0
-			}
-		}
-		else
-		{
-			w = m_win;
-		}
-		return w;
+		bool isBdpExceeded = (m_irn.m_highest_ack + m_irn.m_bdp) > snd_nxt ? false : true;
+		return !isBdpExceeded;
 	}
+	return false;
+}
+
+bool RdmaQueuePair::IsWinBound()
+{
+	NS_LOG_FUNCTION(this << "enableVarWin" << m_var_win
+						 << "maxWinInByte" << m_win);
+	if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
+	{
+		return IsWinBoundForLaps();
+	}
+
+	uint64_t w = GetWin();
+	return w != 0 && GetOnTheFly() >= w;
+}
+
+bool RdmaQueuePair::IsWinBoundForLaps()
+{
+	NS_LOG_FUNCTION(this);
+	if (!Irn::isWindowBasedForLaps)
+	{
+		return false;
+	}
+
+	uint64_t w = GetWinForLaps();
+	return w != 0 && GetOnTheFlyForLaps() >= w;
+}
+
+uint64_t RdmaQueuePair::GetWin()
+{
+	NS_LOG_FUNCTION(this);
+	if (Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK)
+	{
+		return GetWinForLaps();
+	}
+
+	if (m_win == 0)
+	{
+		return 0;
+	}
+
+	uint64_t w;
+	if (m_var_win)
+	{
+		w = m_win * m_rate.GetBitRate() / m_max_rate.GetBitRate();
+		if (w == 0)
+		{
+			w = 1; // must > 0
+		}
+	}
+	else
+	{
+		w = m_win;
+	}
+	return w;
+}
 
 	uint64_t RdmaQueuePair::GetWinForLaps()
 	{
@@ -897,6 +899,12 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 		buf.sport = sport;
 		buf.dport = dport;
 		return Hash32(buf.c, 12);
+	}
+	std::string RdmaRxQueuePair::GetStringHashValueFromQp()
+	{
+
+		std::string stringhash = ipv4Address2string(Ipv4Address(sip)) + "#" + ipv4Address2string(Ipv4Address(dip)) + "#" + std::to_string(sport); // srcPort=dstPort
+		return stringhash;
 	}
 
 	/*********************

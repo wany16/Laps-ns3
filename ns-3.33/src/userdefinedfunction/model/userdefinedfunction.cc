@@ -1707,7 +1707,7 @@ namespace ns3
         sumDelayInNs += txDelayInNs;
       }
       path.latency = sumDelayInNs;
-      uint64_t gapInNs = uint64_t(1.0 * varMap->defaultPktSizeInByte / (1.0 * minBwInbps / 1000000000lu / 8));
+      uint64_t gapInNs = uint64_t(1.0 * varMap->defaultPktSizeInByte / (1.0 * minBwInbps / 1000000000lu / 8)) * (ports.size());
       path.theoreticalSmallestLatencyInNs = sumDelayInNs + gapInNs;
       uint64_t bdpInByte = minBwInbps * sumDelayInNs / 1000000000lu / 8;
       maxBdpInByte = std::max(maxBdpInByte, bdpInByte);
@@ -2267,6 +2267,32 @@ namespace ns3
     fclose(file);
     return;
   }
+  void save_QPExec_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save QP exec info()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-QpExec.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = RdmaHw::m_recordQpExec.begin(); it != RdmaHw::m_recordQpExec.end(); ++it)
+    {
+      std::string qpId = it->first;
+      QpRecordEntry qpinfo = it->second;
+      std::ostringstream oss;
+
+      oss << "sendData:" << qpinfo.sendSizeInbyte << " sendDataNum:" << qpinfo.sendPacketNum << " receData:" << qpinfo.receSizeInbyte << " receNum:" << qpinfo.recePacketNum;
+      oss << " sendAck:" << qpinfo.sendAckInbyte << " sendAckNum:" << qpinfo.sendAckPacketNum << " receAck:" << qpinfo.receAckInbyte << " receAckNum:" << qpinfo.receAckPacketNum;
+      oss << " DateNum:" << (qpinfo.sendPacketNum - qpinfo.recePacketNum) << " AckNumgap:" << (qpinfo.sendAckPacketNum - qpinfo.receAckPacketNum);
+      fprintf(file, "flowID:%s OutInfo:%s\n", qpId.c_str(), oss.str().c_str());
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
 
   void save_QpRateChange_outinfo(global_variable_t *varMap)
   {
@@ -2305,24 +2331,24 @@ namespace ns3
       return;
     }
 
-    for (auto it = ConWeaveRouting::m_recordPath.begin(); it != ConWeaveRouting::m_recordPath.end(); ++it)
-    {
+    // for (auto it = ConWeaveRouting::m_recordPath.begin(); it != ConWeaveRouting::m_recordPath.end(); ++it)
+    // {
 
-      HostId2PathSeleKey pathKey = it->first;
-      std::string pathKeyStr = pathKey.to_string();
-      std::map<uint32_t, std::map<uint32_t, uint64_t>> m_outInfo = it->second;
-      for (auto outInfo = m_outInfo.begin(); outInfo != m_outInfo.end(); ++outInfo)
-      {
-        uint64_t timegapInMill = outInfo->first;
+    //   HostId2PathSeleKey pathKey = it->first;
+    //   std::string pathKeyStr = pathKey.to_string();
+    //   std::map<uint32_t, std::map<uint32_t, uint64_t>> m_outInfo = it->second;
+    //   for (auto outInfo = m_outInfo.begin(); outInfo != m_outInfo.end(); ++outInfo)
+    //   {
+    //     uint64_t timegapInMill = outInfo->first;
 
-        for (auto pathInfo = outInfo->second.begin(); pathInfo != outInfo->second.end(); ++pathInfo)
-        {
+    //     for (auto pathInfo = outInfo->second.begin(); pathInfo != outInfo->second.end(); ++pathInfo)
+    //     {
 
-          std::string dataSizeList = vector2string<uint64_t>(pathInfo->second);
-          fprintf(file, "pathKey:%s TGInMill:%u pid:%u dataSizeBytelist:%lu\n", pathKeyStr.c_str(), timegapInMill, pathInfo->first, dataSizeList);
-        }
-      }
-    }
+    //       std::string dataSizeList = vector2string<uint64_t>(pathInfo->second);
+    //       fprintf(file, "pathKey:%s TGInMill:%u pid:%u dataSizeBytelist:%lu\n", pathKeyStr.c_str(), timegapInMill, pathInfo->first, dataSizeList);
+    //     }
+    //   }
+    // }
     fflush(file);
     fclose(file);
     return;
@@ -2338,31 +2364,31 @@ namespace ns3
       return;
     }
 
-    for (auto it = SwitchNode::m_recordPath.begin(); it != SwitchNode::m_recordPath.end(); ++it)
-    {
+    // for (auto it = SwitchNode::m_recordPath.begin(); it != SwitchNode::m_recordPath.end(); ++it)
+    // {
 
-      HostId2PathSeleKey pathKey = it->first;
-      std::string pathKeyStr = pathKey.to_string();
-      std::map<uint32_t, std::map<uint32_t, uint64_t>> m_outInfo = it->second;
-      for (auto outInfo = m_outInfo.begin(); outInfo != m_outInfo.end(); ++outInfo)
-      {
-        uint64_t timegapInMill = outInfo->first;
+    //   HostId2PathSeleKey pathKey = it->first;
+    //   std::string pathKeyStr = pathKey.to_string();
+    //   std::map<uint32_t, std::map<uint32_t, uint64_t>> m_outInfo = it->second;
+    //   for (auto outInfo = m_outInfo.begin(); outInfo != m_outInfo.end(); ++outInfo)
+    //   {
+    //     uint64_t timegapInMill = outInfo->first;
 
-        for (auto pathInfo = outInfo->second.begin(); pathInfo != outInfo->second.end(); ++pathInfo)
-        {
+    //     for (auto pathInfo = outInfo->second.begin(); pathInfo != outInfo->second.end(); ++pathInfo)
+    //     {
 
-          std::string dataSizeList = vector2string<uint64_t>(pathInfo->second);
-          fprintf(file, "pathKey:%s TGInMill:%u pid:%u dataSizeBytelist:%lu\n", pathKeyStr.c_str(), timegapInMill, pathInfo->first, dataSizeList.c_str());
-        }
-      }
-    }
+    //       std::string dataSizeList = vector2string<uint64_t>(pathInfo->second);
+    //       fprintf(file, "pathKey:%s TGInMill:%u pid:%u dataSizeBytelist:%lu\n", pathKeyStr.c_str(), timegapInMill, pathInfo->first, dataSizeList.c_str());
+    //     }
+    //   }
+    // }
     fflush(file);
     fclose(file);
     return;
   }
-  void save_Conga_pathload_outinfo(global_variable_t *varMap)
-  {
-  }
+  // void save_Conga_pathload_outinfo(global_variable_t *varMap)
+  // {
+  // }
   // void print_mac_address_for_single_node(Ptr<Node> curNode){
   //   Ptr<Ipv4> curIpv4 = curNode->GetObject<Ipv4> ();
   //   uint32_t intfCnt = curIpv4->GetNInterfaces ();
@@ -3464,15 +3490,6 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
           }
         }
       }
-
-      std::vector<pstEntryData> PST = load_PST_from_file(varMap->pstFile);
-      for (size_t i = 0; i < PST.size(); i++)
-      {
-        install_routing_entries_based_on_single_pst_entry_for_laps(varMap, PST[i]);
-      }
-
-      std::map<Ipv4Address, uint32_t> SMT = Calulate_SMT_for_laps(varMap->svNodes);
-      install_routing_entries_based_on_single_smt_entry_for_laps(varMap->svNodes, SMT);
     }
   }
 
@@ -3910,6 +3927,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     // save_ecmp_outinfo(&varMap);
     //
     save_qpFinshtest_outinfo(varMap);
+    save_QPExec_outinfo(varMap);
     save_QpRateChange_outinfo(varMap);
     if (varMap->lbsName == "conweave")
     {

@@ -1179,6 +1179,13 @@ namespace ns3
 	void SwitchNode::CheckAndSendPfc(uint32_t inDev, uint32_t qIndex)
 	{
 		Ptr<QbbNetDevice> device = DynamicCast<QbbNetDevice>(GetDevice(inDev));
+		if (!device->IsPfcEnabled())
+		{
+
+			std::cout << "nodeId" << GetId() << "PFC not enable" << std::endl;
+			exit(1);
+		}
+
 		if (m_mmu->CheckShouldPause(inDev, qIndex))
 		{
 			device->SendPfc(qIndex, 0);
@@ -1248,6 +1255,9 @@ namespace ns3
 				}
 				else
 				{
+					// Ipv4SmartFlowPathTag pathTag;
+					// p->PeekPacketTag(pathTag);
+					// std::cout << "Drop packet on path " << pathTag.get_path_id() << " with seq " << ch.udp.seq << std::endl;
 					return; // Drop
 				}
 				CheckAndSendPfc(inDev, qIndex);
@@ -1296,6 +1306,13 @@ namespace ns3
 				}
 				else
 				{
+					Ipv4SmartFlowPathTag pathTag;
+					if (p->PeekPacketTag(pathTag))
+					{
+						// std::cout << "Drop packet on path " << pathTag.get_path_id() << " with seq " << ch.udp.seq << " ";
+						// std::cout << "due to admission control on switch " << GetId() << std::endl;
+					}
+
 					return; // Drop
 				}
 				CheckAndSendPfc(inDev, qIndex);
