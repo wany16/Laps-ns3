@@ -35,7 +35,7 @@ namespace ns3
 	std::map<uint32_t, QpRecordEntry> RdmaHw::m_recordQpExec;
 
 
-	bool RdmaHw::enablePathDelayRecord = true;
+	bool RdmaHw::enablePathDelayRecord = false;
 
 	void RdmaHw::insertRateRecord(uint32_t flowId, uint64_t curRateInMbps)
 	{
@@ -587,6 +587,7 @@ namespace ns3
 		qp->m_irn.m_bdp = win;
 		qp->m_irn.m_sack.m_outstanding_data.clear();
 		qp->m_irn.m_sack.m_lossy_data.clear();
+		m_minRate = DataRate("1000Mb/s");
 
 
 
@@ -3449,9 +3450,16 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		if (qp->laps.m_incStage > CcLaps::maxIncStage)
 		{
 			qp->laps.m_tgtRate = std::min(qp->m_max_rate, qp->laps.m_tgtRate * 2);
-			qp->laps.m_incStage = 0;
+			qp->laps.m_tgtRate = std::max(m_minRate, qp->laps.m_tgtRate);
+			// qp->laps.m_incStage = 0;
 		}
-		qp->laps.m_curRate = 0.5 * (qp->laps.m_curRate + qp->laps.m_tgtRate);
+		// qp->laps.m_curRate = 0.5 * (qp->laps.m_curRate + qp->laps.m_tgtRate);
+		DataRate tmp_minRate = DataRate("1000Mb/s");
+		qp->laps.m_curRate = std::max(qp->laps.m_curRate + tmp_minRate, 0.5 * (qp->laps.m_tgtRate + qp->laps.m_curRate));
+		qp->laps.m_curRate = std::min(qp->m_max_rate, qp->laps.m_curRate);
+		
+		qp->laps.m_tgtRate = std::max(qp->laps.m_curRate, qp->laps.m_tgtRate);
+
 		qp->laps.m_nxtRateIncTimeInNs = Simulator::Now().GetNanoSeconds() + nxtIncTimeInNs;
 		qp->laps.m_incStage++;
 		Time newSendingTime = Seconds(qp->laps.m_curRate.CalculateTxTime(qp->lastPktSize));
@@ -3520,12 +3528,14 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		std::vector<PathData *> pitEntries = m_E2ErdmaSmartFlowRouting->batch_lookup_PIT(pstEntry->paths);
 
 		uint32_t congPathCnt = 0;
+		uint32_t curMaxDelayInNs = 0;
 		for (size_t i = 0; i < pitEntries.size(); i++)
 		{
 			if (pitEntries[i]->latency > pitEntries[i]->theoreticalSmallestLatencyInNs)
 			{
 				congPathCnt++;
 			}
+			curMaxDelayInNs = std::max(curMaxDelayInNs, pitEntries[i]->latency);
 		}
 		
 		NS_ASSERT_MSG(pitEntries.size() > 0, "The pitEntries is empty");
@@ -3551,7 +3561,7 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 				// }
 
 				NS_LOG_INFO("Decrease rate for LAPS");
-				int64_t timeGap = DecreaseRateForLaps(qp, tgtDelayInNs*2);
+				int64_t timeGap = DecreaseRateForLaps(qp, curMaxDelayInNs*2);
 				insertRateRecord(qp->m_flow_id, qp->laps.m_curRate.GetBitRate()/1000000/8);
 				UpdateNxtQpAvailTimeForLaps(qp, timeGap);
 			}
