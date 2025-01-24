@@ -77,7 +77,7 @@ namespace ns3
 		static std::map<uint32_t, std::map<std::string, std::map<uint32_t, LostPacketEntry>>> m_lossPacket;		  // QPId->packetSeqNum->lostNum
 		static std::map<std::string, std::string> m_recordQpSen;												  //  ->snd_una and snd_una-m_size
 		static std::map<std::string, QpRecordEntry> m_recordQpExec;
-		static std::map<std::string, std::map<uint64_t, uint32_t>> m_qpRatechange;
+		static std::map<std::string, std::vector<RecordFlowRateEntry_t>> m_qpRatechange;
 
 		static uint32_t flowComplteNum;
 		static std::map<uint32_t, std::vector<RecordFlowRateEntry_t>> recordRateMap;		  //

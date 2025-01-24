@@ -410,8 +410,26 @@ namespace ns3
 	void RecordQPrate(Ptr<RdmaQueuePair> qp, Ptr<RdmaQueuePair> qp1, DataRate oldRate, DataRate newRate)
 	{
 		Time now = Simulator::Now();
-		uint32_t dateInMbs = newRate.GetBitRate() / 1000000;
-		RdmaHw::m_qpRatechange[qp1->GetStringHashValueFromQp()][now.GetMicroSeconds()] = dateInMbs;
+		uint32_t curRateInMBs = newRate.GetBitRate() / 1000000 / 8;
+		RecordFlowRateEntry_t rateEntry;
+		std::string flowId = qp1->GetStringHashValueFromQp();
+		auto it = RdmaHw::m_qpRatechange.find(flowId);
+		if (it == RdmaHw::m_qpRatechange.end())
+		{
+			RdmaHw::m_qpRatechange.push_back(RecordFlowRateEntry_t(curRateInMBs, now.GetNanoSeconds(), 0));
+		}
+		else
+		{
+			std::vector<RecordFlowRateEntry_t> &rateEntry = it->second;
+			uint64_t prev_rate_in_MBs = rateEntry.back().rateInMbps;
+			uint64_t prev_time_in_ns = rateEntry.back().startTimeInNs;
+			rateEntry.back().durationInNs = now.GetNanoSeconds() - prev_time_in_ns;
+			if (curRateInMBs != prev_rate_in_MBs)
+			{
+				rateEntry.push_back(RecordFlowRateEntry_t(curRateInMbps, now.GetNanoSeconds(), 0));
+			}
+		}
+
 		return;
 	}
 	void RdmaHw::AddQueuePair(uint64_t size, uint16_t pg, Ipv4Address sip, Ipv4Address dip, uint16_t sport, uint16_t dport, uint32_t win, uint64_t baseRtt, int32_t flowId, Callback<void> notifyAppFinish)
