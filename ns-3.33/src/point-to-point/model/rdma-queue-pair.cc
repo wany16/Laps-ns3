@@ -920,6 +920,7 @@ uint64_t RdmaQueuePair::GetWin()
 
 	RdmaQueuePairGroup::RdmaQueuePairGroup(void)
 	{
+	   memset(m_qp_finished, 0, sizeof(m_qp_finished));
 	}
 
 	uint32_t RdmaQueuePairGroup::GetN(void)

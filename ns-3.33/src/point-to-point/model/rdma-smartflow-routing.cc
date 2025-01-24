@@ -1767,22 +1767,22 @@ std::vector<double> RdmaSmartFlowRouting::CalPathWeightBasedOnDelay(const std::v
     NS_LOG_INFO("The targetDelay is " << maxBastDelay << " ns");
     std::vector<double> weights(paths.size());
     double sum_weights = 0.0;
-    bool is9604 = false;
+    // bool is9604 = false;
     Time t = Simulator::Now();
     for (size_t i = 0; i < weights.size(); i++)
     {
-        if (paths[i]->nextAvailableTime < t)
-        {
-            // paths[i]->latency = paths[i]->theoreticalSmallestLatencyInNs;
-            // paths[i]->nextAvailableTime = t + paths[i]->theoreticalSmallestLatency;
-            weights[i] = 0.0;
-        }
+        // if (paths[i]->nextAvailableTime < t)
+        // {
+        //     // paths[i]->latency = paths[i]->theoreticalSmallestLatencyInNs;
+        //     // paths[i]->nextAvailableTime = t + paths[i]->theoreticalSmallestLatency;
+        //     weights[i] = 0.0;
+        // }
         
         // if (paths[i]->latency > paths[i]->theoreticalSmallestLatencyInNs)
         // {
         //     weights[i] = 0.0;
         // }
-        else
+        // else
         {
             double ratio = -1.0 * paths[i]->latency/maxBastDelay  * laps_alpha;
             weights[i] = std::exp(ratio);

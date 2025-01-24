@@ -533,6 +533,8 @@ namespace ns3
     uint32_t totalBytes = q->m_size + ((q->m_size - 1) / m->defaultPktSizeInByte + 1) * (CustomHeader::GetStaticWholeHeaderSize() - IntHeader::GetStaticSize()); // translate to the minimum bytes required (with header but no INT)
     // std::cout << "srcNodeID: " << srcNode->GetId() << "dstnodeID: " << dstNode->GetId() << ",bitWdithPerSec" << bitWdithPerSec << std::endl;
     // uint64_t baseFctInNs = baseRttInNs + totalBytes * 8000000000lu / bitWdithPerSec;
+    uint32_t flowId = q->m_flow_id;
+    RdmaHw::m_recordQpExec[flowId].finishTime = Simulator::Now().GetNanoSeconds();
 
     fprintf(os, "SIP:%08x DIP:%08x SP:%u DP:%u DataSizeInByte:%lu PktSizeInByte:%u SendPktSizeInByte:%lu StartTimeInNs:%lu LastTimeInNs:%lu EndTimeInNs:%lu BaseFctInNs:%ld\n",
             q->sip.Get(),
@@ -2270,25 +2272,88 @@ namespace ns3
   void save_QPExec_outinfo(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save QP exec info()----------");
-    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-QpExec.txt";
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-QpInfo.txt";
     FILE *file = fopen(file_name.c_str(), "w");
     if (file == NULL)
     {
       perror("Error opening file");
       return;
     }
+    std::map<uint32_t, QpRecordEntry> & recordMap = RdmaHw::m_recordQpExec;
+    std::vector<std::pair<uint32_t, QpRecordEntry>> recordVec(recordMap.begin(), recordMap.end());
 
-    for (auto it = RdmaHw::m_recordQpExec.begin(); it != RdmaHw::m_recordQpExec.end(); ++it)
-    {
-      std::string qpId = it->first;
-      QpRecordEntry qpinfo = it->second;
-      std::ostringstream oss;
-
-      oss << "sendData:" << qpinfo.sendSizeInbyte << " sendDataNum:" << qpinfo.sendPacketNum << " receData:" << qpinfo.receSizeInbyte << " receNum:" << qpinfo.recePacketNum;
-      oss << " sendAck:" << qpinfo.sendAckInbyte << " sendAckNum:" << qpinfo.sendAckPacketNum << " receAck:" << qpinfo.receAckInbyte << " receAckNum:" << qpinfo.receAckPacketNum;
-      oss << " DateNum:" << (qpinfo.sendPacketNum - qpinfo.recePacketNum) << " AckNumgap:" << (qpinfo.sendAckPacketNum - qpinfo.receAckPacketNum);
-      fprintf(file, "flowID:%s OutInfo:%s\n", qpId.c_str(), oss.str().c_str());
+    // 使用 std::sort 按照 flowsize 进行排序
+    std::sort(recordVec.begin(), recordVec.end(),
+              [](const std::pair<uint32_t, QpRecordEntry>& a, const std::pair<uint32_t, QpRecordEntry>& b)
+                {
+                  return a.second.flowsize < b.second.flowsize;
+                }
+            );
+        
+    std::string title = QpRecordEntry::get_title();
+    fprintf(file, "Index     %s\n", title.c_str());
+    uint32_t flow_index = 0;
+    uint32_t flow_cnt = recordVec.size();
+    uint32_t small_flow_cnt = uint32_t(flow_cnt * 0.5);
+    uint32_t max_small_flow_index = small_flow_cnt;
+    uint32_t small_flow_index_99 = uint32_t(small_flow_cnt * 0.99);
+    uint32_t large_flow_cnt = uint32_t(flow_cnt * 0.1);
+    uint32_t flow_index_99 = uint32_t(flow_cnt * 0.99);
+    uint32_t min_large_flow_index = (flow_cnt * 0.9);
+    double total_fct = 0, total_fct_small = 0, total_fct_large = 0;
+    double small_fct_99 = 0, fct_99 = 0;
+    for (auto r : recordVec) {
+        fprintf(file, "%-10d %s\n", flow_index, r.second.to_string().c_str());
+        double fct = 1.0*(r.second.finishTime - r.second.installTime)/1000;
+        if (flow_index < max_small_flow_index)
+        {
+          total_fct_small += fct;
+        }
+        else if (flow_index >= min_large_flow_index)
+        {
+          total_fct_large += fct;
+        }
+        if (flow_index == small_flow_index_99)
+        {
+          small_fct_99 = fct;
+        }
+        else if (flow_index == flow_index_99)
+        {
+          fct_99 = fct;
+        }
+        total_fct += fct;
+        flow_index++;
     }
+    double avg_fct = total_fct / flow_cnt;
+    double avg_fct_small = total_fct_small / small_flow_cnt;
+    double avg_fct_large = total_fct_large / large_flow_cnt;
+    fprintf(file, "avg_fct %f\n", avg_fct);
+    fprintf(file, "avg_fct_small %f\n", avg_fct_small);
+    fprintf(file, "avg_fct_large %f\n", avg_fct_large);
+    fprintf(file, "99_small_fct %f\n", small_fct_99);
+    fprintf(file, "99_fct %f\n", fct_99);
+    fprintf(file, "flow_cnt %d\n", flow_cnt);
+    fprintf(file, "small_flow_cnt %d\n", small_flow_cnt);
+    fprintf(file, "large_flow_cnt %d\n", large_flow_cnt);
+    fprintf(file, "max_small_flow_index %d\n", max_small_flow_index);
+    fprintf(file, "min_large_flow_index %d\n", min_large_flow_index);
+    fprintf(file, "99_small_flow_index %d\n", small_flow_index_99);
+    fprintf(file, "99_flow_index %d\n", flow_index_99);
+
+    // uint32_t flow_cnt = 0;
+    // for (auto it = RdmaHw::m_recordQpExec.begin(); it != RdmaHw::m_recordQpExec.end(); ++it)
+    // {
+    //   flow_cnt++;
+    //   fprintf(file, "%d %s\n", flow_cnt, it->second.to_string().c_str());
+    //   // std::string qpId = it->first;
+    //   // QpRecordEntry qpinfo = it->second;
+    //   // std::ostringstream oss;
+
+    //   // oss << "sendData:" << qpinfo.sendSizeInbyte << " sendDataNum:" << qpinfo.sendPacketNum << " receData:" << qpinfo.receSizeInbyte << " receNum:" << qpinfo.recePacketNum;
+    //   // oss << " sendAck:" << qpinfo.sendAckInbyte << " sendAckNum:" << qpinfo.sendAckPacketNum << " receAck:" << qpinfo.receAckInbyte << " receAckNum:" << qpinfo.receAckPacketNum;
+    //   // oss << " DateNum:" << (qpinfo.sendPacketNum - qpinfo.recePacketNum) << " AckNumgap:" << (qpinfo.sendAckPacketNum - qpinfo.receAckPacketNum);
+    //   // fprintf(file, "flowID:%s OutInfo:%s\n", qpId.c_str(), oss.str().c_str());
+    // }
     fflush(file);
     fclose(file);
     return;

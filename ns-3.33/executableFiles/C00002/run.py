@@ -107,7 +107,7 @@ parser.add_argument("--simEndTimeInSec",
                     default="2",
                     help="simulation end time")
 parser.add_argument("--flowLunchEndTimeInSec",
-                    default="0.001",
+                    default="0.01",
                     help="flow end time")
 parser.add_argument("--qlenMonitorIntervalInNs",
                     default="10000000",
@@ -116,7 +116,7 @@ parser.add_argument("--lbsName",
                     default="RPS",
                     help="Load balancing algorithm")
 parser.add_argument("--flowletTimoutInUs",
-                    default="10",
+                    default="2",
                     help="The time out of the flowlet in microsecond.")
 parser.add_argument(
     "--loadRatioShift",
@@ -192,10 +192,10 @@ patternNames = ['Ring', 'all2all', 'Reduce']
 patternNameMap = {'Ring': 1, 'all2all': 0.032, 'Reduce': 0.333}
 onePatternNameMap = {'All': 1}
 allLbsNameList = ['drill', 'letflow', 'ecmp','laps','conweave','conga']
-LoadratioList=['0.5']
+LoadratioList=['1.0']
 lbsNameList = ['ecmp']
 alltopoDirlist=['railOnly','dragonfly','fatTree']
-workloadNamelist=['DCTCP_CDF']
+workloadNamelist=['LLM_INFER_LLAMA']
 topoDirlist=['railOnly']
 m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb','25':'e2elaps'}
 def runBigSimTest():
