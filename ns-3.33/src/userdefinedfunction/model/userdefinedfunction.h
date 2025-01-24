@@ -901,8 +901,10 @@ namespace ns3
     std::string kvCacheAlg;
     std::string irnMode;
     uint32_t jobNum;
+    uint32_t jobAllNum;
     uint32_t numOfFinishedJob;
     uint32_t testPktNum;
+    bool enableLLMWorkLoadTest;
 
 
 
@@ -944,7 +946,7 @@ namespace ns3
       srcNode = NULL;
       dstNode = NULL;
       genFlows.clear();
-
+      jobAllNum=0;
 
 
       configFileName = "";
@@ -1022,6 +1024,7 @@ namespace ns3
       kvCacheAlg = "";
       jobNum = 0;
       numOfFinishedJob = 0;
+      enableLLMWorkLoadTest=false;
     }
 
   };
@@ -1187,6 +1190,10 @@ namespace ns3
   void generate_rdma_flows_on_nodes(global_variable_t *varMap);
   void install_rdma_flows_on_nodes(global_variable_t *varMap);
   void create_topology_rdma(global_variable_t *varMap);
+
+  void generate_LLMA_rdma_flows_for_node_pair(global_variable_t *varMap);
+  void generate_LLMA_rdma_flows_on_nodes(global_variable_t *varMap);
+  void node_install_LLMA_rdma_application(global_variable_t *varMap);
   std::map<uint32_t, ecn_para_entry_t> parse_ecn_parameter(std::vector<std::string> &s);
   uint64_t get_nic_rate_In_Gbps(global_variable_t *varMap);
   std::vector<uint32_t> parse_trace_nodes(std::vector<std::string> &nodesIdxes);

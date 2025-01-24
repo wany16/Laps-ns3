@@ -3798,6 +3798,66 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
   //       }
   //     }
   // }
+  void generate_LLMA_rdma_flows_for_node_pair(global_variable_t *varMap)
+  {
+    uint32_t jobNum = 0;
+    while (jobNum < varMap->jobAllNum)
+    {
+      // std::cout << "NewFlowStartTimeInSec:" << startTimeInSec << std::endl;
+      flow_entry_t genFlow;
+      // std::cout << "startTime :" << startTime << ", FLOW_LAUNCH_END_TIME : " << FLOW_LAUNCH_END_TIME << ", END_TIME : " << END_TIME;
+      genFlow.srcNode = varMap->srcNode;
+      genFlow.dstNode = varMap->dstNode;
+      genFlow.srcPort = varMap->appStartPort + 1;
+      genFlow.dstPort = varMap->appStartPort + 1;
+      varMap->appStartPort = varMap->appStartPort + 1;
+      genFlow.startTimeInSec = 0;
+      genFlow.srcAddr = genFlow.srcNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+      genFlow.dstAddr = genFlow.dstNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+      genFlow.prioGroup = varMap->flowGroupPrio;
+      genFlow.byteCnt = 64000000; // 64MB
+      if (!varMap->enableWindow)
+      {
+        genFlow.winInByte = 0;
+      }
+      else
+      {
+        if (varMap->enableUnifiedWindow)
+        {
+          genFlow.winInByte = varMap->maxBdpInByte;
+          /* code */
+        }
+        else
+        {
+          genFlow.winInByte = varMap->pairBdpInByte[genFlow.srcNode][genFlow.dstNode];
+        }
+      }
+
+      if (varMap->enableUnifiedWindow)
+      {
+        genFlow.rttInNs = varMap->maxRttInNs;
+        /* code */
+      }
+      else
+      {
+        genFlow.rttInNs = varMap->pairRttInNs[genFlow.srcNode][genFlow.dstNode];
+      }
+      varMap->flowCount = varMap->flowCount + 1;
+      genFlow.idx = varMap->flowCount;
+      varMap->genFlows.push_back(genFlow);
+      varMap->totalFlowSizeInByte = varMap->totalFlowSizeInByte + genFlow.byteCnt;
+      if (genFlow.byteCnt <= varMap->smallFlowThreshInByte)
+      {
+        varMap->smallFlowCount = varMap->smallFlowCount + 1;
+      }
+      else if (genFlow.byteCnt >= varMap->largeFLowThreshInByte)
+      {
+        varMap->largeFlowCount = varMap->largeFlowCount + 1;
+      }
+      genFlow.print();
+      jobNum++;
+    }
+  }
 
   void generate_rdma_flows_for_node_pair(global_variable_t *varMap)
   {
@@ -3881,7 +3941,27 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     genFlow.idx = flowId;
     return genFlow;
   }
-
+  void generate_LLMA_rdma_flows_on_nodes(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------Generate LLMA RDMA Flows On Nodes----------");
+    varMap->jobAllNum = 1000;
+    // source.SetAttribute ("SendSize", UintegerValue (PACKET_SIZE));
+    auto it_0 = varMap->tfc.begin();
+    for (; it_0 != varMap->tfc.end(); it_0++)
+    {
+      varMap->srcNode = varMap->allNodes.Get(it_0->first);
+      std::vector<tfc_entry_t> tfcEntries = it_0->second;
+      // std::cout << "srcNode ID: " <<  srcNode->GetId() << construct_target_string(5, " ");
+      for (uint32_t i = 0; i < tfcEntries.size(); i++)
+      {
+        // std::cout << "sequence : " << i << construct_target_string(5, " ");
+        tfc_entry_t tfcEntry = tfcEntries[i];
+        uint32_t dstNodeIdx = tfcEntry.dstNodeIdx;
+        varMap->dstNode = varMap->allNodes.Get(dstNodeIdx);
+        generate_LLMA_rdma_flows_for_node_pair(varMap);
+      }
+    }
+  }
   void generate_rdma_flows_on_nodes(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------Generate RDMA Flows On Nodes----------");
@@ -3934,6 +4014,11 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
   }
   void node_install_rdma_application(global_variable_t *varMap)
   {
+    if (varMap->enableLLMWorkLoadTest)
+    {
+      std::cout << "node_install_LLMA_rdma_application" << std::endl;
+      node_install_LLMA_rdma_application(varMap);
+    }
     varMap->cdfTable = new cdf_table();
     init_cdf(varMap->cdfTable);
     NS_LOG_INFO("load_cdf is running");
@@ -3942,6 +4027,24 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     read_pattern_from_file(varMap->patternFile, varMap->tfc);
     NS_LOG_INFO("read_pattern_from_file is finished");
     generate_rdma_flows_on_nodes(varMap);
+    NS_LOG_INFO("generate_rdma_flows_on_nodes is finished");
+    NS_LOG_INFO("flowCount: " << varMap->flowCount << ",smallFlowCount: " << varMap->smallFlowCount << ",largeFlowCount: " << varMap->largeFlowCount);
+    update_EST(varMap->paraMap, "flowCount: ", varMap->flowCount);
+    update_EST(varMap->paraMap, "smallFlowCount: ", varMap->smallFlowCount);
+    update_EST(varMap->paraMap, "largeFlowCount: ", varMap->largeFlowCount);
+    install_rdma_flows_on_nodes(varMap);
+    NS_LOG_INFO("install_rdma_flows_on_nodes is finished");
+  }
+  void node_install_LLMA_rdma_application(global_variable_t *varMap)
+  {
+    varMap->cdfTable = new cdf_table();
+    init_cdf(varMap->cdfTable);
+    NS_LOG_INFO("load_cdf is running");
+    load_cdf(varMap->cdfTable, varMap->workLoadFileName.c_str());
+    NS_LOG_INFO("load_cdf is finished");
+    read_pattern_from_file(varMap->patternFile, varMap->tfc);
+    NS_LOG_INFO("read_pattern_from_file is finished");
+    generate_LLMA_rdma_flows_on_nodes(varMap);
     NS_LOG_INFO("generate_rdma_flows_on_nodes is finished");
     NS_LOG_INFO("flowCount: " << varMap->flowCount << ",smallFlowCount: " << varMap->smallFlowCount << ",largeFlowCount: " << varMap->largeFlowCount);
     update_EST(varMap->paraMap, "flowCount: ", varMap->flowCount);

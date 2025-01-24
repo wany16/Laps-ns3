@@ -138,6 +138,7 @@ parser.add_argument("--enableQlenMonitor", default="false",  help="trace queue l
 parser.add_argument("--rdmaAppStartPort", default="1000",  help="minimal port for rdma client")
 parser.add_argument("--enableQbbTrace", default="false",  help="trace the packet event on node's all Qbb netdevices")
 parser.add_argument("--testPktNum", default="1",  help="The number of packets to test")
+parser.add_argument("--enableLLMWorKLoad", default="false",  help="The LLM work load test")
 args = parser.parse_args()
 
 vm_root_path = "/file-in-ctr/"
@@ -208,7 +209,7 @@ lbsNameList = ['ecmp']
 alltopoDirlist=['railOnly','dragonfly','fatTree']
 topoDirlist=['railOnly','dragonfly']
 allWorkloadNamelist=['DCTCP_CDF','RPC_CDF','VL2_CDF']
-workloadNamelist=['DCTCP_CDF']
+workloadNamelist=['LLM_INFER_LLAMA','DCTCP_CDF']
 def runBigSimTest():
   
     for patternName, patternLoadRatioShift in patternNameMap.items():
@@ -332,7 +333,14 @@ def runTopoSimTest():
         
         for patternName, patternLoadRatioShift in onePatternNameMap.items():
             # 0.7
-            for loadratio in loadratioList:
+            
+            for workloadName  in workloadNamelist:
+                if workloadName=="LLM_INFER_LLAMA":
+                    EnableLLM=True
+                    loadratioList=['0.5']
+                else:
+                    EnableLLM= args.enableLLMWorKLoad   
+                
                 # conga
                 lbsName=m_PS2lb[args.PS]
                 if lbsName=="e2elaps":
@@ -345,8 +353,8 @@ def runTopoSimTest():
                     pitDir=vm_inputFiles_path + toponame+"/"+ args.pitFileName
                     pstDir=vm_inputFiles_path + toponame+"/"+ args.pstFileName
                 
-                for workloadName  in workloadNamelist:
-                    workloadFile = vm_workload_path + workloadName + ".txt"
+                for loadratio in loadratioList:
+                    
                     fileIdx = experimentalName+"_"+toponame+"_"+workloadName + "_" +\
                         patternName + "-lr-"+loadratio+"-lb-"+lbsName
                     patternFile = vm_inputFiles_path +toponame+"/"+"TFC-"+patternName+".txt"
@@ -376,7 +384,8 @@ def runTopoSimTest():
                     --testPktNum={}\
                     --workloadFile={} --patternFile={}\
                     --SMTFile={} --PITFile={} --PSTFile={}\
-                    --enableFlowCongestTest={}"\
+                    --enableFlowCongestTest={}\
+                    --enableLLMWorkLoadTest={}"\
                     '.format(mainFileName, fileIdx, vm_outputFiles_path,
                             vm_inputFiles_path,
                             vm_inputFiles_path + toponame+"/"+args.topoFileName,
