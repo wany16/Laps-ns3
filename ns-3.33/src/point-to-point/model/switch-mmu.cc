@@ -69,13 +69,8 @@ namespace ns3 {
 		}else {
 			uint32_t thresh = GetPfcThreshold(port);
 			if (new_bytes - reserve > thresh){
-				uint32_t tmp_shared_used = ingress_bytes[port][qIndex] - reserve;
+				uint32_t tmp_shared_used = std::min(ingress_bytes[port][qIndex] - reserve, thresh);
 				int32_t tmp_shared_inc = thresh - tmp_shared_used;
-				if (tmp_shared_inc < 0)
-				{
-					std::cerr << "tmp_shared_inc < 0" << std::endl;
-					exit(1);
-				}
 				shared_used_bytes += tmp_shared_inc; // ying
 				ingress_bytes[port][qIndex] += psize; // ying
 				hdrm_bytes[port][qIndex] += std::min(psize, new_bytes - reserve - thresh); //ying

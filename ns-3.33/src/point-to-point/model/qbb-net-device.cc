@@ -113,36 +113,88 @@ namespace ns3 {
 		for (qIndex = 1; qIndex <= fcount; qIndex++){
 			uint32_t idx = (qIndex + m_rrlast) % fcount;
 			Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
+			// if (RdmaHw::m_recordQpExec.find(qp->m_flow_id) == RdmaHw::m_recordQpExec.end())
+			// {
+			// 	std::cerr << "FlowId " << qp->m_flow_id << " is in m_recordQpExec" << std::endl;
+			// 	exit(1);
+			// }
+			// RdmaHw::m_recordQpExec[qp->m_flow_id].lastVistTime = Simulator::Now().GetNanoSeconds();
+			// RdmaHw::m_recordQpExec[qp->m_flow_id].nxtAvailTime = qp->m_nextAvail.GetNanoSeconds();
 			if (qp->IsFinishedConst()) m_qpGrp->SetQpFinished(idx);
-      if (m_qpGrp->IsQpFinished(idx)) continue;
-			bool isPfcAllowed = !paused[qp->m_pg];
-			bool isWinAllowed = !qp->IsWinBound();
-			bool isIrnAllowed = qp->CanIrnTransmit(mtuInByte);
-			bool isDataLeft = qp->GetBytesLeft() > 0 ? true : false;
-			bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
-			int32_t flowid = qp->m_flow_id;
-			if (qp->snd_una == 0 && qp->snd_nxt == 0)
+      if (m_qpGrp->IsQpFinished(idx))
 			{
-				std::cout << qp->GetStringHashValueFromQp() << " curtime " << Simulator::Now().GetNanoSeconds();
-				std::cout << " FLOWId " << flowid << " SIZE " << qp->m_size << " una " << qp->snd_una << " Pfc " << isPfcAllowed << " Win " << isWinAllowed << " irn " << isIrnAllowed << " Data " << isDataLeft << " isTime " << isTimeAvail << std::endl;
-				std::ostringstream oss;
-				oss << " curtime " << Simulator::Now().GetNanoSeconds();
-				oss << " FLOWId " << flowid << " SIZE " << qp->m_size << " una " << qp->snd_una << " Pfc " << isPfcAllowed << " Win " << isWinAllowed << " irn " << isIrnAllowed << " Data " << isDataLeft << " isTime " << isTimeAvail;
-				QbbNetDevice::qpSendInfo[qp->GetStringHashValueFromQp()] = oss.str();
+				// RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "beSetFinished";
+				// RdmaHw::m_recordQpExec[qp->m_flow_id].snd_una = qp->snd_una;
+				// RdmaHw::m_recordQpExec[qp->m_flow_id].snd_nxt = qp->snd_nxt;
+				continue;
 			}
+			bool isPfcAllowed = !paused[qp->m_pg];
+			int32_t flowid = qp->m_flow_id;
+			auto it = RdmaHw::m_recordQpExec.find(flowid);
+			if (isPfcAllowed) 
+			{
+				if (it->second.lastPfcPauseTime != -1)
+				{
+					uint64_t tdiff = Simulator::Now().GetNanoSeconds() - it->second.lastPfcPauseTime;
+					it->second.pfcDuration += tdiff;
+					it->second.lastPfcPauseTime = -1;
+				}
+			}
+			else
+			{
+				if (it->second.lastPfcPauseTime == -1)
+				{
+					it->second.lastPfcPauseTime = Simulator::Now().GetNanoSeconds();
+				}
+			}
+			
+
+
+			// if (!isPfcAllowed) RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+PfcPause";
+			bool isWinAllowed = !qp->IsWinBound();
+			// if (!isWinAllowed) RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+WinBound";
+			bool isIrnAllowed = qp->CanIrnTransmit(mtuInByte);
+			// if (!isIrnAllowed) RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+IrnLimit";
+			bool isDataLeft = qp->GetBytesLeft() > 0 ? true : false;
+			// if (!isDataLeft) RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+ZoroDataLeft";
+			bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
+			// if (!isTimeAvail) RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+TimeNotAvail";
+			// if (qp->snd_una == 0 && qp->snd_nxt == 0)
+			// {
+			// 	std::cout << qp->GetStringHashValueFromQp() << " curtime " << Simulator::Now().GetNanoSeconds();
+			// 	std::cout << " FLOWId " << flowid << " SIZE " << qp->m_size << " una " << qp->snd_una << " Pfc " << isPfcAllowed << " Win " << isWinAllowed << " irn " << isIrnAllowed << " Data " << isDataLeft << " isTime " << isTimeAvail << std::endl;
+			// 	std::ostringstream oss;
+			// 	oss << " curtime " << Simulator::Now().GetNanoSeconds();
+			// 	oss << " FLOWId " << flowid << " SIZE " << qp->m_size << " una " << qp->snd_una << " Pfc " << isPfcAllowed << " Win " << isWinAllowed << " irn " << isIrnAllowed << " Data " << isDataLeft << " isTime " << isTimeAvail;
+			// 	QbbNetDevice::qpSendInfo[qp->GetStringHashValueFromQp()] = oss.str();
+			// }
 			if (!isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed) {
 					if (!isTimeAvail) { // not available now
 					} else {// blocked by PFC
-							if (!MAP_KEY_EXISTS(m_startPauseTime, flowid)) m_startPauseTime[flowid] = Simulator::Now();
+							// if (!MAP_KEY_EXISTS(m_startPauseTime, flowid)) m_startPauseTime[flowid] = Simulator::Now();
+							// auto it = RdmaHw::m_recordQpExec.find(flowid);
+							// if (it->second.lastPfcPauseTime == -1)
+							// {
+							// 	it->second.lastPfcPauseTime = Simulator::Now().GetNanoSeconds();
+							// }
 					}
 			}else if (isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed) {
             if (!isTimeAvail)  continue; // not available now
-						if (MAP_KEY_EXISTS(m_startPauseTime, flowid)) {             // Check if the flow has been blocked by PFC
-								Time tdiff = Simulator::Now() - m_startPauseTime[flowid];
-								if (!MAP_KEY_EXISTS(m_startPauseTime, flowid)) cumulative_pause_time[flowid] = Seconds(0);
-								cumulative_pause_time[flowid] += tdiff;
-								m_startPauseTime.erase(flowid);
-						}
+						// if (MAP_KEY_EXISTS(m_startPauseTime, flowid)) {             // Check if the flow has been blocked by PFC
+						// 		Time tdiff = Simulator::Now() - m_startPauseTime[flowid];
+						// 		if (!MAP_KEY_EXISTS(m_startPauseTime, flowid)) cumulative_pause_time[flowid] = Seconds(0);
+						// 		cumulative_pause_time[flowid] += tdiff;
+						// 		m_startPauseTime.erase(flowid);
+						// }
+						// auto it = RdmaHw::m_recordQpExec.find(flowid);
+						// if (it->second.lastPfcPauseTime != -1)
+						// {
+						// 	uint64_t tdiff = Simulator::Now().GetNanoSeconds() - it->second.lastPfcPauseTime;
+						// 	it->second.pfcDuration += tdiff;
+						// 	it->second.lastPfcPauseTime = -1;
+						// }
+						// RdmaHw::m_recordQpExec[qp->m_flow_id].lastSelectedTime = Simulator::Now().GetNanoSeconds();
+						// RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "Not Paused";
             return idx;
       }
 		}
@@ -163,32 +215,55 @@ namespace ns3 {
 			Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
 			if (qp->IsFinishedConst()) m_qpGrp->SetQpFinished(idx);
       if (m_qpGrp->IsQpFinished(idx)) continue;
-			if(!qp->m_cb_isPathsValid(qp->m_flow_id)) continue;
+			// if(!qp->m_cb_isPathsValid(qp->m_flow_id)) continue;
 			qp->CheckAndUpdateQpStateForLaps();
 			bool isPfcAllowed = !paused[qp->m_pg];
+			int32_t flowid = qp->m_flow_id;
+			auto it = RdmaHw::m_recordQpExec.find(flowid);
+			if (isPfcAllowed) 
+			{
+				if (it->second.lastPfcPauseTime != -1)
+				{
+					uint64_t tdiff = Simulator::Now().GetNanoSeconds() - it->second.lastPfcPauseTime;
+					it->second.pfcDuration += tdiff;
+					it->second.lastPfcPauseTime = -1;
+				}
+			}
+			else
+			{
+				if (it->second.lastPfcPauseTime == -1)
+				{
+					it->second.lastPfcPauseTime = Simulator::Now().GetNanoSeconds();
+				}
+			}
+
 			bool isWinAllowed = !qp->IsWinBoundForLaps();
 			bool isIrnAllowed = qp->CanIrnTransmitForLaps(mtuInByte);
 			bool isDataLeft = qp->GetBytesLeftForLaps() > 0 ? true : false;
 			bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
-			int32_t flowid = qp->m_flow_id;
+			// int32_t flowid = qp->m_flow_id;
 
 	  if (!isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed)
 	  {
 		  if (isTimeAvail)
 		  { // blocked by PFC
-			  if (!MAP_KEY_EXISTS(m_startPauseTime, flowid))
-				  m_startPauseTime[flowid] = Simulator::Now();
+				// auto it = RdmaHw::m_recordQpExec.find(flowid);
+				// if (it->second.lastPfcPauseTime == -1)
+				// {
+				// 	it->second.lastPfcPauseTime = Simulator::Now().GetNanoSeconds();
+				// }
 		  }
 	  }
 			else if (isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed)
 			{
 				if (!isTimeAvail)  continue; // not available now
-				if (MAP_KEY_EXISTS(m_startPauseTime, flowid)) {             // Check if the flow has been blocked by PFC
-						Time tdiff = Simulator::Now() - m_startPauseTime[flowid];
-						if (!MAP_KEY_EXISTS(m_startPauseTime, flowid)) cumulative_pause_time[flowid] = Seconds(0);
-						cumulative_pause_time[flowid] += tdiff;
-						m_startPauseTime.erase(flowid);
-				}
+				// auto it = RdmaHw::m_recordQpExec.find(flowid);
+				// if (it->second.lastPfcPauseTime != -1)
+				// {
+				// 	uint64_t tdiff = Simulator::Now().GetNanoSeconds() - it->second.lastPfcPauseTime;
+				// 	it->second.pfcDuration += tdiff;
+				// 	it->second.lastPfcPauseTime = -1;
+				// }
 				return idx;
       }
 		}
@@ -508,6 +583,9 @@ namespace ns3 {
 			Simulator::Schedule(txCompleteTime+txTime_base, &QbbNetDevice::TransmitComplete, this);
 			NS_ASSERT_MSG(entry->lastQp, "Invalid QP");
 			m_rdmaLbPktSent(entry->lastQp, totalPktSize, totalTInterframeGap);
+			uint32_t fid = entry->lastQp->m_flow_id;
+			RdmaHw::m_recordQpExec[fid].sendSizeInbyte += m_currentPkt->GetSize() - ch.GetSerializedSize();
+			RdmaHw::m_recordQpExec[fid].sendPacketNum++;
 
 			Ipv4SmartFlowPathTag pathTag;
 			m_currentPkt->PeekPacketTag(pathTag);
@@ -576,8 +654,8 @@ namespace ns3 {
 		{
 			Ptr<RdmaQueuePair> qp = m_rdmaEQ->GetQp(i);
 			if (qp->GetBytesLeftForLaps() == 0)	continue;
-			Time t1 = qp->m_cb_getNxtAvailTimeForQp(qp->m_flow_id);
-			qp->m_nextAvail = std::max(qp->m_nextAvail, t1);
+			// Time t1 = qp->m_cb_getNxtAvailTimeForQp(qp->m_flow_id);
+			// qp->m_nextAvail = std::max(qp->m_nextAvail, t1);
 			// bool ispathavail = qp->m_cb_isPathsValid(qp->m_flow_id);
 			// if (!ispathavail)
 			// {
@@ -695,11 +773,11 @@ namespace ns3 {
 				NS_LOG_INFO("QbbNetDevice::ApplyLoadBalancingSolution Extracted CustomHeader:");
 			}
 			std::string stringhash = ipv4Address2string(Ipv4Address(ch.dip)) + "#" + ipv4Address2string(Ipv4Address(ch.sip)) + "#" + std::to_string(ch.ack.sport); // srcPort=dstPort
-			NS_LOG_INFO("stringhash is " << stringhash);
+			// NS_LOG_INFO("stringhash is " << stringhash);
 			uint32_t randNum = m_plbTableDataCb(stringhash);
-			std::string flowId = stringhash;
-			RdmaHw::m_recordQpExec[flowId].sendAckInbyte += p->GetSize();
-			RdmaHw::m_recordQpExec[flowId].sendAckPacketNum++;
+			// std::string flowId = stringhash;
+			// RdmaHw::m_recordQpExec[flowId].sendAckInbyte += p->GetSize();
+			// RdmaHw::m_recordQpExec[flowId].sendAckPacketNum++;
 
 			plbtag.SetRandomNum(randNum);
 			p->AddPacketTag(plbtag);
@@ -711,16 +789,34 @@ namespace ns3 {
 
 		Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex);
 		p = m_rdmaEQ->DequeueQindex(qIndex);
-
 		if (p->PeekHeader(ch) > 0)
 		{
 			NS_LOG_INFO("QbbNetDevice::ApplyLoadBalancingSolution Extracted CustomHeader:");
 		}
+		else
+		{
+			std::cerr << "PLB: cannot find custom header" << std::endl;
+			exit(1);
+		}
+		uint32_t flowId = lastQp->m_flow_id;
+		auto it = RdmaHw::m_recordQpExec.find(flowId);
+		if (it == RdmaHw::m_recordQpExec.end())
+		{
+			std::cerr << "PLB: cannot find flowId" << std::endl;
+			exit(1);
+		}
+		else
+		{
+			it->second.sendSizeInbyte += p->GetSize() - ch.GetSerializedSize();
+			it->second.sendPacketNum++;
+		}
 		std::string stringhash = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(ch.udp.sport);
-		std::string flowId = stringhash;
-		RdmaHw::m_recordQpExec[flowId].sendSizeInbyte += p->GetSize();
-		RdmaHw::m_recordQpExec[flowId].sendPacketNum++;
-		NS_LOG_INFO("stringhash is " << stringhash);
+		// std::string flowId = stringhash;
+		// RdmaHw::m_recordQpExec[flowId].sendSizeInbyte += p->GetSize();
+		// RdmaHw::m_recordQpExec[flowId].sendPacketNum++;
+		// NS_LOG_INFO("stringhash is " << stringhash);
+		// RdmaHw::m_recordQpExec[flowId].sendSizeInbyte += p->GetSize() - ch.GetSerializedSize();;
+		// RdmaHw::m_recordQpExec[flowId].sendPacketNum++;
 		uint32_t randNum = m_plbTableDataCb(stringhash);
 		plbtag.SetRandomNum(randNum);
 		p->AddPacketTag(plbtag);
@@ -817,27 +913,40 @@ namespace ns3 {
 						m_traceDequeue(p, 0);										 // trace the current packet
 						TransmitStart(p);											 // start the sending action
 
-						std::string stringhash = ipv4Address2string(Ipv4Address(ch.dip)) + "#" + ipv4Address2string(Ipv4Address(ch.sip)) + "#" + std::to_string(ch.ack.sport); // srcPort=dstPort
+						// std::string stringhash = ipv4Address2string(Ipv4Address(ch.dip)) + "#" + ipv4Address2string(Ipv4Address(ch.sip)) + "#" + std::to_string(ch.ack.sport); // srcPort=dstPort
 
-						std::string flowId = stringhash;
-						RdmaHw::m_recordQpExec[flowId].sendAckInbyte += p->GetSize();
-						RdmaHw::m_recordQpExec[flowId].sendAckPacketNum++;
+						// std::string flowId = stringhash;
+						// RdmaHw::m_recordQpExec[flowId].sendAckInbyte += p->GetSize();
+						// RdmaHw::m_recordQpExec[flowId].sendAckPacketNum++;
 
 						return;
 					}
 					// no ack packet in the highest priority queue, so to process the qIndex-th queue
 					Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex); // to dequeue a packet in a RR manner
+					// uint32_t flowId = lastQp->m_flow_id;
 					p = m_rdmaEQ->DequeueQindex(qIndex);
 					CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header |
 									CustomHeader::L4_Header);
 					p->PeekHeader(ch);
-					std::string stringhash = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(ch.udp.sport);
-					std::string flowId = stringhash;
-					RdmaHw::m_recordQpExec[flowId].sendSizeInbyte += p->GetSize();
-					RdmaHw::m_recordQpExec[flowId].sendPacketNum++;
+					// std::string stringhash = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(ch.udp.sport);
+					// std::string flowId = stringhash;
+					// RdmaHw::m_recordQpExec[flowId].sendSizeInbyte += p->GetSize();
+					// RdmaHw::m_recordQpExec[flowId].sendPacketNum++;
 					// transmit
 					m_traceQpDequeue(p, lastQp);
 					TransmitStart(p);
+					uint32_t flowId = lastQp->m_flow_id;
+					auto it = RdmaHw::m_recordQpExec.find(flowId);
+					if (it == RdmaHw::m_recordQpExec.end())
+					{
+						std::cerr << "PLB: cannot find flowId" << std::endl;
+						exit(1);
+					}
+					else
+					{
+						it->second.sendSizeInbyte += p->GetSize() - ch.GetSerializedSize();
+						it->second.sendPacketNum++;
+					}
 					// update for the next avail time
 					m_rdmaPktSent(lastQp, p, m_tInterframeGap);
 				}
@@ -853,21 +962,21 @@ namespace ns3 {
 					t = Min(qp->m_nextAvail, t);
 					valid = true;
 				}
-				// if (valid && m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime() && t > Simulator::Now())
-				// {
-				// 	m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
-				// }
-				if (valid && m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime())
+				if (valid && m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime() && t > Simulator::Now())
 				{
-					if (t > Simulator::Now())
-					{
-						m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
-					}
-					else
-					{
-						m_nextSend = Simulator::Schedule(MicroSeconds(5), &QbbNetDevice::DequeueAndTransmit, this);
-					}
+					m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
 				}
+				// if (valid && m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime())
+				// {
+				// 	if (t > Simulator::Now())
+				// 	{
+				// 		m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
+				// 	}
+				// 	else
+				// 	{
+				// 		m_nextSend = Simulator::Schedule(MicroSeconds(5), &QbbNetDevice::DequeueAndTransmit, this);
+				// 	}
+				// }
 			}
 			return;
 		}
@@ -1118,6 +1227,27 @@ namespace ns3 {
 
    void QbbNetDevice::NewQp(Ptr<RdmaQueuePair> qp){
 	   qp->m_nextAvail = Simulator::Now();
+		 uint32_t flowId = qp->m_flow_id;
+
+		 auto it = RdmaHw::m_recordQpExec.find(flowId);
+		 if (it == RdmaHw::m_recordQpExec.end())
+		 {
+				QpRecordEntry qpRecordEntry;
+				qpRecordEntry.flowsize = qp->m_size;
+				qpRecordEntry.flowId = flowId;
+				qpRecordEntry.installTime = Simulator::Now().GetNanoSeconds();
+				qpRecordEntry.srcNodeId = m_node->GetId();
+				qpRecordEntry.windowSize = qp->m_win;
+				qpRecordEntry.initialRate = qp->m_rate.GetBitRate() / 1000000000;
+			 	RdmaHw::m_recordQpExec[flowId] = qpRecordEntry;
+				QpRecordEntry::installFlowCnt++;
+		 }
+		 else
+		 {
+			std::cerr << "QbbNetDevice::NewQp: flowId already exists" << std::endl;
+			exit(1);
+		 }
+	 
 	   DequeueAndTransmit();
    }
    void QbbNetDevice::ReassignedQp(Ptr<RdmaQueuePair> qp){

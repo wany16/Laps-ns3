@@ -102,17 +102,9 @@ int main(int argc, char *argv[])
     std::cout << "-------------------------------Calculate The Paths----------------------------------------" << std::endl;
     calculate_paths_for_servers(&varMap);
     std::cout << "-------------------------------Install The Routing Table----------------------------------------" << std::endl;
-    if (varMap.lbsName == "e2elaps")
-    {
-        Ipv4GlobalRoutingHelper::PopulateRoutingTables();
-    }
-    else
-    {
-        install_routing_entries_without_Pathtable(&varMap);
-    }
-
-    // install_routing_entries(&varMap);
-
+    // install_routing_entries_without_Pathtable(&varMap);
+    install_routing_entries(&varMap);
+    Ipv4GlobalRoutingHelper::PopulateRoutingTables();
     // print_node_routing_tables(&varMap, 5);
     // print_node_routing_tables(&varMap, 19);
     std::cout << "-------------------------------Configure The Switch----------------------------------------" << std::endl;

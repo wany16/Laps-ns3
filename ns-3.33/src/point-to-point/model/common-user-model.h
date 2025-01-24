@@ -438,7 +438,11 @@ namespace ns3
 
     struct QpRecordEntry
     {
-        std::string flowId;
+        static uint32_t installFlowCnt;
+        static uint32_t finishFlowCnt;
+        static uint32_t execFlowCnt;
+        static std::map<uint32_t, uint64_t> lastNonePktsTime;
+        uint32_t flowId;
         uint32_t sendSizeInbyte = 0;
         uint32_t receSizeInbyte = 0;
         uint32_t sendAckInbyte = 0;
@@ -448,6 +452,79 @@ namespace ns3
         uint32_t sendAckPacketNum = 0;
         uint32_t receAckPacketNum = 0;
         uint32_t flowsize;
+        uint64_t installTime = 0;
+        int64_t lastVistTime = -1;
+        uint32_t srcNodeId = 0;
+        uint32_t dstNodeId = 0;
+        uint32_t windowSize = 0;
+        std::string hdrInfo = "None"; 
+        bool isFinished = false;
+        std::string pauseReason = "None";
+        uint32_t pauseCount = 0;
+        uint64_t initialRate = 0;
+        uint64_t nxtAvailTime = 0;
+        uint64_t lastSelectedTime = 0;
+        uint64_t snd_una = 0;
+        uint64_t snd_nxt = 0;
+        int64_t lastPfcPauseTime = -1;
+        uint64_t pfcDuration = 0;
+        uint64_t finishTime = 0;
+
+        static std::string get_title()
+        {
+            uint32_t n_blackspaces = 8;
+            std::string spaces = "";
+            for (uint32_t i = 0; i < n_blackspaces; i++)
+            {
+                spaces += " ";
+            } 
+            std::ostringstream oss;
+            oss << std::setiosflags (std::ios::left) << std::setw (8) << "FlowId" << spaces;
+            oss << std::setiosflags (std::ios::left) << std::setw (10) << "Size" << spaces;
+            oss << std::setiosflags (std::ios::left) << std::setw (10) << "Sent" << spaces;
+            oss << std::setiosflags (std::ios::left) << std::setw (10) << "Recv" << spaces;
+            oss << std::setiosflags (std::ios::left) << std::setw (10) << "FCT" << spaces;
+            oss << std::setiosflags (std::ios::left) << std::setw (10) << "PfcDur" << spaces;
+            return oss.str();
+        }
+        std::string to_string()
+        {
+            uint32_t n_blackspaces = 8;
+            std::string spaces = "";
+            for (uint32_t i = 0; i < n_blackspaces; i++)
+            {
+                spaces += " ";
+            } 
+            std::ostringstream oss;
+            oss << std::setiosflags (std::ios::left) << std::setw (8) << flowId << spaces;
+            oss << std::setiosflags (std::ios::left) << std::setw (10) << 1.0*flowsize/1000 << spaces;
+            oss << std::setiosflags (std::ios::left) << std::setw (10) << 1.0*sendSizeInbyte/1000  << spaces;
+            oss << std::setiosflags (std::ios::left) << std::setw (10) << 1.0*receSizeInbyte/1000 << spaces;
+            oss << std::setiosflags (std::ios::left) << std::setw (10) << 1.0*(finishTime - installTime)/1000 << spaces;
+            oss << std::setiosflags (std::ios::left) << std::setw (10) << 1.0*pfcDuration/1000 << spaces;
+            return oss.str();
+            // std::string str = "flowId=" + std::to_string(flowId) + ", ";
+            // str += "sentData=" + std::to_string(sendSizeInbyte) + ", ";
+            // str += "receData=" + std::to_string(receSizeInbyte) + ", ";
+            // // str += "sentAck=" + std::to_string(sendAckInbyte) + ", ";
+            // // str += "receAck=" + std::to_string(receAckInbyte) + ", ";
+            // str += "sentPkt=" + std::to_string(sendPacketNum) + ", ";
+            // str += "recePkt=" + std::to_string(recePacketNum) + ", ";
+            // str += "flowsize=" + std::to_string(flowsize) + ", ";
+            // str += "installTime=" + std::to_string(installTime) + ", ";
+            // str += "lastVistTime=" + std::to_string(lastVistTime) + ", ";
+            // str += "windowSize=" + std::to_string(windowSize) + ", ";
+            // str += "hdrInfo=" + hdrInfo + ", ";
+            // str += "isFinished=" + std::to_string(isFinished) + ", ";
+            // str += "pauseReason=" + pauseReason + ", ";
+            // // str += "pauseCount=" + std::to_string(pauseCount) + ", ";
+            // // str += "initialRate=" + std::to_string(initialRate) + ", ";
+            // str += "nxtAvailTime=" + std::to_string(nxtAvailTime) + ", ";
+            // str += "lastSelectedTime=" + std::to_string(lastSelectedTime) + ", ";
+            // str += "snd_una=" + std::to_string(snd_una) + ", ";
+            // str += "snd_nxt=" + std::to_string(snd_nxt);
+            // return str;
+        }
     };
 
     struct PlbEntry

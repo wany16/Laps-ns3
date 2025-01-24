@@ -3,6 +3,13 @@
 namespace ns3
 {
 
+        
+    
+    uint32_t QpRecordEntry::installFlowCnt = 0;
+    uint32_t QpRecordEntry::finishFlowCnt = 0;
+    uint32_t QpRecordEntry::execFlowCnt = 0;
+    std::map<uint32_t, uint64_t> QpRecordEntry::lastNonePktsTime;
+
     NS_LOG_COMPONENT_DEFINE("CommonUserModel");
     bool IsVectorReverse(const std::vector<uint32_t>& vec1, const std::vector<uint32_t>& vec2) {
         if (vec1.size() != vec2.size()) {
