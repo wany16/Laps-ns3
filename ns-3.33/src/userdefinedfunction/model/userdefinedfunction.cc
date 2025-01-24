@@ -2397,10 +2397,10 @@ namespace ns3
     {
 
       std::string qpId = it->first;
-      std::vector<RecordFlowRateEntry_t> &rateVec = it.second;
+      std::vector<RecordFlowRateEntry_t> &rateVec = it->second;
       for (auto &rateEntry : rateVec)
       {
-        fprintf(file, "flowID:%s %s", qpId.c_str(), rateEntry.to_string().c_str())
+        fprintf(file, "flowID:%s %s", qpId.c_str(), rateEntry.to_string().c_str());
       }
         }
     fflush(file);
@@ -3800,8 +3800,9 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
   // }
   void generate_LLMA_rdma_flows_for_node_pair(global_variable_t *varMap)
   {
-    uint32_t jobNum = 0;
-    while (jobNum < varMap->jobAllNum)
+    // std::cout << "varMap->jobAllNum" << varMap->jobAllNum << std::endl;
+
+    while (varMap->jobNum < varMap->jobAllNum)
     {
       // std::cout << "NewFlowStartTimeInSec:" << startTimeInSec << std::endl;
       flow_entry_t genFlow;
@@ -3855,7 +3856,8 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
         varMap->largeFlowCount = varMap->largeFlowCount + 1;
       }
       genFlow.print();
-      jobNum++;
+      varMap->jobNum += 1;
+      // std::cout << "jobNum" << varMap->jobNum << std::endl;
     }
   }
 
@@ -3944,7 +3946,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
   void generate_LLMA_rdma_flows_on_nodes(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------Generate LLMA RDMA Flows On Nodes----------");
-    varMap->jobAllNum = 1000;
+
     // source.SetAttribute ("SendSize", UintegerValue (PACKET_SIZE));
     auto it_0 = varMap->tfc.begin();
     for (; it_0 != varMap->tfc.end(); it_0++)
@@ -4018,6 +4020,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     {
       std::cout << "node_install_LLMA_rdma_application" << std::endl;
       node_install_LLMA_rdma_application(varMap);
+      return;
     }
     varMap->cdfTable = new cdf_table();
     init_cdf(varMap->cdfTable);
@@ -4037,6 +4040,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
   }
   void node_install_LLMA_rdma_application(global_variable_t *varMap)
   {
+    varMap->jobAllNum = 1000;
     varMap->cdfTable = new cdf_table();
     init_cdf(varMap->cdfTable);
     NS_LOG_INFO("load_cdf is running");

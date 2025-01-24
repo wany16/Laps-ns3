@@ -948,7 +948,6 @@ namespace ns3
       genFlows.clear();
       jobAllNum=0;
 
-
       configFileName = "";
       pfcPauseTimeInUs = 0;
       enableQcn = false;

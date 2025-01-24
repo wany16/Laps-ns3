@@ -104,7 +104,7 @@ parser.add_argument("--simStartTimeInSec",
                     default="0",
                     help="simulation start time")
 parser.add_argument("--simEndTimeInSec",
-                    default="1.4",
+                    default="2",
                     help="simulation end time")
 parser.add_argument("--flowLunchStartTimeInSec",
                     default="0.01",
@@ -354,7 +354,7 @@ def runTopoSimTest():
                     pstDir=vm_inputFiles_path + toponame+"/"+ args.pstFileName
                 
                 for loadratio in loadratioList:
-                    
+                    workloadFile = vm_workload_path + workloadName + ".txt"
                     fileIdx = experimentalName+"_"+toponame+"_"+workloadName + "_" +\
                         patternName + "-lr-"+loadratio+"-lb-"+lbsName
                     patternFile = vm_inputFiles_path +toponame+"/"+"TFC-"+patternName+".txt"
@@ -405,7 +405,9 @@ def runTopoSimTest():
                             args.testPktNum,
                             workloadFile,patternFile,
                             vm_inputFiles_path + toponame+"/"+ args.smtFileName,pitDir,pstDir,
-                            enableFlowCongestTest)
+                            enableFlowCongestTest,
+                            EnableLLM
+                            )
                     print(Line_command)
                     os.system(Line_command)
 
