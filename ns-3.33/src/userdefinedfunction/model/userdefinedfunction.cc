@@ -2395,19 +2395,19 @@ namespace ns3
 
     for (auto it = RdmaHw::m_qpRatechange.begin(); it != RdmaHw::m_qpRatechange.end(); ++it)
     {
-    std:
+
       std::string qpId = it->first;
-      for (auto outInfo = it->second.begin(); outInfo != it->second.end(); ++outInfo)
+      std::vector<RecordFlowRateEntry_t> &rateVec = it.second;
+      for (auto &rateEntry : rateVec)
       {
-        uint64_t timegapInMic = outInfo->first;
-        uint64_t dateInMbs = outInfo->second;
-        fprintf(file, "flowID:%s TGInMic:%lu dateInMbs:%lu\n", qpId.c_str(), timegapInMic, dateInMbs);
+        fprintf(file, "flowID:%s %s", qpId.c_str(), rateEntry.to_string().c_str())
       }
-    }
+        }
     fflush(file);
     fclose(file);
     return;
   }
+
   void save_Conweave_pathload_outinfo(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save Conweave path outinfo()----------");

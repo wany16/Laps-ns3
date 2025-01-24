@@ -521,6 +521,15 @@ namespace ns3
 		{
 			HostId2PathSeleKey key = it->first;
 			std::vector<uint32_t> paths = it->second.paths;
+			// 确保 m_recordPath 中有对应的 key 和时间戳
+			if (m_recordPath.find(key) == m_recordPath.end())
+			{
+				m_recordPath[key] = std::map<uint64_t, std::map<uint32_t, std::vector<uint64_t>>>();
+			}
+			if (m_recordPath[key].find(m_recordTime.GetMilliSeconds()) == m_recordPath[key].end())
+			{
+				m_recordPath[key][m_recordTime.GetMilliSeconds()] = std::map<uint32_t, std::vector<uint64_t>>();
+			}
 			for (uint32_t path : paths)
 			{
 				PathData *pathinfo = routePath.lookup_PIT(path);
