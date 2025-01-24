@@ -1783,11 +1783,11 @@ std::vector<double> RdmaSmartFlowRouting::CalPathWeightBasedOnDelay(const std::v
         //     weights[i] = 0.0;
         // }
         // else
-        {
-            double ratio = -1.0 * paths[i]->latency/maxBastDelay  * laps_alpha;
-            weights[i] = std::exp(ratio);
-            sum_weights += weights[i];
-        }
+        // {
+        //     double ratio = -1.0 * paths[i]->latency/maxBastDelay  * laps_alpha;
+        //     weights[i] = std::exp(ratio);
+        //     sum_weights += weights[i];
+        // }
         double ratio = -1.0 * paths[i]->latency/maxBastDelay  * laps_alpha;
         weights[i] = std::exp(ratio);
         sum_weights += weights[i];
@@ -1811,6 +1811,13 @@ std::vector<double> RdmaSmartFlowRouting::CalPathWeightBasedOnDelay(const std::v
                     "Mininal Delay: " << paths[i]->theoreticalSmallestLatencyInNs << ", " <<
                     "Weight: " << weights[i]
                    );
+        // std::cout << "Path: " << paths[i]->pid << ", " <<
+        //             "Now: " << t.GetNanoSeconds() << ", " <<
+        //             "Realtime Delay: " << paths[i]->latency << ", " <<
+        //             "Mininal Delay: " << paths[i]->theoreticalSmallestLatencyInNs << ", " <<
+        //             // "nextAvailableTime: " << paths[i]->nextAvailableTime.GetNanoSeconds() << ", " <<
+        //             "Weight: " << weights[i] << std::endl;
+
         // if (is9604)
         // {
         //     std::cout << "Path: " << paths[i]->pid << ", " <<
@@ -1829,18 +1836,19 @@ std::vector<double> RdmaSmartFlowRouting::CalPathWeightBasedOnDelay(const std::v
 uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & weights) 
 {
     const double random_value = rndGen(generator);
+    // std::cout << "Random Value: " << random_value << std::endl;
     NS_ASSERT_MSG(random_value >= 0.0 && random_value <= 1.0, "Wrong random value");
     NS_ASSERT_MSG(weights.size() > 0, "The weights is empty");
     
-    double sum_weights = 0.0;
-    for (size_t i = 0; i < weights.size(); i++)
-    {
-        sum_weights += weights[i];
-    }
-    if (sum_weights == 0.0)
-    {
-        return std::rand() % weights.size();
-    }
+    // double sum_weights = 0.0;
+    // for (size_t i = 0; i < weights.size(); i++)
+    // {
+    //     sum_weights += weights[i];
+    // }
+    // if (sum_weights == 0.0)
+    // {
+    //     return std::rand() % weights.size();
+    // }
     
     double cumulative_weight = 0.0;
     for (size_t i = 0; i < weights.size(); ++i) 
@@ -2015,9 +2023,9 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
         uint32_t selPathIndex = 0;
         if (Irn::mode == Irn::Mode::NACK)
         {
-            std::vector<uint32_t> key = {ackTag.GetPathId(), ackTag.GetFlowId()};
-            size_t val = GetHashValue<uint32_t>(key);
-            selPathIndex = val % pitEntries.size();
+            // std::vector<uint32_t> key = {ackTag.GetPathId(), ackTag.GetFlowId()};
+            // size_t val = GetHashValue<uint32_t>(key);
+            // selPathIndex = val % pitEntries.size();
         }
         else if (Irn::mode == Irn::Mode::IRN_OPT)
         {
@@ -2029,10 +2037,10 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
             NS_ASSERT_MSG(false, "The mode is invalid");
         }
         NS_ASSERT_MSG(selPathIndex < pitEntries.size(), "The selected path index is out of range");
-        uint32_t fPid = pitEntries[selPathIndex]->pid;
+        // uint32_t fPid = pitEntries[selPathIndex]->pid;
         auto it_rPatPid = pathPair.find(ackTag.GetPathId());
         NS_ASSERT_MSG(it_rPatPid != pathPair.end(), "The pathPair is not found");
-        fPid = it_rPatPid->second;
+        uint32_t fPid = it_rPatPid->second;
         // std::cout << "data Pid: " << ackTag.GetPathId() << ", ack pid: " << fPid << std::endl;
         add_path_tag_by_path_id(entry->ackPacket, fPid);
 	    // NS_LOG_INFO("PktId: " << p->GetUid()  << " Type: ACK, Size: " << p->GetSize()-ch.GetSerializedSize() <<	" fPid: " << fPid << " rPid: " << ackTag.GetPathId());
