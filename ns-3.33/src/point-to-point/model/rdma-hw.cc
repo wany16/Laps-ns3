@@ -476,8 +476,8 @@ namespace ns3
 			qp->laps.m_curRate = m_bps;
 			qp->laps.m_tgtRate = m_bps;
 			qp->laps.m_incStage = 0;
-			qp->laps.m_nxtRateDecTimeInNs = 0;
-			qp->laps.m_nxtRateIncTimeInNs = 0;
+			qp->laps.m_nxtRateDecTimeInNs = Simulator::Now().GetNanoSeconds();
+			qp->laps.m_nxtRateIncTimeInNs = Simulator::Now().GetNanoSeconds();
 		}
 		else if (m_cc_mode == CongestionControlMode::DCTCP)
 		{
@@ -3529,9 +3529,10 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 
 		uint32_t congPathCnt = 0;
 		uint32_t curMaxDelayInNs = 0;
+		uint64_t tgtDelayInNs = qp->laps.m_tgtDelayInNs;
 		for (size_t i = 0; i < pitEntries.size(); i++)
 		{
-			if (pitEntries[i]->latency > pitEntries[i]->theoreticalSmallestLatencyInNs)
+			if (pitEntries[i]->latency > tgtDelayInNs)
 			{
 				congPathCnt++;
 			}
@@ -3547,7 +3548,6 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		// 				}
 		// 		);
 		// uint64_t curMaxDelayInNs = (*maxElement)->theoreticalSmallestLatencyInNs;
-		uint64_t tgtDelayInNs = qp->laps.m_tgtDelayInNs;
 		uint64_t curTimeInNs = Simulator::Now().GetNanoSeconds();
 
 		if (congPathCnt == pitEntries.size())
