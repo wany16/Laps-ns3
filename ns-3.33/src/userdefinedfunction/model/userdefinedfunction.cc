@@ -3802,9 +3802,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
   {
     // std::cout << "varMap->jobAllNum" << varMap->jobAllNum << std::endl;
 
-    while (varMap->jobNum < varMap->jobAllNum)
-    {
-      // std::cout << "NewFlowStartTimeInSec:" << startTimeInSec << std::endl;
+          // std::cout << "NewFlowStartTimeInSec:" << startTimeInSec << std::endl;
       flow_entry_t genFlow;
       // std::cout << "startTime :" << startTime << ", FLOW_LAUNCH_END_TIME : " << FLOW_LAUNCH_END_TIME << ", END_TIME : " << END_TIME;
       genFlow.srcNode = varMap->srcNode;
@@ -3856,10 +3854,9 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
         varMap->largeFlowCount = varMap->largeFlowCount + 1;
       }
       genFlow.print();
-      varMap->jobNum += 1;
+
       // std::cout << "jobNum" << varMap->jobNum << std::endl;
     }
-  }
 
   void generate_rdma_flows_for_node_pair(global_variable_t *varMap)
   {
