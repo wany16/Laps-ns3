@@ -47,12 +47,12 @@ NS_LOG_COMPONENT_DEFINE("CongestionControlSimulator");
 int main(int argc, char *argv[])
 {
     LogComponentEnable("RdmaHw", LOG_LEVEL_INFO);
-    LogComponentEnable("SwitchNode", LOG_LEVEL_INFO);
-    LogComponentEnable("ConWeaveRouting", LOG_LEVEL_INFO);
-    LogComponentEnable("RdmaSmartFlowRouting", LOG_LEVEL_INFO);
+    // LogComponentEnable("SwitchNode", LOG_LEVEL_INFO);
+    // LogComponentEnable("ConWeaveRouting", LOG_LEVEL_INFO);
+    //   LogComponentEnable("RdmaSmartFlowRouting", LOG_LEVEL_INFO);
     LogComponentEnable("userdefinedfunction", LOG_LEVEL_INFO);
-    LogComponentEnable("CongestionControlSimulator", LOG_LEVEL_INFO);
-    LogComponentEnable("QbbNetDevice", LOG_LEVEL_INFO);
+    // LogComponentEnable("CongestionControlSimulator", LOG_LEVEL_INFO);
+    // LogComponentEnable("QbbNetDevice", LOG_LEVEL_INFO);
     // LogComponentEnable ("BEgressQueue", LOG_LEVEL_INFO);
 
     global_variable_t varMap;
@@ -88,6 +88,7 @@ int main(int argc, char *argv[])
     cmd.AddValue("rdmaAppStartPort", "minimal port for rdma client.", varMap.appStartPort);
     cmd.AddValue("enableQbbTrace", "trace the packet event on node's all Qbb netdevices.", varMap.enableQbbTrace);
     cmd.AddValue("testPktNum", "The number of packets to test.", varMap.testPktNum);
+    cmd.AddValue("enableFlowCongestTest", "creat network congestion Test", varMap.enableFlowCongestTest);
     cmd.Parse(argc, argv);
     update_EST(varMap.paraMap, "loadRatio", varMap.loadRatio);
 
@@ -101,6 +102,7 @@ int main(int argc, char *argv[])
     std::cout << "-------------------------------Calculate The Paths----------------------------------------" << std::endl;
     calculate_paths_for_servers(&varMap);
     std::cout << "-------------------------------Install The Routing Table----------------------------------------" << std::endl;
+    // install_routing_entries_without_Pathtable(&varMap);
     install_routing_entries(&varMap);
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
     // print_node_routing_tables(&varMap, 5);
@@ -109,10 +111,29 @@ int main(int argc, char *argv[])
     config_switch(&varMap);
     std::cout << "-------------------------------Install The Application----------------------------------------" << std::endl;
     // install_rdma_client_on_node(&varMap, 20, 24);
-    install_rdma_client_on_node(&varMap, 20, 32, 1, 200000000, varMap.appStartPort);
-    // node_install_rdma_application(&varMap);
+    // install_rdma_client_on_node(&varMap, 20, 21, 1, 2000000000, varMap.appStartPort);
+    // install_rdma_client_on_node(&varMap, 20, 30, 1, 2000000000, varMap.appStartPort + 1);
+    /*for (size_t i = 0; i < 200; i += 4)
+    {
+        install_rdma_client_on_node(&varMap, 5, 7, 1, 20000000, varMap.appStartPort);
+        install_rdma_client_on_node(&varMap, 5, 8, 1, 20000000, varMap.appStartPort + i + 1);
+        install_rdma_client_on_node(&varMap, 6, 8, 1, 20000000, varMap.appStartPort + i + 2);
+        install_rdma_client_on_node(&varMap, 6, 7, 1, 20000000, varMap.appStartPort + i + 3);
+    }*/
+
+    /* for (size_t i = 0; i < 200; i += 1)
+     {
+         install_rdma_client_on_node(&varMap, 5, 7, 1, 20000, varMap.appStartPort + i);
+     }*/
+    // install_rdma_client_on_node(&varMap, 5, 7, 1, 3000, varMap.appStartPort);
+
+    // install_rdma_client_on_node(&varMap, 5, 8, 1, 200000000, varMap.appStartPort + 1);
+    //  install_rdma_client_on_node(&varMap, 80, 82, 1, 3000, varMap.appStartPort + 2);
+    //   install_rdma_client_on_node(&varMap, 6, 7, 1, 20000000000, varMap.appStartPort + 3);
+    node_install_rdma_application(&varMap);
     std::cout << "-------------------------------Monitor The queue Len----------------------------------------" << std::endl;
-    monitor_special_port_qlen(&varMap, 0, 1, 0);
+    //  monitor_special_port_qlen(&varMap, 0, 1, 0);
+    monitor_switch_qlen(&varMap, 0);
     std::cout << "-------------------------------Monitor The qBB Device----------------------------------------" << std::endl;
     set_QBB_trace(&varMap);
     std::cout << "-------------------------------Start the Simulation----------------------------------------" << std::endl;

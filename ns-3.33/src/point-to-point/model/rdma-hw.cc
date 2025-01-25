@@ -1721,7 +1721,7 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 		NS_ASSERT_MSG(valid, "Time " << Simulator::Now().GetNanoSeconds()<< ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq);
 		if (!valid)
 		{
-			std::cout << "Time " << Simulator::Now().GetNanoSeconds() << ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq << std::endl;
+			std::cerr << "Time " << Simulator::Now().GetNanoSeconds() << ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq << std::endl;
 			exit(1);
 		}
 		
@@ -2307,11 +2307,15 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 	Ptr<Packet> RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp)
 	{
 		NS_LOG_FUNCTION(this);
-
 		uint32_t payload_size = qp->GetBytesLeft();
 		if (m_mtu < payload_size)	{
 			payload_size = m_mtu;
 		}
+		if (Irn::mode == Irn::Mode::NACK)
+		{
+			qp->CheckAndUpdateQpStateForLaps();
+		}
+
     uint32_t seq = (uint32_t)qp->snd_nxt;
     qp->m_phyTxNPkts += 1;
     qp->m_phyTxBytes += payload_size;

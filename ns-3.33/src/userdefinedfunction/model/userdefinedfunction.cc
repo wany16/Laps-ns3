@@ -2286,7 +2286,7 @@ namespace ns3
     std::sort(recordVec.begin(), recordVec.end(),
               [](const std::pair<uint32_t, QpRecordEntry>& a, const std::pair<uint32_t, QpRecordEntry>& b)
                 {
-                  return a.second.flowsize < b.second.flowsize;
+                  return (a.second.finishTime-a.second.installTime) < (b.second.finishTime-b.second.installTime);
                 }
             );
         

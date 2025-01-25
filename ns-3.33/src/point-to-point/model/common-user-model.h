@@ -16,6 +16,8 @@
 #include <numeric>
 #include <sstream>
 #include <string>
+#include <random>
+
 #include "ns3/string.h"
 #include "ns3/address.h"
 #include "ns3/callback.h"
@@ -566,5 +568,38 @@ namespace ns3
     private:
         uint32_t randomNum;
     };
+
+class RandomIntegerGenerator {
+public:
+    RandomIntegerGenerator(unsigned int seed, double ratio)
+    {
+        m_rng.seed(seed);
+        if (ratio < 0 || ratio > 1)
+        {
+            std::cerr << "Invalid ratio value: " << ratio << std::endl;
+            exit(1);
+        }
+        m_min = 0;
+        m_max = int(1/ratio);
+        m_dist = std::uniform_int_distribution<int>(m_min, m_max);
+    }
+
+    // 返回一个均匀分布的随机正整数
+    int GetUniformInt() {
+        return m_dist(m_rng);
+    }
+
+private:
+    std::mt19937 m_rng; // Mersenne Twister 19937 生成器
+    int m_min;
+    int m_max;
+    std::uniform_int_distribution<int> m_dist;
+};
+
+
+
+
+
+
 }
 #endif

@@ -105,7 +105,8 @@ public:
   static const uint32_t qCnt = 8;	// Number of queues/priorities used
 
   static TypeId GetTypeId (void);
-
+  static RandomIntegerGenerator pktCorruptRandGen;
+  static bool isEnableRndPktLoss;
   QbbNetDevice ();
   virtual ~QbbNetDevice ();
 
