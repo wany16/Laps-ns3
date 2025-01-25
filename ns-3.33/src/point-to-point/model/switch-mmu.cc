@@ -47,14 +47,37 @@ namespace ns3 {
 	}
 	bool SwitchMmu::CheckIngressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize){
 		// if (psize + hdrm_bytes[port][qIndex] > headroom[port] && psize + GetSharedUsed(port, qIndex) > GetPfcThreshold(port)){
+		if (hdrm_bytes[port][qIndex] > 0)
+
+		{
+			if (ingress_bytes[port][qIndex] <= reserve || ingress_bytes[port][qIndex] <= reserve + shared_bytes)
+
+			{
+				std::cerr << "ingress_bytes[port][qIndex] <= reserve" << std::endl;
+				exit(1);
+			}
+			if (ingress_bytes[port][qIndex] != reserve + shared_bytes + hdrm_bytes[port][qIndex])
+
+			{
+				std::cerr << "ingress_bytes[port][qIndex] != reserve + shared_bytes + hdrm_bytes[port][qIndex]" << std::endl;
+				exit(1);
+			}
+		}
+
 		if (psize + hdrm_bytes[port][qIndex] > headroom[port]){
 			std::ostringstream oss;
 			oss << Simulator::Now().GetTimeStep() << " " << node_id << " Drop: queue:" << port << "," << qIndex << ": Headroom full";
 			NS_LOG_INFO(oss.str());
 
-			for (uint32_t i = 1; i < 64; i++)
-				NS_LOG_INFO("(" << hdrm_bytes[i][3] << "," << ingress_bytes[i][3] << ")");
+			// for (uint32_t i = 1; i < 64; i++)
+			//{
 
+			// std::cout << oss.str() << std::endl;
+			// std::cout << " psize:" << psize << " reserve:" << reserve << " shared_bytes:" << shared_bytes << " headroom[port]:" << headroom[port];
+			// std::cout << " hdrm_bytes[i][3]:" << hdrm_bytes[port][qIndex] << " ingress_bytes[i][3]:" << ingress_bytes[port][qIndex] << std::endl;
+
+			// NS_LOG_INFO("(" << hdrm_bytes[i][3] << "," << ingress_bytes[i][3] << ")");
+			//}
 			return false;
 		}
 		return true;
@@ -68,14 +91,30 @@ namespace ns3 {
 			ingress_bytes[port][qIndex] += psize;
 		}else {
 			uint32_t thresh = GetPfcThreshold(port);
-			if (new_bytes - reserve > thresh){
-				uint32_t tmp_shared_used = std::min(ingress_bytes[port][qIndex] - reserve, thresh);
-				int32_t tmp_shared_inc = thresh - tmp_shared_used;
+			if (new_bytes - reserve > thresh)
+			{
+				int32_t tmp_shared_inc = 0;
+				if (ingress_bytes[port][qIndex] - reserve >= thresh)
+				{
+					tmp_shared_inc = 0;
+				}
+				else
+				{
+					tmp_shared_inc = thresh - (ingress_bytes[port][qIndex] - reserve);
+				}
+				if (tmp_shared_inc < 0)
+				{
+					std::cerr << "tmp_shared_inc < 0" << std::endl;
+				}
+
 				shared_used_bytes += tmp_shared_inc; // ying
 				ingress_bytes[port][qIndex] += psize; // ying
-				hdrm_bytes[port][qIndex] += std::min(psize, new_bytes - reserve - thresh); //ying
-				//hdrm_bytes[port][qIndex] += psize;
-			}else {
+				// hdrm_bytes[port][qIndex] += std::min(psize, new_bytes - reserve - thresh); //ying
+				hdrm_bytes[port][qIndex] += psize - tmp_shared_inc; // ying
+																	// hdrm_bytes[port][qIndex] += psize;
+			}
+			else
+			{
 				// uint32_t reserve_left = ingress_bytes[port][qIndex]
 				ingress_bytes[port][qIndex] += psize;
 				shared_used_bytes += std::min(psize, new_bytes - reserve);

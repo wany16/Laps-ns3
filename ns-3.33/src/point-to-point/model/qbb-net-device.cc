@@ -208,8 +208,11 @@ namespace ns3 {
 		NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT || Irn::mode == Irn::Mode::NACK, "Called Only When Laps is enabled");
 		// bool found = false;
 		uint32_t qIndex;
-		if (!paused[ack_q_idx] && m_ackQ->GetNPackets() > 0) // 0 : higher priority sent first, 3 : same priority, stored seperately but still sent first 
+		if (!paused[ack_q_idx] && m_ackQ->GetNPackets() > 0) // 0 : higher priority sent first, 3 : same priority, stored seperately but still sent first
 			return QINDEX_OF_ACK_PACKET_IN_SERVER;
+		// if (m_ackQ->GetNPackets() > 0) // 0 : higher priority sent first, 3 : same priority, stored seperately but still sent first
+		//	return QINDEX_OF_ACK_PACKET_IN_SERVER;
+
 		// no pkt in highest priority queue, do rr for each qp/flow
 		uint32_t fcount = m_qpGrp->GetN();
 		for (qIndex = 1; qIndex <= fcount; qIndex++){
@@ -291,7 +294,13 @@ namespace ns3 {
 
 	void RdmaEgressQueue::EnqueueHighPrioQ(Ptr<Packet> p){
 		m_traceRdmaEnqueue(p, 0);
+
 		m_ackQ->Enqueue(p);
+		if (m_ackQ->GetNPackets() >= 10)
+		{
+
+			std::cout << "!!!!!!!!!!!!!!!!!!!m_ackQ.GetNPackets() " << m_ackQ->GetNPackets() << std::endl;
+		}
 	}
 
 	void RdmaEgressQueue::CleanHighPrio(TracedCallback<Ptr<const Packet>, uint32_t> dropCb){
@@ -565,6 +574,7 @@ namespace ns3 {
 			hdr_size = ch.GetSerializedSize();
 			payloadSize = m_currentPkt->GetSize()-hdr_size;
 			NS_LOG_INFO("PktId: " << pktId  << " Type: Probe, Size: " << payloadSize <<	" Pid: " << pid);
+			std::cout << "PktId: " << pktId << " Type: Probe, Size: " << payloadSize << " Pid: " << pid << std::endl;
 		}
 
 		if (entry->isData)
@@ -1108,7 +1118,8 @@ namespace ns3 {
 				m_resumeEvt[qIndex] = Simulator::Schedule(MicroSeconds(ch.pfc.time), &QbbNetDevice::Resume, this, qIndex);
 			}else{
 				m_tracePfc(0);
-        Simulator::Cancel(m_resumeEvt[qIndex]);
+				// std::cout << "Node " << m_node->GetId() << " dev " << m_ifIndex << " queue " << qIndex << " resume at " << Simulator::Now().GetSeconds() << " last for " << ch.pfc.time << " us" << std::endl;
+				Simulator::Cancel(m_resumeEvt[qIndex]);
 				Resume(qIndex);
 			}
 		}else { // non-PFC packets (data, ACK, NACK, CNP...)
