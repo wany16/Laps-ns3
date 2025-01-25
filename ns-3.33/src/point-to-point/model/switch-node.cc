@@ -1327,6 +1327,7 @@ namespace ns3
 				}
 				CheckAndSendPfc(inDev, qIndex);
 			}
+			
 			m_bytes[inDev][idx][qIndex] += p->GetSize();
 			m_PortInf[GetId()][idx].Packetsize += p->GetSize();
 			m_PortInf[GetId()][idx].Packetcount += 1;
