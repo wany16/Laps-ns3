@@ -84,15 +84,18 @@ parser = argparse.ArgumentParser(description="请输入以下参数")
 parser.add_argument("--configFileName",
                     default="CONFIG_DCQCN.txt",
                     help="defaultFileName, by default CONFIG.txt")
+parser.add_argument("--topoFileDir",
+                    default="test",
+                    help="default TOPO File Name, by test")
 parser.add_argument("--topoFileName",
-                    default="fat_tree_4-8-8-16_topology.txt",
-                    help="defaultFileName, by default fat_tree_topology.txt")
+                    default="TOPO.txt",
+                    help="defaultFileName, by default TOPO_S5_H4.txt/fat_tree_4-8-8-16_topology.txt")
 parser.add_argument("--pitFileName",
                     default="PIT.txt",
-                    help="defaultFileName, by default fat_tree_topology_PIT.txt")
+                    help="defaultFileName, by default PIT_S5_H4_L10.txt/fat_tree_topology_PIT.txt")
 parser.add_argument("--pstFileName",
                     default="PST.txt",
-                    help="defaultFileName, by default fat_tree_topology_PST.txt")
+                    help="defaultFileName, by default PST_S5_H4_L10.txt/fat_tree_topology_PST.txt")
 parser.add_argument("--smtFileName",
                     default="SMT.txt",
                     help="defaultFileName, by default fat_tree_topology_SMT.txt")
@@ -101,19 +104,19 @@ parser.add_argument("--simStartTimeInSec",
                     default="0",
                     help="simulation start time")
 parser.add_argument("--simEndTimeInSec",
-                    default="0.5",
+                    default="2",
                     help="simulation end time")
 parser.add_argument("--flowLunchEndTimeInSec",
-                    default="0.1",
+                    default="0.01",
                     help="flow end time")
 parser.add_argument("--qlenMonitorIntervalInNs",
-                    default="100000",
+                    default="10000000",
                     help="Qlen Monitor period In Ns")
 parser.add_argument("--lbsName",
                     default="RPS",
                     help="Load balancing algorithm")
 parser.add_argument("--flowletTimoutInUs",
-                    default="10",
+                    default="2",
                     help="The time out of the flowlet in microsecond.")
 parser.add_argument(
     "--loadRatioShift",
@@ -126,11 +129,11 @@ parser.add_argument(
     help="Physical Server 30 is DCTCP_CDF',29 is RPC_CDF,28 is VL2_CDF")
 parser.add_argument("--ccMode", default="Dcqcn_mlx",  help="congestion control algorithm")
 parser.add_argument("--screenDisplayInNs", default="10000000",  help="screen display interval in Ns")
-parser.add_argument("--enablePfcMonitor", default="true",  help="trace Pfc packets or not ")
+parser.add_argument("--enablePfcMonitor", default="false",  help="trace Pfc packets or not ")
 parser.add_argument("--enableFctMonitor", default="true",  help="trace Fct or not")
 parser.add_argument("--enableQlenMonitor", default="false",  help="trace queue length or not")
-parser.add_argument("--rdmaAppStartPort", default="6666",  help="minimal port for rdma client")
-parser.add_argument("--enableQbbTrace", default="true",  help="trace the packet event on node's all Qbb netdevices")
+parser.add_argument("--rdmaAppStartPort", default="1000",  help="minimal port for rdma client")
+parser.add_argument("--enableQbbTrace", default="false",  help="trace the packet event on node's all Qbb netdevices")
 parser.add_argument("--testPktNum", default="1",  help="The number of packets to test")
 args = parser.parse_args()
 
@@ -142,15 +145,10 @@ if not os.path.exists(vm_root_path):
 vm_inputFiles_path = vm_root_path + "inputFiles/" + experimentalName + "/"
 vm_workload_path = vm_root_path + "inputFiles/" + "workload/"
 #  Physical Server 30 is DCTCP_CDF',29 is RPC_CDF,28 is VL2_CDF
-if args.PS == "30":
-    workloadName = 'DCTCP_CDF'
-elif args.PS == "29":
-    workloadName = 'RPC_CDF'
-else:
-    workloadName = 'VL2_CDF'
 
-workloadFile = vm_workload_path + workloadName + ".txt"
-vm_patternFiles_path = vm_root_path + "inputFiles/" + "pattern/"
+
+
+
 # patternName = 'Ring'
 
 # VM:specify the exec files
@@ -189,15 +187,21 @@ allLoadratioList = [
     '0.5', '0.55', '0.6', '0.65', '0.7', '0.75', '0.8', '0.85', '0.9', '0.95',
     '1.0'
 ]
+
 patternNames = ['Ring', 'all2all', 'Reduce']
 patternNameMap = {'Ring': 1, 'all2all': 0.032, 'Reduce': 0.333}
-onePatternNameMap = {'Ring': 1}
+onePatternNameMap = {'All': 1}
 allLbsNameList = ['drill', 'letflow', 'ecmp','laps','conweave','conga']
-loadratioList = ['0.5']
-lbsNameList = ['e2elaps']
+LoadratioList=['1.0']
+lbsNameList = ['ecmp']
+alltopoDirlist=['railOnly','dragonfly','fatTree']
+# workloadNamelist=['LLM_INFER_LLAMA']
+workloadNamelist=['DCTCP_CDF', 'RPC_CDF', 'VL2_CDF']
 
-
+topoDirlist=['railOnly']
+m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb','25':'e2elaps'}
 def runBigSimTest():
+  
     for patternName, patternLoadRatioShift in patternNameMap.items():
         for loadratio in allLoadratioList:
             for lbsName in allLbsNameList:
@@ -221,62 +225,6 @@ def runBigSimTest():
                 --flowletTimoutInUs={}\
                 --loadRatioShift={}\
                 --loadRatio={}\
-                --ccMode={}\
-                --screenDisplayInNs={}\
-                --enablePfcMonitor={}\
-                --enableFctMonitor={}\
-                --enableQlenMonitor={}\
-                --enableQbbTrace={}\
-                --rdmaAppStartPort={}\
-                --testPktNum={}\
-                --workloadFile={} --patternFile={}"\
-                --SMTFile={} --PITFile={} --PSTFile={}"\
-                '.format(mainFileName, fileIdx, vm_outputFiles_path,
-                         vm_inputFiles_path,
-                         vm_inputFiles_path + args.topoFileName,
-                         vm_inputFiles_path + args.configFileName,
-                         args.simStartTimeInSec, args.qlenMonitorIntervalInNs,
-                         args.simEndTimeInSec, args.flowLunchEndTimeInSec,
-                         lbsName, args.flowletTimoutInUs,
-                         patternLoadRatioShift, loadratio,
-                         args.ccMode,
-                         args.screenDisplayInNs,
-                         args.enablePfcMonitor,
-                         args.enableFctMonitor,
-                         args.enableQlenMonitor,
-                         args.enableQbbTrace,
-                         args.rdmaAppStartPort,
-                         args.testPktNum,
-                         workloadFile,patternFile,
-                         vm_inputFiles_path + args.smtFileName,vm_inputFiles_path + args.pitFileName,vm_inputFiles_path + args.pstFileName)
-                print(Line_command)
-                os.system(Line_command)
-
-
-def runLBSimTest():
-    # Ring
-    for patternName, patternLoadRatioShift in onePatternNameMap.items():
-        # 0.7
-        for loadratio in loadratioList:
-            # conga
-            for lbsName in lbsNameList:
-                fileIdx = experimentalName+"_"+workloadName + "_" +\
-                    patternName + "-lr-"+loadratio+"-lb-"+lbsName
-                patternFile = vm_inputFiles_path +"singpare.txt"
-                Line_command = '\
-                ./waf --run "scratch/{}\
-                --fileIdx={}\
-                --outputFileDir={}\
-                --inputFileDir={}\
-                --topoFileName={}\
-                --configFileName={}\
-                --simStartTimeInSec={}\
-                --qlenMonitorIntervalInNs={}\
-                --simEndTimeInSec={}\
-                --flowLunchEndTimeInSec={}\
-                --lbsName={}\
-                --flowletTimoutInUs={}\
-                --loadRatioShift={} --loadRatio={} \
                 --ccMode={}\
                 --screenDisplayInNs={}\
                 --enablePfcMonitor={}\
@@ -309,4 +257,139 @@ def runLBSimTest():
                 os.system(Line_command)
 
 
-runLBSimTest()
+def runLBSimTest():
+    enableFlowCongestTest=True
+    # Ring
+
+    for patternName, patternLoadRatioShift in onePatternNameMap.items():
+        # 0.7
+        for loadratio in LoadratioList:
+            # conga
+            for lbsName in lbsNameList:
+                fileIdx = experimentalName+"_"+workloadName + "_" +\
+                    patternName + "-lr-"+loadratio+"-lb-"+lbsName
+                patternFile = vm_inputFiles_path +"singpare.txt"
+                Line_command = '\
+                ./waf --run "scratch/{}\
+                --fileIdx={}\
+                --outputFileDir={}\
+                --inputFileDir={}\
+                --topoFileName={}\
+                --configFileName={}\
+                --simStartTimeInSec={}\
+                --qlenMonitorIntervalInNs={}\
+                --simEndTimeInSec={}\
+                --flowLunchEndTimeInSec={}\
+                --lbsName={}\
+                --flowletTimoutInUs={}\
+                --loadRatioShift={} --loadRatio={} \
+                --ccMode={}\
+                --screenDisplayInNs={}\
+                --enablePfcMonitor={}\
+                --enableFctMonitor={}\
+                --enableQlenMonitor={}\
+                --enableQbbTrace={}\
+                --rdmaAppStartPort={}\
+                --testPktNum={}\
+                --workloadFile={} --patternFile={}\
+                --SMTFile={} --PITFile={} --PSTFile={}\
+                --enableFlowCongestTest={}"\
+                '.format(mainFileName, fileIdx, vm_outputFiles_path,
+                        vm_inputFiles_path,
+                        vm_inputFiles_path + args.topoFileName,
+                        
+                        vm_inputFiles_path + args.configFileName,
+                        args.simStartTimeInSec, args.qlenMonitorIntervalInNs,
+                        args.simEndTimeInSec, args.flowLunchEndTimeInSec,
+                        lbsName, args.flowletTimoutInUs,
+                        patternLoadRatioShift, loadratio,
+                        args.ccMode,
+                        args.screenDisplayInNs,
+                        args.enablePfcMonitor,
+                        args.enableFctMonitor,
+                        args.enableQlenMonitor,
+                        args.enableQbbTrace,
+                        args.rdmaAppStartPort,
+                        args.testPktNum,
+                        workloadFile,patternFile,
+                        vm_inputFiles_path + args.smtFileName,vm_inputFiles_path + args.pitFileName,vm_inputFiles_path + args.pstFileName,
+                        enableFlowCongestTest)
+                print(Line_command)
+                os.system(Line_command)
+def runTopoSimTest():
+    enableFlowCongestTest=True
+    # Ring
+    for toponame in topoDirlist:
+        for patternName, patternLoadRatioShift in onePatternNameMap.items():
+            # 0.7
+            for loadratio in LoadratioList:
+                # conga
+                for workloadName  in workloadNamelist:
+                    lbsName=m_PS2lb[args.PS]
+                    if lbsName=="e2elaps":
+                       ccMode='Laps'
+                    else:
+                       ccMode=args.ccMode
+                    if lbsName=="e2elaps":
+                        ccMode='Laps'
+                        pitDir=vm_inputFiles_path + toponame+"/"+ "laps-"+args.pitFileName
+                        pstDir=vm_inputFiles_path + toponame+"/"+ "laps-"+args.pstFileName
+                    
+                    else:
+                        ccMode=args.ccMode
+                        pitDir=vm_inputFiles_path + toponame+"/"+ args.pitFileName
+                        pstDir=vm_inputFiles_path + toponame+"/"+ args.pstFileName
+                    workloadFile = vm_workload_path + workloadName + ".txt"
+                    fileIdx = experimentalName+"_"+toponame+"_"+workloadName + "_" +\
+                        patternName + "-lr-"+loadratio+"-lb-"+lbsName
+                    patternFile = patternFile = vm_inputFiles_path +toponame+"/"+"TFC-"+patternName+".txt"
+                  
+                    Line_command = '\
+                    ./waf --run "scratch/{}\
+                    --fileIdx={}\
+                    --outputFileDir={}\
+                    --inputFileDir={}\
+                    --topoFileName={}\
+                    --configFileName={}\
+                    --simStartTimeInSec={}\
+                    --qlenMonitorIntervalInNs={}\
+                    --simEndTimeInSec={}\
+                    --flowLunchEndTimeInSec={}\
+                    --lbsName={}\
+                    --flowletTimoutInUs={}\
+                    --loadRatioShift={} --loadRatio={} \
+                    --ccMode={}\
+                    --screenDisplayInNs={}\
+                    --enablePfcMonitor={}\
+                    --enableFctMonitor={}\
+                    --enableQlenMonitor={}\
+                    --enableQbbTrace={}\
+                    --rdmaAppStartPort={}\
+                    --testPktNum={}\
+                    --workloadFile={} --patternFile={}\
+                    --SMTFile={} --PITFile={} --PSTFile={}\
+                    --enableFlowCongestTest={}"\
+                    '.format(mainFileName, fileIdx, vm_outputFiles_path,
+                            vm_inputFiles_path,
+                            vm_inputFiles_path + toponame+"/"+args.topoFileName,
+                            vm_inputFiles_path + args.configFileName,
+                            args.simStartTimeInSec, args.qlenMonitorIntervalInNs,
+                            args.simEndTimeInSec, args.flowLunchEndTimeInSec,
+                            lbsName, args.flowletTimoutInUs,
+                            patternLoadRatioShift, loadratio,
+                            ccMode,
+                            args.screenDisplayInNs,
+                            args.enablePfcMonitor,
+                            args.enableFctMonitor,
+                            args.enableQlenMonitor,
+                            args.enableQbbTrace,
+                            args.rdmaAppStartPort,
+                            args.testPktNum,
+                            workloadFile,patternFile,
+                            vm_inputFiles_path + toponame+"/"+ args.smtFileName,pitDir,pstDir,
+                            enableFlowCongestTest)
+                    print(Line_command)
+                    os.system(Line_command)
+
+
+runTopoSimTest()
