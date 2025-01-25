@@ -1190,7 +1190,7 @@ namespace ns3
   void install_rdma_flows_on_nodes(global_variable_t *varMap);
   void create_topology_rdma(global_variable_t *varMap);
 
-  void generate_LLMA_rdma_flows_for_node_pair(global_variable_t *varMap);
+  void generate_LLMA_rdma_flows_for_node_pair(global_variable_t *varMap, double startTimeInSec);
   void generate_LLMA_rdma_flows_on_nodes(global_variable_t *varMap);
   void node_install_LLMA_rdma_application(global_variable_t *varMap);
   std::map<uint32_t, ecn_para_entry_t> parse_ecn_parameter(std::vector<std::string> &s);
