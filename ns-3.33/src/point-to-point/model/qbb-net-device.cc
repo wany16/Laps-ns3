@@ -61,6 +61,8 @@ namespace ns3 {
   std::unordered_map<int32_t, Time> RdmaEgressQueue::cumulative_pause_time;
 	bool RdmaEgressQueue::isAckHighPriority = true;
 	std::map<std::string, std::string> QbbNetDevice::qpSendInfo;
+  RandomIntegerGenerator QbbNetDevice::pktCorruptRandGen = RandomIntegerGenerator(2, 0.00001);
+	bool QbbNetDevice::isEnableRndPktLoss = false;
 
 	// RdmaEgressQueue
 	TypeId RdmaEgressQueue::GetTypeId (void)
@@ -1085,6 +1087,12 @@ namespace ns3 {
 			m_phyRxDropTrace(packet);
 			return;
 		}
+	if (isEnableRndPktLoss && pktCorruptRandGen.GetUniformInt() == 0)
+	{
+			m_phyRxDropTrace(packet);
+			std::cout << "Node " << m_node->GetId() << " dev " << m_ifIndex << " drop packet at " << Simulator::Now().GetSeconds() << std::endl;
+			return;
+	}
 
 		m_macRxTrace(packet);
 		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
