@@ -216,7 +216,7 @@ namespace ns3 {
 			if (qp->IsFinishedConst()) m_qpGrp->SetQpFinished(idx);
       if (m_qpGrp->IsQpFinished(idx)) continue;
 			// if(!qp->m_cb_isPathsValid(qp->m_flow_id)) continue;
-			qp->CheckAndUpdateQpStateForLaps();
+			// qp->CheckAndUpdateQpStateForLaps();
 			bool isPfcAllowed = !paused[qp->m_pg];
 			int32_t flowid = qp->m_flow_id;
 			auto it = RdmaHw::m_recordQpExec.find(flowid);

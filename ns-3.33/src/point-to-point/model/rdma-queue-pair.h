@@ -77,6 +77,7 @@ class IrnSackManager {
 		bool checkOutstandingDataAndUpdateLossyData(uint32_t pid, uint32_t seq);
 		size_t getOutStandingDataSizeForLaps();
 		size_t getLossyDataSize();
+		size_t getFirstLossyDataSize();
     friend std::ostream &operator<<(std::ostream &os, const IrnSackManager &im);
 };
 

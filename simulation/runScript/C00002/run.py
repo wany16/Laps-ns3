@@ -107,7 +107,7 @@ parser.add_argument("--simEndTimeInSec",
                     default="2",
                     help="simulation end time")
 parser.add_argument("--flowLunchEndTimeInSec",
-                    default="0.01",
+                    default="0.001",
                     help="flow end time")
 parser.add_argument("--qlenMonitorIntervalInNs",
                     default="10000000",
@@ -198,7 +198,9 @@ alltopoDirlist=['railOnly','dragonfly','fatTree']
 # workloadNamelist=['LLM_INFER_LLAMA']
 workloadNamelist=['DCTCP_CDF', 'RPC_CDF', 'VL2_CDF']
 
-topoDirlist=['railOnly']
+# topoDirlist=['railOnly']
+topoDirlist=['dragonfly']
+
 m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb','25':'e2elaps'}
 def runBigSimTest():
   

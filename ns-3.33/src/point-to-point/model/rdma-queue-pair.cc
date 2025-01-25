@@ -258,9 +258,18 @@ uint64_t RdmaQueuePair::GetBytesLeftForLaps()
 	}
 	else if (Irn::mode == Irn::NACK)
 	{
-		size_t undSize = m_size >= snd_nxt ? m_size - snd_nxt : 0;
-		size_t lossySize = m_irn.m_sack.getLossyDataSize();
-		return undSize + lossySize;
+		// size_t undSize = m_size >= snd_nxt ? m_size - snd_nxt : 0;
+		size_t firstlostSize = m_irn.m_sack.getFirstLossyDataSize();
+		if (firstlostSize != 0)
+		{
+			return firstlostSize;
+		}
+		size_t undSize = m_size >= m_irn.m_max_next_seq ? m_size - m_irn.m_max_next_seq : 0;
+
+		
+		// size_t lossySize = m_irn.m_sack.getLossyDataSize();
+		// return undSize + lossySize;
+		return undSize;
 	}
 	else
 	{
@@ -671,7 +680,25 @@ uint64_t RdmaQueuePair::GetOnTheFlyForLaps()
 	}
 	else if (Irn::mode == Irn::Mode::NACK)
 	{
-		int32_t onTheFly = snd_nxt - snd_una;
+		// int32_t onTheFly = snd_nxt - snd_una;
+		// NS_ASSERT_MSG(onTheFly >= 0, "onTheFly should be non-negative");
+		int32_t sent = m_irn.m_max_next_seq - snd_una;
+		if (sent < 0)
+		{
+			std::cerr << "ERROR: sent should be non-negative\n";
+		}
+		size_t lost = m_irn.m_sack.getLossyDataSize();
+		if (lost < 0)
+		{
+			std::cerr << "ERROR: lost should be non-negative\n";
+		}
+		size_t nacked = m_irn.m_sack.getSackBufferOverhead();
+		int32_t onTheFly = sent - lost - nacked;
+		if (onTheFly < 0)
+		{
+			std::cerr << "ERROR: onTheFly should be non-negative\n";
+		}
+
 		NS_ASSERT_MSG(onTheFly >= 0, "onTheFly should be non-negative");
 		return onTheFly;
 	}
@@ -700,12 +727,30 @@ bool RdmaQueuePair::CanIrnTransmitForLaps(uint32_t mtu)
 		{
 			return true;
 		}
-		int32_t lossy = m_irn.m_sack.getLossyDataSize();
-		uint64_t byteLeft = m_size >= snd_nxt ? m_size - snd_nxt : 0;
-		uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
+		// int32_t lossy = m_irn.m_sack.getLossyDataSize();
+		// uint64_t byteLeft = m_size >= m_irn.m_max_next_seq ? m_size - m_irn.m_max_next_seq : 0;
+		// uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
+		// uint64_t byteOnFly = GetOnTheFlyForLaps();
+		// bool isBdpAllowed = (byteOnFly + byteTx) <= GetWinForLaps() ? true : false;
 		uint64_t byteOnFly = GetOnTheFlyForLaps();
-		bool isBdpAllowed = (byteOnFly + byteTx) <= GetWinForLaps() ? true : false;
-		return isBdpAllowed;
+		if (m_irn.m_sack.getLossyDataSize() > 0)
+		{
+			uint64_t byteTx = m_irn.m_sack.getFirstLossyDataSize();
+			if (byteTx > mtu )
+			{
+				std::cerr << "ERROR: lost pkt size should be less than mtu\n";
+				return true;
+			}
+			bool isBdpAllowed = (byteOnFly + byteTx) <= GetWinForLaps() ? true : false;
+			return isBdpAllowed;
+		}
+		else
+		{
+			uint64_t byteLeft = m_size >= m_irn.m_max_next_seq ? m_size - m_irn.m_max_next_seq : 0;
+			uint64_t byteTx = byteLeft > mtu ? mtu : byteLeft;
+			bool isBdpAllowed = (byteOnFly + byteTx) <= GetWinForLaps() ? true : false;
+			return isBdpAllowed;
+		}
 	}
 	else
 	{
@@ -1237,5 +1282,16 @@ size_t IrnSackManager::getLossyDataSize() {
 		}
     return s;
 }
+
+size_t IrnSackManager::getFirstLossyDataSize(){
+	NS_LOG_FUNCTION(this);
+	NS_ASSERT_MSG(Irn::mode == Irn::Mode::NACK, "Called Only When Laps is enabled");
+	if (m_lossy_data.size() == 0)
+	{
+		return 0;
+	}
+	return m_lossy_data.front().second;
+}
+
 
 }
