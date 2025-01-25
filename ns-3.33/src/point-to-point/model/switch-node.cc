@@ -524,7 +524,7 @@ namespace ns3
 			// 确保 m_recordPath 中有对应的 key 和时间戳
 			if (m_recordPath.find(key) == m_recordPath.end())
 			{
-				m_recordPath[key] = std::map<uint64_t, std::map<uint32_t, std::vector<uint64_t>>>();
+				m_recordPath[key] = std::map<uint32_t, std::map<uint32_t, std::vector<uint64_t>>>();
 			}
 			if (m_recordPath[key].find(m_recordTime.GetMilliSeconds()) == m_recordPath[key].end())
 			{

@@ -25,7 +25,7 @@ namespace ns3
 	std::map<uint32_t, std::map<std::string, std::map<uint64_t, RecordCcmodeOutEntry>>> RdmaHw::ccmodeOutInfo;
 	std::map<uint32_t, std::map<std::string, std::map<uint32_t, LostPacketEntry>>> RdmaHw::m_lossPacket;
 	std::map<std::string, std::string> RdmaHw::m_recordQpSen;
-	std::map<std::string, std::map<uint64_t, uint32_t>> RdmaHw::m_qpRatechange;
+	std::map<std::string, std::vector<RecordFlowRateEntry_t>> RdmaHw::m_qpRatechange;
 	uint32_t RdmaHw::flowComplteNum;
 	std::map<uint32_t, std::vector<RecordFlowRateEntry_t>> RdmaHw::recordRateMap;		  //
 	std::map<uint32_t, std::vector<RecordPathDelayEntry_t>> RdmaHw::recordPathDelayMap;		  //
@@ -411,12 +411,12 @@ namespace ns3
 	{
 		Time now = Simulator::Now();
 		uint32_t curRateInMBs = newRate.GetBitRate() / 1000000 / 8;
-		RecordFlowRateEntry_t rateEntry;
+
 		std::string flowId = qp1->GetStringHashValueFromQp();
 		auto it = RdmaHw::m_qpRatechange.find(flowId);
 		if (it == RdmaHw::m_qpRatechange.end())
 		{
-			RdmaHw::m_qpRatechange.push_back(RecordFlowRateEntry_t(curRateInMBs, now.GetNanoSeconds(), 0));
+			RdmaHw::m_qpRatechange[flowId].push_back(RecordFlowRateEntry_t(curRateInMBs, now.GetNanoSeconds(), 0));
 		}
 		else
 		{
@@ -426,7 +426,7 @@ namespace ns3
 			rateEntry.back().durationInNs = now.GetNanoSeconds() - prev_time_in_ns;
 			if (curRateInMBs != prev_rate_in_MBs)
 			{
-				rateEntry.push_back(RecordFlowRateEntry_t(curRateInMbps, now.GetNanoSeconds(), 0));
+				rateEntry.push_back(RecordFlowRateEntry_t(curRateInMBs, now.GetNanoSeconds(), 0));
 			}
 		}
 
