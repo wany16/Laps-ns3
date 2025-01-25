@@ -338,9 +338,11 @@ def runTopoSimTest():
                 if workloadName=="LLM_INFER_LLAMA":
                     EnableLLM=True
                     loadratioList=loadratioList1
+                    flowLunchEndTimeInSec=0.1
                 else:
                     EnableLLM= args.enableLLMWorKLoad   
                     loadratioList=loadratioListall
+                    flowLunchEndTimeInSec=args.flowLunchEndTimeInSec
                 # conga
                 lbsName=m_PS2lb[args.PS]
                 if lbsName=="e2elaps":
@@ -389,10 +391,9 @@ def runTopoSimTest():
                     '.format(mainFileName, fileIdx, vm_outputFiles_path,
                             vm_inputFiles_path,
                             vm_inputFiles_path + toponame+"/"+args.topoFileName,
-                            vm_inputFiles_path+
                             vm_inputFiles_path + args.configFileName,
                             args.simStartTimeInSec, args.qlenMonitorIntervalInNs,
-                            args.simEndTimeInSec, args.flowLunchStartTimeInSec,args.flowLunchEndTimeInSec,
+                            args.simEndTimeInSec, args.flowLunchStartTimeInSec,flowLunchEndTimeInSec,
                             lbsName, args.flowletTimoutInUs,
                             patternLoadRatioShift, loadratio,
                             ccMode,

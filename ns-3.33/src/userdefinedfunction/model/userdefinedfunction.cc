@@ -2909,7 +2909,7 @@ namespace ns3
         swNode->m_mmu->ConfigEcn(nicIdx, varMap->ecnParaMap[rateInGbps].kminInKb, ecnParaMap[rateInGbps].kmaxInKb, ecnParaMap[rateInGbps].pmax);
         // set pfc
         uint64_t delayInNs = DynamicCast<QbbChannel>(dev->GetChannel())->GetDelay().GetNanoSeconds();
-        uint32_t headroomInByte = nicRateInGbps * delayInNs / 8 * 2 +  2 * (varMap->defaultPktSizeInByte + 48); // 8是指byte
+        uint32_t headroomInByte = (swNode->GetNDevices()) * (nicRateInGbps * delayInNs / 8 * 2 + 2 * (varMap->defaultPktSizeInByte + 48)); // 8是指byte
         swNode->m_mmu->ConfigHdrm(nicIdx, headroomInByte);
 
         // set pfc alpha, proportional to link bw, larger bw indicates large utilization
@@ -3951,7 +3951,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
 
     for (auto it : varMap->tfc)
     {
-      for (auto it_2 : it->second)
+      for (auto it_2 : it.second)
       {
         n++;
       }
