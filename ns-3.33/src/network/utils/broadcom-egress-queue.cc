@@ -102,7 +102,7 @@ namespace ns3 {
 
 		if (m_bytesInQueueTotal == 0)
 		{
-			// std::cout <<"11111111" << std::endl;
+			std::cout <<"11111111" << std::endl;
 			NS_LOG_LOGIC("Queue empty");
 			return 0;
 		}
@@ -172,6 +172,11 @@ namespace ns3 {
 			NS_LOG_LOGIC("Number bytes " << m_bytesInQueueTotal);
 			return p;
 		}
+		else
+		{
+			std::cerr << "No existed packet can be sent" << std::endl;
+			return 0;
+		}
 		NS_LOG_LOGIC("Nothing can be sent");
 		return 0;
 	}
@@ -196,6 +201,10 @@ namespace ns3 {
 
 			m_nPackets++;
 			m_nTotalReceivedPackets++;
+		}
+		else
+		{
+			std::cerr << "Drop packet due to queue full" << std::endl;
 		}
 		return retval;
 	}
