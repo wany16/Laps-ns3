@@ -1151,18 +1151,18 @@ namespace ns3 {
 			if (ch.pfc.time > 0){
 				m_tracePfc(1);
 				m_paused[qIndex] = true;
-				if (qIndex == 0)
-				{
-					std::cout << "Node " << m_node->GetId() << " dev " << m_ifIndex << " queue " << qIndex << " pause at " << Simulator::Now().GetSeconds() << " last for " << ch.pfc.time << " us" << std::endl;
-				}
+				// if (qIndex == 0)
+				// {
+				// 	std::cout << "Node " << m_node->GetId() << " dev " << m_ifIndex << " queue " << qIndex << " pause at " << Simulator::Now().GetSeconds() << " last for " << ch.pfc.time << " us" << std::endl;
+				// }
 				
 				// std::cout << "Node " << m_node->GetId() << " dev " << m_ifIndex << " queue " << qIndex << " pause at " << Simulator::Now().GetSeconds() << " last for " << ch.pfc.time << " us" << std::endl;
-				// Simulator::Cancel(m_resumeEvt[qIndex]);
-				// m_resumeEvt[qIndex] = Simulator::Schedule(MicroSeconds(ch.pfc.time), &QbbNetDevice::Resume, this, qIndex);
+				Simulator::Cancel(m_resumeEvt[qIndex]);
+				m_resumeEvt[qIndex] = Simulator::Schedule(MicroSeconds(ch.pfc.time), &QbbNetDevice::Resume, this, qIndex);
 			}else{
 				m_tracePfc(0);
 				// std::cout << "Node " << m_node->GetId() << " dev " << m_ifIndex << " queue " << qIndex << " resume at " << Simulator::Now().GetSeconds() << " last for " << ch.pfc.time << " us" << std::endl;
-				// Simulator::Cancel(m_resumeEvt[qIndex]);
+				Simulator::Cancel(m_resumeEvt[qIndex]);
 				Resume(qIndex);
 			}
 		}else { // non-PFC packets (data, ACK, NACK, CNP...)

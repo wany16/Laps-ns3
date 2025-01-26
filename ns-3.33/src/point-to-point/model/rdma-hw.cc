@@ -1720,19 +1720,19 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 				NS_ASSERT_MSG(it3 != m_flowId2Qp.end(), "Invalid flow id");
 				auto qp = it3->second;
 				qp->m_irn.m_sack.m_lossy_data.emplace_back(it2->seq, it2->size);
-				std::cout << "Time " << Simulator::Now().GetNanoSeconds() << " FlowID " << qp->m_flow_id << " Rate " <<  1.0*qp->laps.m_curRate.GetBitRate()/1000000000 << " Gbps ";
-				std::cout << ", Lossy data for PathID " << pid << " with " << it2->to_string() << std::endl;
+				// std::cout << "Time " << Simulator::Now().GetNanoSeconds() << " FlowID " << qp->m_flow_id << " Rate " <<  1.0*qp->laps.m_curRate.GetBitRate()/1000000000 << " Gbps ";
+				// std::cout << ", Lossy data for PathID " << pid << " with " << it2->to_string() << std::endl;
 				NS_LOG_INFO ("LossyData: flowId=" << flowId << ", seq=[" << it2->seq << ", " << it2->size << ")");
 				it2 = it->second.erase(it2);
 				lossy = true;
 			}
 		}
 		NS_ASSERT_MSG(valid, "Time " << Simulator::Now().GetNanoSeconds()<< ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq);
-		if (!valid)
-		{
-			std::cerr << "Time " << Simulator::Now().GetNanoSeconds() << ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq << std::endl;
-			exit(1);
-		}
+		// if (!valid)
+		// {
+		// 	std::cerr << "Time " << Simulator::Now().GetNanoSeconds() << ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq << std::endl;
+		// 	exit(1);
+		// }
 		
 		if (dataList.size() == 0)
 		{
