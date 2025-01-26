@@ -2909,7 +2909,7 @@ namespace ns3
         swNode->m_mmu->ConfigEcn(nicIdx, varMap->ecnParaMap[rateInGbps].kminInKb, ecnParaMap[rateInGbps].kmaxInKb, ecnParaMap[rateInGbps].pmax);
         // set pfc
         uint64_t delayInNs = DynamicCast<QbbChannel>(dev->GetChannel())->GetDelay().GetNanoSeconds();
-        uint32_t headroomInByte = (swNode->GetNDevices()) * (nicRateInGbps * delayInNs / 8 * 2 + 2 * (varMap->defaultPktSizeInByte + 48)); // 8是指byte
+        uint32_t headroomInByte = (nicRateInGbps * delayInNs / 8 * 2 + 2 * (varMap->defaultPktSizeInByte + 48)); // 8是指byte
         swNode->m_mmu->ConfigHdrm(nicIdx, headroomInByte);
 
         // set pfc alpha, proportional to link bw, larger bw indicates large utilization
@@ -2929,8 +2929,9 @@ namespace ns3
           NS_LOG_INFO("headroomInByte : " << headroomInByte);
         }
       }
+      swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024/32*(swNode->GetNDevices()+1));
 
-      swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024);
+      // swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024);
       swNode->m_mmu->ConfigNPort(swNode->GetNDevices() - 1);
       std::cout << "Switch " << swNode->m_mmu->node_id << " MMU is " << 1.0*swNode->m_mmu->buffer_size/1000 << " KB ";
       std::cout << "Headroom is " << 1.0*swNode->m_mmu->total_hdrm/1000 << " KB ";

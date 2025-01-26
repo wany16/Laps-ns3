@@ -66,8 +66,8 @@ namespace ns3 {
 
 		if (psize + hdrm_bytes[port][qIndex] > headroom[port]){
 			std::ostringstream oss;
-			oss << Simulator::Now().GetTimeStep() << " " << node_id << " Drop: queue:" << port << "," << qIndex << ": Headroom full";
-			NS_LOG_INFO(oss.str());
+			// oss << Simulator::Now().GetTimeStep() << " " << node_id << " Drop: queue:" << port << "," << qIndex << ": Headroom full";
+			// NS_LOG_INFO(oss.str());
 
 			// for (uint32_t i = 1; i < 64; i++)
 			//{

@@ -1697,9 +1697,9 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 		NS_ASSERT_MSG(it != m_outstanding_data.end(), "Invalid path id");
 		std::list<OutStandingDataEntry> & dataList = it->second;
 		NS_ASSERT_MSG(dataList.size() > 0, "Time " << Simulator::Now().GetNanoSeconds()<< ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId);
-		for(auto & it2 : dataList){
-			NS_LOG_INFO(it2.to_string());
-		}
+		// for(auto & it2 : dataList){
+		// 	NS_LOG_INFO(it2.to_string());
+		// }
 
 		bool valid = false;
 		bool lossy = false;
@@ -1708,11 +1708,20 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 		// {
 		// 	std::cout << "Pid " << pid << ", flowId " << flowId << " " << " seq " << seq << " size " << size << std::endl;
    	// 	std::cout << "Outstanding Data ";
-
-		// 	for (auto it3 = dataList.begin(); it3 != dataList.end(); it3++)
-		// 	{
-		// 		std::cout << it3->to_string() << "";
+		// bool isFound = false;
+		// for (auto it3 = dataList.begin(); it3 != dataList.end(); it3++)
+		// {
+		// 	if(it3->flow_id == flowId && it3->seq == seq && it3->size == size){
+		// 		isFound = true;
+		// 		break;
 		// 	}
+		// }
+		// if (!isFound)
+		// {
+		// 	return false;
+		// }
+
+		
 		// 	std::cout << std::endl;
 
 		// }
@@ -1739,11 +1748,11 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 			}
 		}
 		NS_ASSERT_MSG(valid, "Time " << Simulator::Now().GetNanoSeconds()<< ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq);
-		if (!valid)
-		{
-			std::cerr << "Time " << Simulator::Now().GetNanoSeconds() << ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq << std::endl;
-			exit(1);
-		}
+		// if (!valid)
+		// {
+		// 	std::cerr << "Time " << Simulator::Now().GetNanoSeconds() << ", Invalid outstanding data for PathID " << pid << " FlowID " << flowId << " Seq " << seq << std::endl;
+		// 	exit(1);
+		// }
 		
 		if (dataList.size() == 0)
 		{
@@ -2588,7 +2597,7 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 			reTxNic[nic_idx] = true;
 			if (!prefixPrinted)
 			{
-				//std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Time " << Simulator::Now().GetNanoSeconds() << ", Path " << pid << " enter RTO timeout" << std::endl;
+				std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Time " << Simulator::Now().GetNanoSeconds() << ", Path " << pid << " enter RTO timeout" << std::endl;
 				prefixPrinted = true;
 			}
 			//std::cout << "FlowID " << flowId <<", PathID=" << pid << ", segment=[" << seq << ", " << seq+size << "]" << std::endl;

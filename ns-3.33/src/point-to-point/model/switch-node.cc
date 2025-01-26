@@ -1282,8 +1282,8 @@ namespace ns3
 				{
 					// Ipv4SmartFlowPathTag pathTag;
 					// p->PeekPacketTag(pathTag);
-					//std::cout << "Drop packet on path " << " with seq " << ch.udp.seq << std::endl;
-					//std::cout << "due to admission control on switch " << GetId() << std::endl;
+					// std::cout << "Drop packet on path " << " with seq " << ch.udp.seq << std::endl;
+					// std::cout << "due to admission control on switch " << GetId() << std::endl;
 					return; // Drop
 				}
 				CheckAndSendPfc(inDev, qIndex);
@@ -1335,15 +1335,15 @@ namespace ns3
 					Ipv4SmartFlowPathTag pathTag;
 					if(p->PeekPacketTag(pathTag))
 					{
-						//std::cout << "Drop packet on path " << pathTag.get_path_id() << " with seq " << ch.udp.seq << " ";
-						//std::cout << "due to admission control on switch " << GetId() << std::endl;
-
+						// std::cout << "Drop packet on path " << pathTag.get_path_id() << " with seq " << ch.udp.seq << " ";
+						// std::cout << "due to admission control on switch " << GetId() << std::endl;
 					}
 
 					return; // Drop
 				}
 				CheckAndSendPfc(inDev, qIndex);
 			}
+			
 			m_bytes[inDev][idx][qIndex] += p->GetSize();
 			m_PortInf[GetId()][idx].Packetsize += p->GetSize();
 			m_PortInf[GetId()][idx].Packetcount += 1;

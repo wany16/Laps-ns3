@@ -218,13 +218,34 @@ namespace ns3 {
 		for (qIndex = 1; qIndex <= fcount; qIndex++){
 			uint32_t idx = (qIndex + m_rrlast) % fcount;
 			Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
-			if (qp->IsFinishedConst()) m_qpGrp->SetQpFinished(idx);
-      if (m_qpGrp->IsQpFinished(idx)) continue;
-			// if(!qp->m_cb_isPathsValid(qp->m_flow_id)) continue;
-			// qp->CheckAndUpdateQpStateForLaps();
 			bool isPfcAllowed = !paused[qp->m_pg];
 			int32_t flowid = qp->m_flow_id;
 			auto it = RdmaHw::m_recordQpExec.find(flowid);
+
+			it->second.snd_una = qp->snd_una;
+			it->second.snd_nxt = qp->snd_nxt;
+			it->second.maxNxtSeq = qp->m_irn.m_max_next_seq;
+			it->second.lastVistTime = Simulator::Now().GetNanoSeconds();
+			it->second.nxtAvailTime = qp->m_nextAvail.GetNanoSeconds();
+			it->second.bytesLeft = qp->GetBytesLeft();
+			it->second.bytesFly = qp->GetOnTheFlyForLaps();
+			it->second.bytesLost = qp->m_irn.m_sack.getLossyDataSize();
+			it->second.windowSize = qp->GetWinForLaps();
+
+			if (qp->IsFinishedConst()) m_qpGrp->SetQpFinished(idx);
+      if (m_qpGrp->IsQpFinished(idx))
+			{
+				it->second.pauseReason = "beSetFinished";
+				continue;
+			}
+			else
+			{
+				it->second.pauseReason = "Not Finished";
+			}
+
+			// if(!qp->m_cb_isPathsValid(qp->m_flow_id)) continue;
+			// qp->CheckAndUpdateQpStateForLaps();
+
 			if (isPfcAllowed) 
 			{
 				if (it->second.lastPfcPauseTime != -1)
@@ -240,12 +261,17 @@ namespace ns3 {
 				{
 					it->second.lastPfcPauseTime = Simulator::Now().GetNanoSeconds();
 				}
+				it->second.pauseReason = "+PfcPause";
 			}
 
 			bool isWinAllowed = !qp->IsWinBoundForLaps();
+			if (!isWinAllowed) it->second.pauseReason += "+Window";
 			bool isIrnAllowed = qp->CanIrnTransmitForLaps(mtuInByte);
+			if (!isIrnAllowed) it->second.pauseReason += "+Irn";
 			bool isDataLeft = qp->GetBytesLeftForLaps() > 0 ? true : false;
+			if (!isDataLeft) it->second.pauseReason += "+ZeroDataLeft";
 			bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
+			if (!isTimeAvail) it->second.pauseReason += "+TimeNotAvail";
 			// int32_t flowid = qp->m_flow_id;
 
 	  if (!isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed)
@@ -259,19 +285,20 @@ namespace ns3 {
 				// }
 		  }
 	  }
-			else if (isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed)
-			{
-				if (!isTimeAvail)  continue; // not available now
-				// auto it = RdmaHw::m_recordQpExec.find(flowid);
-				// if (it->second.lastPfcPauseTime != -1)
-				// {
-				// 	uint64_t tdiff = Simulator::Now().GetNanoSeconds() - it->second.lastPfcPauseTime;
-				// 	it->second.pfcDuration += tdiff;
-				// 	it->second.lastPfcPauseTime = -1;
-				// }
-				return idx;
-      }
+		else if (isPfcAllowed && isDataLeft && isWinAllowed && isIrnAllowed)
+		{
+			if (!isTimeAvail)  continue; // not available now
+			// auto it = RdmaHw::m_recordQpExec.find(flowid);
+			// if (it->second.lastPfcPauseTime != -1)
+			// {
+			// 	uint64_t tdiff = Simulator::Now().GetNanoSeconds() - it->second.lastPfcPauseTime;
+			// 	it->second.pfcDuration += tdiff;
+			// 	it->second.lastPfcPauseTime = -1;
+			// }
+			return idx;
 		}
+		}
+		// std::cout << "No QP to send " << it->second.to_string() << std::endl;
 		return QINDEX_OF_NONE_PACKET_IN_SERVER;
 	}
 
@@ -682,6 +709,17 @@ namespace ns3 {
 		{
 			m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
 		}
+		// if (valid && m_nextSend.IsExpired() && t < Simulator::GetMaximumSimulationTime())
+		// {
+		// 	if (t > Simulator::Now())
+		// 	{
+		// 		m_nextSend = Simulator::Schedule(t - Simulator::Now(), &QbbNetDevice::DequeueAndTransmit, this);
+		// 	}
+		// 	else
+		// 	{
+		// 		m_nextSend = Simulator::Schedule(MicroSeconds(5), &QbbNetDevice::DequeueAndTransmit, this);
+		// 	}
+		// }
 	}
 
 	Ptr<E2ESrcOutPackets> QbbNetDevice::GetTransmitQpContentOnSrcHostForLaps(int32_t qpFlowIndex)
@@ -1113,6 +1151,11 @@ namespace ns3 {
 			if (ch.pfc.time > 0){
 				m_tracePfc(1);
 				m_paused[qIndex] = true;
+				// if (qIndex == 0)
+				// {
+				// 	std::cout << "Node " << m_node->GetId() << " dev " << m_ifIndex << " queue " << qIndex << " pause at " << Simulator::Now().GetSeconds() << " last for " << ch.pfc.time << " us" << std::endl;
+				// }
+				
 				// std::cout << "Node " << m_node->GetId() << " dev " << m_ifIndex << " queue " << qIndex << " pause at " << Simulator::Now().GetSeconds() << " last for " << ch.pfc.time << " us" << std::endl;
 				Simulator::Cancel(m_resumeEvt[qIndex]);
 				m_resumeEvt[qIndex] = Simulator::Schedule(MicroSeconds(ch.pfc.time), &QbbNetDevice::Resume, this, qIndex);
