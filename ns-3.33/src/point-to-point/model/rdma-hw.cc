@@ -313,6 +313,9 @@ namespace ns3
 								.AddAttribute("L2Timeout", "Sender's timer of waiting for the ack",
 											  TimeValue(MilliSeconds(4)), MakeTimeAccessor(&RdmaHw::m_waitAckTimeout),
 											  MakeTimeChecker())
+								.AddAttribute("enableStartFlowRateChange", "", BooleanValue(false),
+											  MakeBooleanAccessor(&RdmaHw::m_initFlowRateChange),
+											  MakeBooleanChecker())
 								.AddAttribute("E2ELb", "E2E Load balancing algorithm.",
 											  EnumValue(LB_Solution::LB_NONE),
 											  MakeEnumAccessor(&RdmaHw::m_lbSolution),
@@ -460,13 +463,23 @@ namespace ns3
 		// add qp
 		uint32_t nic_idx = GetNicIdxOfQp(qp);
 		m_nic[nic_idx].qpGrp->AddQp(qp);
+
 		uint64_t key = GetQpKey(dip.Get(), sport, dport, pg);
 		m_qpMap[key] = qp;
 
 		// set init variables
 		DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
 		qp->TraceRate(m_bps);
-		qp->m_rate = m_bps;
+		if (m_initFlowRateChange)
+		{
+
+			qp->m_rate = m_bps / flowPerHost;
+		}
+		else
+		{
+			qp->m_rate = m_bps;
+		}
+
 		qp->m_max_rate = m_bps;
 		if (m_cc_mode == CongestionControlMode::DCQCN_MLX)
 		{
@@ -607,9 +620,6 @@ namespace ns3
 		qp->m_irn.m_sack.m_lossy_data.clear();
 		m_minRate = DataRate("1000Mb/s");
 
-
-
-
 		qp->TraceConnectWithoutContext("RateChange", MakeBoundCallback(&RecordQPrate, qp));
 		// add qp
 		uint32_t nic_idx = GetNicIdxOfQp(qp);
@@ -621,8 +631,18 @@ namespace ns3
 		// set init variables
 		DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
 		qp->m_max_rate = m_bps;
-		qp->laps.m_curRate = m_bps;
-		qp->laps.m_tgtRate = m_bps;
+		if (m_initFlowRateChange)
+		{
+
+			qp->laps.m_curRate = m_bps / flowPerHost;
+			qp->laps.m_tgtRate = m_bps / flowPerHost;
+		}
+		else
+		{
+			qp->laps.m_curRate = m_bps;
+			qp->laps.m_tgtRate = m_bps;
+		}
+
 		qp->laps.m_incStage = 0;
 		qp->laps.m_nxtRateDecTimeInNs = 0;
 		qp->laps.m_nxtRateIncTimeInNs = 0;

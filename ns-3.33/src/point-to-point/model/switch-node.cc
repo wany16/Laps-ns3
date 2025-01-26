@@ -613,7 +613,7 @@ namespace ns3
 		bool found = p->PeekPacketTag(congaTag);
 		if (!found)
 		{ // sender-side
-			if (!m_recordEvent.IsRunning())
+			if (!m_recordEvent.IsRunning() && enableRecord)
 			{
 				NS_LOG_INFO("ConWeave routing restarts aging event scheduling:" << m_switch_id << now);
 				m_recordEvent = Simulator::Schedule(m_recordTime, &SwitchNode::RecordPathload, this);
@@ -663,7 +663,11 @@ namespace ns3
 
 					// DoSwitchSend(p, ch, GetOutPortFromPath(selectedPath, congaTag.GetHopCount()),ch.udp.pg);
 					NS_LOG_INFO(oss.str());
-					congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+					if (enableRecord)
+					{
+						congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+					}
+
 					//  GetOutPortFromPath(selectedPath, congaTag.GetHopCount());
 					// congaoutinfo.congatag = congaTag;
 					// congaoutinfo.port = selectedPort;
@@ -697,7 +701,10 @@ namespace ns3
 					<< congaTag.GetCe() << " Port " << selectedPort << " FbPath/Metric FbPath "
 					<< congaTag.GetFbPathId() << " Metric " << congaTag.GetFbMetric() << " Time " << now;
 				NS_LOG_INFO(oss.str());
-				congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+				if (enableRecord)
+				{
+					congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+				}
 				return selectedPort;
 			}
 
@@ -724,7 +731,10 @@ namespace ns3
 				<< congaTag.GetCe() << " Port " << selectedPort << " FbPath/Metric FbPath "
 				<< congaTag.GetFbPathId() << " Metric " << congaTag.GetFbMetric() << " Time " << now;
 			NS_LOG_INFO(oss.str());
-			congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+			if (enableRecord)
+			{
+				congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+			}
 
 			return selectedPort;
 		}
@@ -763,7 +773,10 @@ namespace ns3
 				<< congaTag.GetFbPathId() << " Metric " << congaTag.GetFbMetric() << " Time " << now;
 
 			NS_LOG_INFO(oss.str());
-			congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+			if (enableRecord)
+			{
+				congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+			}
 			return selectedPort;
 		}
 		else
@@ -791,7 +804,10 @@ namespace ns3
 				<< congaTag.GetFbPathId() << " Metric " << congaTag.GetFbMetric() << " Time " << now;
 
 			NS_LOG_INFO(oss.str());
-			congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+			if (enableRecord)
+			{
+				congaoutinfo[m_switch_id][now.GetMilliSeconds()] = oss.str();
+			}
 			return selectedPort;
 		}
 		assert(false && "not arrive here,CongaTag should be found or not be found");
@@ -1266,8 +1282,8 @@ namespace ns3
 				{
 					// Ipv4SmartFlowPathTag pathTag;
 					// p->PeekPacketTag(pathTag);
-					std::cout << "Drop packet on path " << " with seq " << ch.udp.seq << std::endl;
-					std::cout << "due to admission control on switch " << GetId() << std::endl;
+					//std::cout << "Drop packet on path " << " with seq " << ch.udp.seq << std::endl;
+					//std::cout << "due to admission control on switch " << GetId() << std::endl;
 					return; // Drop
 				}
 				CheckAndSendPfc(inDev, qIndex);
@@ -1319,8 +1335,8 @@ namespace ns3
 					Ipv4SmartFlowPathTag pathTag;
 					if(p->PeekPacketTag(pathTag))
 					{
-						std::cout << "Drop packet on path " << pathTag.get_path_id() << " with seq " << ch.udp.seq << " ";
-						std::cout << "due to admission control on switch " << GetId() << std::endl;
+						//std::cout << "Drop packet on path " << pathTag.get_path_id() << " with seq " << ch.udp.seq << " ";
+						//std::cout << "due to admission control on switch " << GetId() << std::endl;
 
 					}
 

@@ -135,6 +135,7 @@ parser.add_argument("--enableQlenMonitor", default="false",  help="trace queue l
 parser.add_argument("--rdmaAppStartPort", default="1000",  help="minimal port for rdma client")
 parser.add_argument("--enableQbbTrace", default="false",  help="trace the packet event on node's all Qbb netdevices")
 parser.add_argument("--testPktNum", default="1",  help="The number of packets to test")
+parser.add_argument("--enableLLMWorKLoad", default="false",  help="The LLM work load test")
 args = parser.parse_args()
 
 vm_root_path = "/file-in-ctr/"
@@ -192,10 +193,10 @@ patternNames = ['Ring', 'all2all', 'Reduce']
 patternNameMap = {'Ring': 1, 'all2all': 0.032, 'Reduce': 0.333}
 onePatternNameMap = {'All': 1}
 allLbsNameList = ['drill', 'letflow', 'ecmp','laps','conweave','conga']
-LoadratioList=['1.0']
+LoadratioList=['0.8']
 lbsNameList = ['ecmp']
 alltopoDirlist=['railOnly','dragonfly','fatTree']
-workloadNamelist=['LLM_INFER_LLAMA']
+workloadNamelist=['LLMA']
 topoDirlist=['railOnly']
 m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb','25':'e2elaps'}
 def runBigSimTest():
@@ -323,6 +324,14 @@ def runTopoSimTest():
             for loadratio in LoadratioList:
                 # conga
                 for workloadName  in workloadNamelist:
+                    if workloadName=="LLM_INFER_LLAMA":
+                       EnableLLM=True
+                       loadratioList=loadratioList1
+                       flowLunchEndTimeInSec=0.1
+                    else:
+                        EnableLLM= args.enableLLMWorKLoad   
+                        loadratioList=loadratioListall
+                        flowLunchEndTimeInSec=args.flowLunchEndTimeInSec
                     lbsName=m_PS2lb[args.PS]
                     if lbsName=="e2elaps":
                        ccMode='Laps'

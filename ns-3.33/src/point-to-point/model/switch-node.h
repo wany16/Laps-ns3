@@ -245,7 +245,7 @@ namespace ns3
     void SetConstants(Time dreTime, Time agingTime, uint32_t quantizeBit, double alpha); // not set flowlet time
     void SetSwitchInfo(bool isToR, uint32_t switch_id);
     void SetLinkCapacity(uint32_t outPort, uint64_t bitRate);
-
+    bool enableRecord =false;
     // periodic events
     EventId m_dreEvent;
     EventId m_agingEvent;

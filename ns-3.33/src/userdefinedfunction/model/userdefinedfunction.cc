@@ -2400,7 +2400,7 @@ namespace ns3
       std::vector<RecordFlowRateEntry_t> &rateVec = it->second;
       for (auto &rateEntry : rateVec)
       {
-        fprintf(file, "flowID:%s %s", qpId.c_str(), rateEntry.to_string().c_str());
+        fprintf(file, "flowID:%s %s\n", qpId.c_str(), rateEntry.to_string().c_str());
       }
         }
     fflush(file);
@@ -3260,6 +3260,10 @@ namespace ns3
 
         // create and install RdmaDriver
 
+        if (varMap->enableLLMWorkLoadTest)
+        {
+          rdmaHw->SetAttribute("enableStartFlowRateChange", BooleanValue(true));
+        }
         if (varMap->lbsName == "e2elaps")
         {
           NS_LOG_INFO("Is E2E laps ,server instal LB_table");
@@ -3815,6 +3819,15 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       genFlow.dstAddr = genFlow.dstNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
       genFlow.prioGroup = varMap->flowGroupPrio;
       genFlow.byteCnt = 64000000; // 64MB
+      if (varMap->m_nodeFlowPerHost.find(genFlow.srcNode) != varMap->m_nodeFlowPerHost.end())
+      {
+        varMap->m_nodeFlowPerHost[genFlow.srcNode]++;
+      }
+      else
+      {
+        varMap->m_nodeFlowPerHost[genFlow.srcNode] = 1;
+      }
+
       if (!varMap->enableWindow)
       {
         genFlow.winInByte = 0;
@@ -4017,6 +4030,15 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     {
       auto &flow = flows[i];
       // flow.print();
+      if (varMap->enableLLMWorkLoadTest)
+      {
+
+        Ptr<RdmaDriver> rdmaDriver = flow.srcNode->GetObject<RdmaDriver>();
+        NS_ASSERT_MSG(rdmaDriver, "unfound rdma driver on server node");
+        uint32_t flowPerHost = varMap->m_nodeFlowPerHost[flow.srcNode];
+        std::cout << "flow per host " << flowPerHost << std::endl;
+        rdmaDriver->m_rdma->flowPerHost = flowPerHost;
+      }
       RdmaClientHelper clientHelper(flow.prioGroup, flow.srcAddr, flow.dstAddr, flow.srcPort, flow.dstPort, flow.byteCnt, flow.winInByte, flow.rttInNs);
       clientHelper.SetAttribute("StatFlowID", IntegerValue(flow.idx));
       ApplicationContainer appCon = clientHelper.Install(flow.srcNode);
@@ -4152,7 +4174,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     //
     save_qpFinshtest_outinfo(varMap);
     save_QPExec_outinfo(varMap);
-    save_QpRateChange_outinfo(varMap);
+    // save_QpRateChange_outinfo(varMap);
     save_QPSend_outinfo(varMap);
     if (varMap->lbsName == "conweave")
     {

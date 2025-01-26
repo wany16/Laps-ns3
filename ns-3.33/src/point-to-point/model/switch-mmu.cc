@@ -47,22 +47,22 @@ namespace ns3 {
 	}
 	bool SwitchMmu::CheckIngressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize){
 		// if (psize + hdrm_bytes[port][qIndex] > headroom[port] && psize + GetSharedUsed(port, qIndex) > GetPfcThreshold(port)){
-		if (hdrm_bytes[port][qIndex] > 0)
+		// if (hdrm_bytes[port][qIndex] > 0)
 
-		{
-			if (ingress_bytes[port][qIndex] <= reserve || ingress_bytes[port][qIndex] <= reserve + shared_bytes)
+		// {
+		// 	if (ingress_bytes[port][qIndex] <= reserve || ingress_bytes[port][qIndex] <= reserve + shared_bytes)
 
-			{
-				std::cerr << "ingress_bytes[port][qIndex] <= reserve" << std::endl;
-				exit(1);
-			}
-			if (ingress_bytes[port][qIndex] != reserve + shared_bytes + hdrm_bytes[port][qIndex])
+		// 	{
+		// 		std::cerr << "ingress_bytes[port][qIndex] <= reserve" << std::endl;
+		// 		exit(1);
+		// 	}
+		// 	if (ingress_bytes[port][qIndex] != reserve + shared_bytes + hdrm_bytes[port][qIndex])
 
-			{
-				std::cerr << "ingress_bytes[port][qIndex] != reserve + shared_bytes + hdrm_bytes[port][qIndex]" << std::endl;
-				exit(1);
-			}
-		}
+		// 	{
+		// 		std::cerr << "ingress_bytes[port][qIndex] != reserve + shared_bytes + hdrm_bytes[port][qIndex]" << std::endl;
+		// 		exit(1);
+		// 	}
+		// }
 
 		if (psize + hdrm_bytes[port][qIndex] > headroom[port]){
 			std::ostringstream oss;

@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
     cmd.AddValue("enableQbbTrace", "trace the packet event on node's all Qbb netdevices.", varMap.enableQbbTrace);
     cmd.AddValue("testPktNum", "The number of packets to test.", varMap.testPktNum);
     cmd.AddValue("enableFlowCongestTest", "creat network congestion Test", varMap.enableFlowCongestTest);
+    
     cmd.Parse(argc, argv);
     update_EST(varMap.paraMap, "loadRatio", varMap.loadRatio);
 
