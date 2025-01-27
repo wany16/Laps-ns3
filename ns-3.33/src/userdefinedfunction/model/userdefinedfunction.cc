@@ -2929,8 +2929,8 @@ namespace ns3
           NS_LOG_INFO("headroomInByte : " << headroomInByte);
         }
       }
-      swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024/32*(swNode->GetNDevices()+1));
-
+      // swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024/32*(swNode->GetNDevices()+1));
+      swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024);
       // swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024);
       swNode->m_mmu->ConfigNPort(swNode->GetNDevices() - 1);
       std::cout << "Switch " << swNode->m_mmu->node_id << " MMU is " << 1.0*swNode->m_mmu->buffer_size/1000 << " KB ";
