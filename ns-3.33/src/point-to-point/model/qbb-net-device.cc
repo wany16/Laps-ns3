@@ -323,10 +323,10 @@ namespace ns3 {
 		m_traceRdmaEnqueue(p, 0);
 
 		m_ackQ->Enqueue(p);
-		if (m_ackQ->GetNPackets() >= 10)
+		if (m_ackQ->GetNPackets() >= 5)
 		{
 
-			std::cout << "!!!!!!!!!!!!!!!!!!!m_ackQ.GetNPackets() " << m_ackQ->GetNPackets() << std::endl;
+			//std::cout << "!!!!!!!!!!!!!!!!!!!m_ackQ.GetNPackets() " << m_ackQ->GetNPackets() << std::endl;
 		}
 	}
 
@@ -1138,7 +1138,7 @@ namespace ns3 {
 	if (isEnableRndPktLoss && pktCorruptRandGen.GetUniformInt() == 0)
 	{
 			m_phyRxDropTrace(packet);
-			std::cout << "Node " << m_node->GetId() << " dev " << m_ifIndex << " drop packet at " << Simulator::Now().GetSeconds() << std::endl;
+			//std::cout << "Node " << m_node->GetId() << " dev " << m_ifIndex << " drop packet at " << Simulator::Now().GetSeconds() << std::endl;
 			return;
 	}
 

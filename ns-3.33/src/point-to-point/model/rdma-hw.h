@@ -71,6 +71,7 @@ namespace ns3
 		// static bool isIrnEnabled;
 		std::unordered_map<unsigned, unsigned> m_cnt_timeout;
 		bool LostPacketTest(uint32_t sepNum, std::string flowId);
+		bool m_initFlowRateChange;
 		// bool UpdateLostPacket(uint32_t sepNum,std::string flowId);
 		static std::map<uint32_t, std::map<std::string, std::map<uint64_t, RecordCcmodeOutEntry>>> ccmodeOutInfo; // Record CCMod outinfo:send rate\RTO evente
 		std::map<uint32_t, std::map<std::string, uint32_t>> m_packetLost;										  // node->flowid->packetSeq;
@@ -164,7 +165,7 @@ namespace ns3
 		double m_alpha_resume_interval;
 		DataRate m_rai;	 //< Rate of additive increase
 		DataRate m_rhai; //< Rate of hyper-additive increase
-
+        uint32_t  flowPerHost;
 		uint32_t m_cnt_cnpByEcn;
 		uint32_t m_cnt_cnpByOoo;
 		uint32_t m_cnt_Cnp;

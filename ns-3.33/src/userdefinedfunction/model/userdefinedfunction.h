@@ -790,6 +790,7 @@ namespace ns3
     std::map<Ptr<Node>, std::map<Ptr<Node>, uint64_t>> pairBwInBitps;
     std::map<Ptr<Node>, std::map<Ptr<Node>, uint64_t>> pairBdpInByte;
     std::map<Ptr<Node>, std::map<Ptr<Node>, uint64_t>> pairRttInNs;
+    std::map<Ptr<Node>, uint32_t> m_nodeFlowPerHost;
     uint64_t maxRttInNs;
     uint64_t maxBdpInByte;
     std::string qbbOutputTraceFileName;
@@ -953,7 +954,7 @@ namespace ns3
       enableQcn = false;
       configMap.clear();
       enablePfcDynThresh = false;
-
+      enableLLMWorkLoadTest = false;
       intMulti = 0;
       ccMode = "";
       pintLogBase = 0;
