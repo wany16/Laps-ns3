@@ -3893,6 +3893,10 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       genFlow.prioGroup = varMap->flowGroupPrio;
       genFlow.byteCnt = gen_random_cdf(varMap->cdfTable);
 
+      if (genFlow.byteCnt == 0)
+      {
+        continue;
+      }
       if (!varMap->enableWindow)
       {
         genFlow.winInByte = 0;
@@ -3921,6 +3925,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
       }
       varMap->flowCount = varMap->flowCount + 1;
       genFlow.idx = varMap->flowCount;
+
       varMap->genFlows.push_back(genFlow);
       varMap->totalFlowSizeInByte = varMap->totalFlowSizeInByte + genFlow.byteCnt;
       if (genFlow.byteCnt <= varMap->smallFlowThreshInByte)
