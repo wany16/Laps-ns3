@@ -166,7 +166,7 @@ public:
 	uint64_t sendDateSize = 0;
 	int32_t m_flow_id; // conweave
 	Time m_timeout;
-
+	int64_t packetSenTime = -1;
 	//bool enablePLBHash //PLB
     uint32_t flowRandNum=0; //PLB
 	uint32_t m_node_id;

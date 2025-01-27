@@ -231,6 +231,8 @@ public:
   typedef Callback<int, Ptr<Packet>, CustomHeader &> RdmaReceiveCb;
   RdmaReceiveCb m_rdmaReceiveCb;
   static std::map<std::string, std::string> qpSendInfo;
+  static std::vector<std::vector<uint64_t>> flowPacketSenGap;
+
   typedef Callback<uint32_t, std::string> PlbTableDataCb;
   PlbTableDataCb m_plbTableDataCb;
   bool PLB_LBSolution(int qIndex);
@@ -256,6 +258,7 @@ public:
   Ptr<RdmaEgressQueue> GetRdmaQueue();
   void TakeDown(); // take down this device
   void UpdateNextAvail(Time t);
+   void RecordPacketSenTimeGap(Ptr<RdmaQueuePair> lastQp)
 	void UpdateNxtDequeueAndTransmitTimeOnSrcHostForLaps();
 	Ptr<E2ESrcOutPackets> GetTransmitQpContentOnSrcHostForLaps(int32_t qpFlowIndex);
 	void AddPathTagOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry);

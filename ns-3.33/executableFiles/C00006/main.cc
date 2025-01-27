@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
     cmd.AddValue("testPktNum", "The number of packets to test.", varMap.testPktNum);
     cmd.AddValue("enableFlowCongestTest", "creat network congestion Test", varMap.enableFlowCongestTest);
     cmd.AddValue("enableLLMWorkLoadTest", "creat LLM Work Load Test", varMap.enableLLMWorkLoadTest);
-    cmd.AddValue("enableLLMAFlowRateChange", "creat LLM Work Load Test", varMap.enableLLMWorkLoadTest);
+    cmd.AddValue("enableLLMAFlowRateChange", "creat LLM Work Load Test", varMap.enableLLMAFlowRateChange);
     cmd.Parse(argc, argv);
     update_EST(varMap.paraMap, "loadRatio", varMap.loadRatio);
 

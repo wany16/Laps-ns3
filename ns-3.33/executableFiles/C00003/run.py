@@ -209,7 +209,7 @@ lbsNameList = ['ecmp']
 alltopoDirlist=['railOnly','dragonfly','fatTree']
 topoDirlist=['railOnly','dragonfly']
 allWorkloadNamelist=['DCTCP_CDF','RPC_CDF','VL2_CDF']
-workloadNamelist=['LLM_INFER_LLAMA','DCTCP_CDF','RPC_CDF','VL2_CDF','FbHdp2015','GoogleRPC2008','AliStorage2019']
+workloadNamelist=['DCTCP_CDF','RPC_CDF','VL2_CDF','FbHdp2015','GoogleRPC2008','AliStorage2019']
 def runBigSimTest():
   
     for patternName, patternLoadRatioShift in patternNameMap.items():

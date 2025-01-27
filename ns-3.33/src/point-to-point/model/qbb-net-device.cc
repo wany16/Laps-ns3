@@ -63,6 +63,7 @@ namespace ns3 {
 	std::map<std::string, std::string> QbbNetDevice::qpSendInfo;
   RandomIntegerGenerator QbbNetDevice::pktCorruptRandGen = RandomIntegerGenerator(2, 0.00001);
 	bool QbbNetDevice::isEnableRndPktLoss = false;
+	 std::vector<std::vector<uint64_t>> QbbNetDevice::flowPacketSenGap;
 
 	// RdmaEgressQueue
 	TypeId RdmaEgressQueue::GetTypeId (void)
@@ -622,6 +623,7 @@ namespace ns3 {
 			Simulator::Schedule(txCompleteTime+txTime_base, &QbbNetDevice::TransmitComplete, this);
 			NS_ASSERT_MSG(entry->lastQp, "Invalid QP");
 			m_rdmaLbPktSent(entry->lastQp, totalPktSize, totalTInterframeGap);
+			RecordPacketSenTimeGap(entry->lastQp);
 			uint32_t fid = entry->lastQp->m_flow_id;
 			RdmaHw::m_recordQpExec[fid].sendSizeInbyte += m_currentPkt->GetSize() - ch.GetSerializedSize();
 			RdmaHw::m_recordQpExec[fid].sendPacketNum++;
@@ -838,6 +840,7 @@ namespace ns3 {
 		}
 
 		Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex);
+		RecordPacketSenTimeGap(lastQp);
 		p = m_rdmaEQ->DequeueQindex(qIndex);
 		if (p->PeekHeader(ch) > 0)
 		{
@@ -921,7 +924,19 @@ namespace ns3 {
 		Isack = false;
 		return Isack;
 	}*/
+	void QbbNetDevice::RecordPacketSenTimeGap(Ptr<RdmaQueuePair> lastQp)
+	{
+		int64_t lastSend = lastQp->packetSenTime;
+		lastQp->packetSenTime = Simulator::Now().GetNanoSeconds();
+		uint64_t flowId = lastQp->m_flow_id;
 
+		if (lastSend != -1)
+		{
+			uint64_t packetTimegapInMicro = (lastQp->packetSenTime - lastSend) / 1000;
+			flowPacketSenGap[flowId][packetTimegapInMicro]++;
+		}
+		return;
+	}
 	void
 	QbbNetDevice::DequeueAndTransmit(void)
 	{
@@ -974,6 +989,8 @@ namespace ns3 {
 					// no ack packet in the highest priority queue, so to process the qIndex-th queue
 					Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex); // to dequeue a packet in a RR manner
 					// uint32_t flowId = lastQp->m_flow_id;
+					RecordPacketSenTimeGap(lastQp);
+
 					p = m_rdmaEQ->DequeueQindex(qIndex);
 					CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header |
 									CustomHeader::L4_Header);

@@ -2408,6 +2408,38 @@ namespace ns3
     return;
   }
 
+  void save_flow_packetSenTimeGap()
+  {
+    NS_LOG_INFO("----------save QpRateChange outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-flowPacketSendTimeGap.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = RdmaHw::m_qpRatechange.begin(); it != RdmaHw::m_qpRatechange.end(); ++it)
+    {
+
+      std::string qpId = it->first;
+      std::vector<RecordFlowRateEntry_t> &rateVec = it->second;
+      for (auto &rateEntry : rateVec)
+      {
+        fprintf(file, "flowID:%s %s\n", qpId.c_str(), rateEntry.to_string().c_str());
+      }
+    }
+    uint32_t flowidx = 1;
+    for (const auto &flow : QbbNetDevice::flowPacketSenGap)
+    {
+      std::string packetGap = vector2string<uint64_t>(flow);
+      fprintf(file, "flowID:%d %s\n", flowidx, packetGap.c_str());
+      flowidx++;
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
   void save_Conweave_pathload_outinfo(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save Conweave path outinfo()----------");
@@ -4036,7 +4068,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     {
       auto &flow = flows[i];
       // flow.print();
-      if (varMap->enableLLMWorkLoadTest)
+      if (varMap->enableLLMAFlowRateChange)
       {
 
         Ptr<RdmaDriver> rdmaDriver = flow.srcNode->GetObject<RdmaDriver>();
@@ -4061,6 +4093,9 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
   }
   void node_install_rdma_application(global_variable_t *varMap)
   {
+    // init flow Record packet Send gap;
+
+    QbbNetDevice::flowPacketSenGap.resize(varMap->flowCount, vector<uint64_t>(1000, 0));
     if (varMap->enableLLMWorkLoadTest)
     {
       std::cout << "node_install_LLMA_rdma_application" << std::endl;

@@ -906,11 +906,10 @@ namespace ns3
     uint32_t numOfFinishedJob;
     uint32_t testPktNum;
     bool enableLLMWorkLoadTest;
+    bool enableLLMAFlowRateChange;
 
-
-
-
-    global_variable_t() {
+    global_variable_t()
+    {
       addr2node.clear();
       paraMap.clear();
       ecnParas.clear();
@@ -932,7 +931,7 @@ namespace ns3
       totalFlowSizeInByte = 0;
       simStartTimeInSec = 0;
       simEndTimeInSec = 0;
-      flowLunchStartTimeInSec=0;
+      flowLunchStartTimeInSec = 0;
       flowLunchEndTimeInSec = 0;
       smallFlowCount = 0;
       largeFlowCount = 0;
@@ -947,7 +946,7 @@ namespace ns3
       srcNode = NULL;
       dstNode = NULL;
       genFlows.clear();
-      jobAllNum=0;
+      jobAllNum = 0;
 
       configFileName = "";
       pfcPauseTimeInUs = 0;
@@ -1005,7 +1004,6 @@ namespace ns3
       qlenMonitorStartTimeInNs = 0;
       rateMonitorFileHandle = NULL;
 
-
       cdfTable = NULL;
       screenDisplayInNs = 0;
       simStartTimeInSec = 0.0;
@@ -1024,9 +1022,9 @@ namespace ns3
       kvCacheAlg = "";
       jobNum = 0;
       numOfFinishedJob = 0;
-      enableLLMWorkLoadTest=false;
+      enableLLMWorkLoadTest = false;
+      enableLLMAFlowRateChange = false;
     }
-
   };
 
   // class routeSettings
