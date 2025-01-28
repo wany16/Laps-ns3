@@ -248,7 +248,7 @@ public:
   RdmaLBPktSent m_rdmaLbPktSent;
 
   // callback for sent a packet
-  typedef Callback<void, uint32_t, OutStandingDataEntry &> RdmaHwOutStandingTace;
+  typedef Callback<void, uint32_t, OutStandingDataEntry > RdmaHwOutStandingTace;
   RdmaHwOutStandingTace m_rdmaOutStanding_cb;
 
   // callback for set rto
@@ -258,8 +258,8 @@ public:
   Ptr<RdmaEgressQueue> GetRdmaQueue();
   void TakeDown(); // take down this device
   void UpdateNextAvail(Time t);
-   void RecordPacketSenTimeGap(Ptr<RdmaQueuePair> lastQp)
-	void UpdateNxtDequeueAndTransmitTimeOnSrcHostForLaps();
+  void RecordPacketSenTimeGap(Ptr<RdmaQueuePair> lastQp);
+  void UpdateNxtDequeueAndTransmitTimeOnSrcHostForLaps();
 	Ptr<E2ESrcOutPackets> GetTransmitQpContentOnSrcHostForLaps(int32_t qpFlowIndex);
 	void AddPathTagOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry);
   void UpdatePathTagOnSrcHostForLaps(Ptr<E2ESrcOutPackets> entry);

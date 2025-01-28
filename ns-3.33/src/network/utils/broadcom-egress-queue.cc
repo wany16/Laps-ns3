@@ -102,7 +102,7 @@ namespace ns3 {
 
 		if (m_bytesInQueueTotal == 0)
 		{
-			std::cout <<"11111111" << std::endl;
+			// std::cout <<"11111111" << std::endl;
 			NS_LOG_LOGIC("Queue empty");
 			return 0;
 		}

@@ -534,6 +534,9 @@ namespace ns3
     // std::cout << "srcNodeID: " << srcNode->GetId() << "dstnodeID: " << dstNode->GetId() << ",bitWdithPerSec" << bitWdithPerSec << std::endl;
     // uint64_t baseFctInNs = baseRttInNs + totalBytes * 8000000000lu / bitWdithPerSec;
     uint32_t flowId = q->m_flow_id;
+    // if(flowId==3816){
+    //    std::cout<<"***************************************3816 okok!!!!!!!!!!!!!!!\n";
+    // }
     RdmaHw::m_recordQpExec[flowId].finishTime = Simulator::Now().GetNanoSeconds();
 
     fprintf(os, "SIP:%08x DIP:%08x SP:%u DP:%u DataSizeInByte:%lu PktSizeInByte:%u SendPktSizeInByte:%lu StartTimeInNs:%lu LastTimeInNs:%lu EndTimeInNs:%lu BaseFctInNs:%ld\n",
@@ -2408,7 +2411,7 @@ namespace ns3
     return;
   }
 
-  void save_flow_packetSenTimeGap()
+  void save_flow_packetSenTimeGap(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save QpRateChange outinfo()----------");
     std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-flowPacketSendTimeGap.txt";
@@ -2961,9 +2964,9 @@ namespace ns3
           NS_LOG_INFO("headroomInByte : " << headroomInByte);
         }
       }
-      // swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024/32*(swNode->GetNDevices()+1));
-      swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024);
+      swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024 / 32 * (swNode->GetNDevices() + 1));
       // swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024);
+      //  swNode->m_mmu->ConfigBufferSize(varMap->mmuSwBufferSizeInMB * 1024 * 1024);
       swNode->m_mmu->ConfigNPort(swNode->GetNDevices() - 1);
       std::cout << "Switch " << swNode->m_mmu->node_id << " MMU is " << 1.0*swNode->m_mmu->buffer_size/1000 << " KB ";
       std::cout << "Headroom is " << 1.0*swNode->m_mmu->total_hdrm/1000 << " KB ";
@@ -4095,7 +4098,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
   {
     // init flow Record packet Send gap;
 
-    QbbNetDevice::flowPacketSenGap.resize(varMap->flowCount, vector<uint64_t>(1000, 0));
+    QbbNetDevice::flowPacketSenGap.resize(varMap->flowCount, std::vector<uint64_t>(1000, 0));
     if (varMap->enableLLMWorkLoadTest)
     {
       std::cout << "node_install_LLMA_rdma_application" << std::endl;
@@ -4498,11 +4501,18 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     Config::SetDefault("ns3::QbbNetDevice::QcnEnabled", BooleanValue(varMap->enableQcn));
     NS_LOG_INFO("QbbNetDevice::QcnEnabled : " << boolToString(varMap->enableQcn));
     update_EST(varMap->paraMap, "QbbNetDevice::QcnEnabled", boolToString(varMap->enableQcn));
-
-    Config::SetDefault("ns3::QbbNetDevice::QbbEnabled", BooleanValue(varMap->enablePfc));
-    NS_LOG_INFO("QbbNetDevice::QbbEnabled : " << boolToString(varMap->enablePfc));
-    update_EST(varMap->paraMap, "QbbNetDevice::QbbEnabled", boolToString(varMap->enablePfc));
-
+    if (varMap->lbsName == "e2elaps" && varMap->enableLLMWorkLoadTest)
+    {
+      Config::SetDefault("ns3::QbbNetDevice::QbbEnabled", BooleanValue(false));
+      NS_LOG_INFO("QbbNetDevice::QbbEnabled : " << boolToString(false));
+      update_EST(varMap->paraMap, "QbbNetDevice::QbbEnabled", boolToString(false));
+    }
+    else
+    {
+      Config::SetDefault("ns3::QbbNetDevice::QbbEnabled", BooleanValue(varMap->enablePfc));
+      NS_LOG_INFO("QbbNetDevice::QbbEnabled : " << boolToString(varMap->enablePfc));
+      update_EST(varMap->paraMap, "QbbNetDevice::QbbEnabled", boolToString(varMap->enablePfc));
+    }
     Config::SetDefault("ns3::QbbNetDevice::DynamicThreshold", BooleanValue(varMap->enablePfcDynThresh));
     NS_LOG_INFO("QbbNetDevice::DynamicThreshold : " << boolToString(varMap->enablePfcDynThresh));
     update_EST(varMap->paraMap, "QbbNetDevice::DynamicThreshold", boolToString(varMap->enablePfcDynThresh));

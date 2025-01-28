@@ -637,10 +637,17 @@ namespace ns3 {
 			hdr_size = ch.GetSerializedSize();
 			payloadSize = m_currentPkt->GetSize()-hdr_size;
 			NS_LOG_INFO("PktId: " << pktId  << " Type: DATA, Size: " << payloadSize <<	" Pid: " << pid);
-      // entry->lastQp->m_irn.m_sack.appendOutstandingData(pid, ch.udp.seq, payloadSize); /////////////////////////////
-			// std::cout << "PktId: " << pktId << " Type: DATA, Size: " << payloadSize << " Pid: " << pid << std::endl;
-			auto e = OutStandingDataEntry(entry->lastQp->m_flow_id, ch.udp.seq, payloadSize);
 
+			// entry->lastQp->m_irn.m_sack.appendOutstandingData(pid, ch.udp.seq, payloadSize); /////////////////////////////
+			// if (ch.udp.seq > entry->lastQp->m_size)
+			// {
+			// 	std::cout << "Time" << Simulator::Now().GetNanoSeconds() << " ch.udp.seq:" << ch.udp.seq << " entry->lastQp->m_size:" << entry->lastQp->m_size << " Send PktId: " << pktId << " Type: DATA, Size: " << payloadSize << " Pid: " << pid << " hdr_size" << hdr_size << " pKTSize" << m_currentPkt->GetSize() << std::endl;
+			// }
+			auto e = OutStandingDataEntry(entry->lastQp->m_flow_id, ch.udp.seq, payloadSize);
+			if (entry->lastQp->m_flow_id == 7251)
+			{
+				std::cout << e.to_string() << std::endl;
+			}
 			m_rdmaOutStanding_cb(pid, e);
 			return true;
 		}
@@ -933,7 +940,7 @@ namespace ns3 {
 		if (lastSend != -1)
 		{
 			uint64_t packetTimegapInMicro = (lastQp->packetSenTime - lastSend) / 1000;
-			flowPacketSenGap[flowId][packetTimegapInMicro]++;
+			// flowPacketSenGap[flowId][packetTimegapInMicro]++;
 		}
 		return;
 	}

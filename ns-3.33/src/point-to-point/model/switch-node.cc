@@ -1204,12 +1204,12 @@ namespace ns3
 	void SwitchNode::CheckAndSendPfc(uint32_t inDev, uint32_t qIndex)
 	{
 		Ptr<QbbNetDevice> device = DynamicCast<QbbNetDevice>(GetDevice(inDev));
-		if (!device->IsPfcEnabled())
-		{
+		// if (!device->IsPfcEnabled())
+		// {
 
-			std::cout << "nodeId" << GetId() << "PFC not enable" << std::endl;
-			exit(1);
-		}
+		// 	std::cout << "nodeId" << GetId() << "PFC not enable" << std::endl;
+		// 	exit(1);
+		// }
 
 		if (m_mmu->CheckShouldPause(inDev, qIndex))
 		{

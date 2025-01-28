@@ -608,7 +608,7 @@ std::pair<uint32_t, uint16_t> IrnSackManager::GetAndRemoveFirstLossyData()
 	return firstElement;
 }
 
-void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
+uint16_t RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 {
 	NS_LOG_FUNCTION(this);
 	// NS_ASSERT_MSG(Irn::mode == Irn::Mode::IRN_OPT, "Called Only When Laps is enabled");
@@ -631,6 +631,7 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 				RecoverQueueLaps();
 			}
 		}
+		return 0;
 	}
 	else if (Irn::mode == Irn::Mode::NACK)
 	{
@@ -639,10 +640,23 @@ void RdmaQueuePair::CheckAndUpdateQpStateForLaps()
 			std::pair<uint32_t, uint16_t> firstLossyPkt = m_irn.m_sack.GetAndRemoveFirstLossyData();
 			NS_ASSERT_MSG(firstLossyPkt.second != 0 && firstLossyPkt.first >= snd_una, "Invalid lossy data");
 			snd_nxt = firstLossyPkt.first;
+            
+			 if (snd_nxt > m_size)
+			{   
+			 	std::cerr << " **** snd_nxt > m_size " << "snd_nxt>m_size:" << snd_nxt << " m_size:" << m_size << std::endl;
+			 	exit(1);
+			 }
+			return firstLossyPkt.second;
 		}
 		else
 		{
 			snd_nxt = m_irn.m_max_next_seq;
+			 if (snd_nxt > m_size)
+			 {
+			  	std::cerr << "snd_nxt > m_size " << "snd_nxt>m_size:" << snd_nxt << " m_size:" << m_size << std::endl;
+			  	exit(1);
+			  }
+			return m_size - snd_nxt;
 		}
 	}
 	else
@@ -696,7 +710,8 @@ uint64_t RdmaQueuePair::GetOnTheFlyForLaps()
 		int32_t onTheFly = sent - lost - nacked;
 		if (onTheFly < 0)
 		{
-			std::cerr << "ERROR: onTheFly should be non-negative\n";
+
+			std::cerr << "ERROR: onTheFly should be non-negative" << "FLOWId:" << m_flow_id << "  m_irn.m_max_next_seq:" << m_irn.m_max_next_seq << " snd_una:" << snd_una << " sent:" << sent << " lost:" << lost << " nacked:" << nacked << " m_size:" << m_size << " time" << Simulator::Now().GetNanoSeconds() << "\n";
 		}
 
 		NS_ASSERT_MSG(onTheFly >= 0, "onTheFly should be non-negative");
@@ -1003,6 +1018,8 @@ void RdmaQueuePairGroup::AddRxQp(Ptr<RdmaRxQueuePair> rxQp){
 	{
 		socketId = -1;
 		m_data.clear();
+		m_lossy_data.clear();
+		m_outstanding_data.clear();
 	}
 	IrnSackManager::IrnSackManager(int flow_id)
 	{

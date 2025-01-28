@@ -327,6 +327,9 @@ namespace ns3
 	RdmaHw::RdmaHw()
 	{
 		m_E2ErdmaSmartFlowRouting = CreateObject<RdmaSmartFlowRouting>();
+		m_outstanding_data.clear();
+
+
 	}
 
 	void RdmaHw::SetNode(Ptr<Node> node)
@@ -626,6 +629,16 @@ namespace ns3
 		m_nic[nic_idx].qpGrp->AddQp(qp);
 		uint64_t key = GetQpKey(dip.Get(), sport, dport, pg);
 		NS_ASSERT_MSG(m_qpMap.find(key) == m_qpMap.end(), "Flow cannot be initialized twice");
+		if (m_qpMap.find(key) != m_qpMap.end()){
+			std::cout<<"Flow cannot be initialized twice"<<std::endl;
+			exit(1);
+		}
+		
+		if (m_flowId2Qp.find(flowId) != m_flowId2Qp.end()){
+			std::cout<<" xxxxxFlow cannot be initialized twice"<<std::endl;
+			exit(1);
+		}
+
 		m_qpMap[key] = qp;
 		m_flowId2Qp[flowId] = qp;
 		// set init variables
@@ -1037,11 +1050,22 @@ bool RdmaHw::checkRxQpFinishedOnDstHost(const CustomHeader &ch)
 	}
 }
 
-void RdmaHw::AppendOutStandingDataPerPath(uint32_t pathId, OutStandingDataEntry & e)
+void RdmaHw::AppendOutStandingDataPerPath(uint32_t pathId, OutStandingDataEntry  e)
 {
 	NS_LOG_FUNCTION(this << "Node=" << m_node->GetId());
-
-	m_outstanding_data[pathId].push_back(e);
+    std::list<OutStandingDataEntry> data;
+	data.clear();
+	//m_outstanding_data[pathId].push_back(e);
+	//std::map<uint32_t, std::list<OutStandingDataEntry>> m_outstanding_data;
+	// if (e.flow_id==3816){
+	// 	std::cout<<"***************seq:"<<e.seq<<" e.byte:"<<e.size<<std::endl;
+	// }
+	if (m_outstanding_data.find(pathId)!=m_outstanding_data.end()){
+		m_outstanding_data[pathId].push_back(e);
+	}else{
+     data.push_back(e);
+	 m_outstanding_data[pathId]=data;
+	}
 	// if (e.flow_id == 421 && pathId == 26320)
 	// {
 	// 	std::cout << "pathId " << pathId;
@@ -1258,8 +1282,13 @@ int RdmaHw::ReceiveUdpOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 	}
 
 	uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
+
 	NS_LOG_INFO("#Node: " << m_node->GetId() << ", Time:" << Simulator::Now() << ", Receive Packet with Type: DATA" << ", PktId:" << p->GetUid() << ", Size=" << payload_size);
-	
+	if (payload_size > 1000)
+	{
+
+		std::cout << "#Node: " << m_node->GetId() << ", Time:" << Simulator::Now() << ", Receive Packet with Type: DATA" << ", PktId:" << p->GetUid() << ", Size=" << payload_size << std::endl;
+	}
 	if (checkRxQpFinishedOnDstHost(ch))	{return 1; }
 
 	int32_t flowId = -1;
@@ -1736,13 +1765,24 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 			}
 			else
 			{
-				auto it3 = m_flowId2Qp.find(flowId);
+				auto it3 = m_flowId2Qp.find(it2->flow_id);
 				NS_ASSERT_MSG(it3 != m_flowId2Qp.end(), "Invalid flow id");
 				auto qp = it3->second;
+				// if(qp->m_flow_id==3816){
+				// 	std::cout<<"itseq:"<<it2->seq<<" itsize:"<<it2->size<<std::endl;
+				// }
 				qp->m_irn.m_sack.m_lossy_data.emplace_back(it2->seq, it2->size);
+				// if(qp->m_flow_id==3816){
+				// 	std::cout<<"1111seq:"<<qp->m_irn.m_sack.m_lossy_data.back().first<<" 11111itsize:"<<qp->m_irn.m_sack.m_lossy_data.back().second<<std::endl;
+				// }
 				// std::cout << "Time " << Simulator::Now().GetNanoSeconds() << " FlowID " << qp->m_flow_id << " Rate " <<  1.0*qp->laps.m_curRate.GetBitRate()/1000000000 << " Gbps ";
 				// std::cout << ", Lossy data for PathID " << pid << " with " << it2->to_string() << std::endl;
 				NS_LOG_INFO ("LossyData: flowId=" << flowId << ", seq=[" << it2->seq << ", " << it2->size << ")");
+				// if (qp->m_size - qp->snd_una < 1000)
+				// {
+				// 	std::cout << "Time" << Simulator::Now().GetNanoSeconds() << " LossyData: flowId=" << flowId << ", seq=[" << it2->seq << ", " << it2->size << ")" << " QPSIZE:" << qp->m_size << " senduna:" << qp->snd_una << " sendNext:" << qp->snd_nxt << std::endl;
+				// }
+
 				it2 = it->second.erase(it2);
 				lossy = true;
 			}
@@ -2336,18 +2376,36 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 	Ptr<Packet> RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp)
 	{
 		NS_LOG_FUNCTION(this);
-		uint32_t payload_size = qp->GetBytesLeft();
-		if (m_mtu < payload_size)	{
-			payload_size = m_mtu;
-		}
+		uint32_t payload_size = 0;
+        
+		// if(qp->m_flow_id==3816){
+		// 	std::cout <<" before Time" << Simulator::Now().GetNanoSeconds()<<" Next:"<<qp->snd_nxt<<" una:"<<qp->snd_una<<std::endl;
+		// }
+		//  if(qp->m_flow_id==3816){
+		// std::cout<<"lost size:"<<qp->m_irn.m_sack.getLossyDataSize()<<std::endl;
+		//  }
+		payload_size = qp->GetBytesLeft();
 		if (Irn::mode == Irn::Mode::NACK)
 		{
 			qp->CheckAndUpdateQpStateForLaps();
+			//if qp->m_irn.m_lossy_data
+		}
+        // if(qp->m_flow_id==3816){
+		// 	std::cout <<" mid Time" << Simulator::Now().GetNanoSeconds()<<" Next:"<<qp->snd_nxt<<" una:"<<qp->snd_una<<std::endl;
+		// }
+		if (m_mtu < payload_size)
+		{
+			payload_size = m_mtu;
 		}
 
-    uint32_t seq = (uint32_t)qp->snd_nxt;
-    qp->m_phyTxNPkts += 1;
-    qp->m_phyTxBytes += payload_size;
+
+		// if (qp->m_irn.m_sack.getFirstLossyDataSize() > 0)
+		// {
+		// 	qp->m_irn.m_sack.m_lossy_data.pop_front();
+		// }
+		uint32_t seq = (uint32_t)qp->snd_nxt;
+		qp->m_phyTxNPkts += 1;
+		qp->m_phyTxBytes += payload_size;
 
 		Ptr<Packet> p = Create<Packet>(payload_size);
 		// add SeqTsHeader
@@ -2360,6 +2418,10 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		udpHeader.SetDestinationPort(qp->dport);
 		udpHeader.SetSourcePort(qp->sport);
 		p->AddHeader(udpHeader);
+        
+
+        
+
 		// add ipv4 header
 		Ipv4Header ipHeader;
 		ipHeader.SetSource(qp->sip);
@@ -2374,6 +2436,15 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		PppHeader ppp;
 		ppp.SetProtocol(0x0021); // EtherToPpp(0x800), see point-to-point-net-device.cc
 		p->AddHeader(ppp);
+
+        CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+		p->PeekHeader(ch);
+		
+		// if (ch.udp.seq > qp->m_size)
+		// {
+		// 	std::cout << "Time" << Simulator::Now().GetNanoSeconds() << " ch.udp.seq:" << ch.udp.seq << " seq:"<<seq<<" qpsize"<< qp->m_size<<" sndNxt"<<qp->snd_nxt<<"flowId"<<qp->m_flow_id<<std::endl;
+		// }
+		
 
     // attach Stat Tag
     uint8_t packet_pos = UINT8_MAX;
@@ -2431,7 +2502,11 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 	}
 	else if (Irn::mode == Irn::Mode::NACK)
 	{
+		
 		qp->snd_nxt += payload_size;
+		// if(qp->m_flow_id==3816){
+		// 	std::cout <<" after Time" << Simulator::Now().GetNanoSeconds()<<" Next:"<<qp->snd_nxt<<std::endl;
+		// }
 		qp->m_irn.m_max_next_seq = qp->m_irn.m_max_next_seq < qp->snd_nxt ? qp->snd_nxt : qp->m_irn.m_max_next_seq;
 		qp->m_ipid++;
 	}
@@ -2488,8 +2563,8 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 		void RdmaHw::SetTimeoutForLapsPerPath(uint32_t pid) 
 	{
 		NS_ASSERT_MSG(Irn::mode == Irn::Mode::NACK, "LAPS::NACK should be enabled");
-		Time timeInNs = GetRtoTimeForPath(pid) * 200;
-
+		// Time timeInNs = GetRtoTimeForPath(pid) * 200;
+		Time timeInNs = MilliSeconds(8);
 		auto it = m_rtoEventsPerPath.find(pid);
 		if (it != m_rtoEventsPerPath.end())
 		{

@@ -264,7 +264,7 @@ namespace ns3
 	void UpdateNxtQpAvailTimeForLaps(Ptr<RdmaQueuePair> qp, int64_t timeGap);
 	Time GetRtoTimeForPath(uint32_t pathId);
 	void CancelRtoForPath(Ptr<RdmaQueuePair> qp, uint32_t pathId);
-	void AppendOutStandingDataPerPath(uint32_t pathId, OutStandingDataEntry & e);
+	void AppendOutStandingDataPerPath(uint32_t pathId, OutStandingDataEntry  e);
 	bool checkOutstandingDataAndUpdateLossyData(uint32_t pid, uint32_t flowId, uint32_t seq, uint16_t size);
 	void HandleTimeoutForLapsPerPath(uint32_t pid) ;
 	void SetTimeoutForLapsPerPath(uint32_t pid) ;

@@ -1,5 +1,5 @@
 enablePfcDynThresh true
-enablePfc true
+enablePfc false
 enableQcn true
 enableQlenMonitor false
 enablePfcMonitor false

@@ -295,23 +295,23 @@ public:
 	bool IsWinBoundForLaps();
 		uint64_t GetBytesLeftForLaps();
 	bool CanIrnTransmitForLaps(uint32_t mtu);
-	void CheckAndUpdateQpStateForLaps();
+	uint16_t CheckAndUpdateQpStateForLaps();
 
-  // callback for set rto
-  typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t, Time> RtoSet;
-  RtoSet m_rtoSetCb;
+	// callback for set rto
+	typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t, Time> RtoSet;
+	RtoSet m_rtoSetCb;
 
-  typedef Callback<Time, uint32_t> GetRtoTimeForPath;
-  GetRtoTimeForPath m_cb_getRtoTimeForPath;
+	typedef Callback<Time, uint32_t> GetRtoTimeForPath;
+	GetRtoTimeForPath m_cb_getRtoTimeForPath;
 
-  typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t> CancelRtoForPath;
-  CancelRtoForPath m_cb_cancelRtoForPath;
+	typedef Callback<void, Ptr<RdmaQueuePair>, uint32_t> CancelRtoForPath;
+	CancelRtoForPath m_cb_cancelRtoForPath;
 
-  typedef Callback<bool, uint32_t> IsPathsValid;
-  IsPathsValid m_cb_isPathsValid;
+	typedef Callback<bool, uint32_t> IsPathsValid;
+	IsPathsValid m_cb_isPathsValid;
 
-  typedef Callback<Time, uint32_t> getNxtAvailTimeForQp_t;
-  getNxtAvailTimeForQp_t m_cb_getNxtAvailTimeForQp;
+	typedef Callback<Time, uint32_t> getNxtAvailTimeForQp_t;
+	getNxtAvailTimeForQp_t m_cb_getNxtAvailTimeForQp;
 
 	uint64_t HpGetCurWin(); // window size calculated from hp.m_curRate, used by HPCC
 };

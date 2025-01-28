@@ -1111,7 +1111,7 @@ namespace ns3
   double interpolate(double x, double x1, double y1, double x2, double y2);
   void load_cdf(struct cdf_table *table, const char *file_name);
   double poission_gen_interval(double avg_rate);
-
+  void save_flow_packetSenTimeGap(global_variable_t *varMap);
   uint32_t print_address_for_K_th_device(Ptr<Node> &curNode, uint32_t curIntfIdx);
   uint32_t print_address_for_single_node(Ptr<Node> &curNode);
   uint32_t print_addresses_for_nodes(NodeContainer &allNodes);
