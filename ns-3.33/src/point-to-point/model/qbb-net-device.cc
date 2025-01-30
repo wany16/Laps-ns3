@@ -64,21 +64,22 @@ namespace ns3 {
   RandomIntegerGenerator QbbNetDevice::pktCorruptRandGen = RandomIntegerGenerator(2, 0.00001);
 	bool QbbNetDevice::isEnableRndPktLoss = false;
 	 std::vector<std::vector<uint64_t>> QbbNetDevice::flowPacketSenGap;
+	 std::vector<uint64_t> QbbNetDevice::PacketSenGap(100, 0);
+	 std::map<std::string, uint32_t> QbbNetDevice::m_plbSwitchPathInfo;
 
-	// RdmaEgressQueue
-	TypeId RdmaEgressQueue::GetTypeId (void)
-	{
-		static TypeId tid = TypeId ("ns3::RdmaEgressQueue")
-			.SetParent<Object> ()
-			.AddTraceSource ("RdmaEnqueue", "Enqueue a packet in the RdmaEgressQueue.",
-					MakeTraceSourceAccessor (&RdmaEgressQueue::m_traceRdmaEnqueue),
-					"ns3::TracedCallback")
-			.AddTraceSource ("RdmaDequeue", "Dequeue a packet in the RdmaEgressQueue.",
-					MakeTraceSourceAccessor (&RdmaEgressQueue::m_traceRdmaDequeue),
-					"ns3::TracedCallback")
-			;
-		return tid;
-	}
+	 // RdmaEgressQueue
+	 TypeId RdmaEgressQueue::GetTypeId(void)
+	 {
+		 static TypeId tid = TypeId("ns3::RdmaEgressQueue")
+								 .SetParent<Object>()
+								 .AddTraceSource("RdmaEnqueue", "Enqueue a packet in the RdmaEgressQueue.",
+												 MakeTraceSourceAccessor(&RdmaEgressQueue::m_traceRdmaEnqueue),
+												 "ns3::TracedCallback")
+								 .AddTraceSource("RdmaDequeue", "Dequeue a packet in the RdmaEgressQueue.",
+												 MakeTraceSourceAccessor(&RdmaEgressQueue::m_traceRdmaDequeue),
+												 "ns3::TracedCallback");
+		 return tid;
+	 }
 
 	RdmaEgressQueue::RdmaEgressQueue(){
 		m_rrlast = 0;
@@ -116,19 +117,19 @@ namespace ns3 {
 		for (qIndex = 1; qIndex <= fcount; qIndex++){
 			uint32_t idx = (qIndex + m_rrlast) % fcount;
 			Ptr<RdmaQueuePair> qp = m_qpGrp->Get(idx);
-			// if (RdmaHw::m_recordQpExec.find(qp->m_flow_id) == RdmaHw::m_recordQpExec.end())
-			// {
-			// 	std::cerr << "FlowId " << qp->m_flow_id << " is in m_recordQpExec" << std::endl;
-			// 	exit(1);
-			// }
-			// RdmaHw::m_recordQpExec[qp->m_flow_id].lastVistTime = Simulator::Now().GetNanoSeconds();
-			// RdmaHw::m_recordQpExec[qp->m_flow_id].nxtAvailTime = qp->m_nextAvail.GetNanoSeconds();
+			if (RdmaHw::m_recordQpExec.find(qp->m_flow_id) == RdmaHw::m_recordQpExec.end())
+			{
+				std::cerr << "FlowId " << qp->m_flow_id << " is in m_recordQpExec" << std::endl;
+				exit(1);
+			}
+			RdmaHw::m_recordQpExec[qp->m_flow_id].lastVistTime = Simulator::Now().GetNanoSeconds();
+			RdmaHw::m_recordQpExec[qp->m_flow_id].nxtAvailTime = qp->m_nextAvail.GetNanoSeconds();
 			if (qp->IsFinishedConst()) m_qpGrp->SetQpFinished(idx);
       if (m_qpGrp->IsQpFinished(idx))
 			{
-				// RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "beSetFinished";
-				// RdmaHw::m_recordQpExec[qp->m_flow_id].snd_una = qp->snd_una;
-				// RdmaHw::m_recordQpExec[qp->m_flow_id].snd_nxt = qp->snd_nxt;
+				RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "beSetFinished";
+				RdmaHw::m_recordQpExec[qp->m_flow_id].snd_una = qp->snd_una;
+				RdmaHw::m_recordQpExec[qp->m_flow_id].snd_nxt = qp->snd_nxt;
 				continue;
 			}
 			bool isPfcAllowed = !paused[qp->m_pg];
@@ -150,18 +151,21 @@ namespace ns3 {
 					it->second.lastPfcPauseTime = Simulator::Now().GetNanoSeconds();
 				}
 			}
-			
 
-
-			// if (!isPfcAllowed) RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+PfcPause";
+			if (!isPfcAllowed)
+				RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+PfcPause";
 			bool isWinAllowed = !qp->IsWinBound();
-			// if (!isWinAllowed) RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+WinBound";
+			if (!isWinAllowed)
+				RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+WinBound";
 			bool isIrnAllowed = qp->CanIrnTransmit(mtuInByte);
-			// if (!isIrnAllowed) RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+IrnLimit";
+			if (!isIrnAllowed)
+				RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+IrnLimit";
 			bool isDataLeft = qp->GetBytesLeft() > 0 ? true : false;
-			// if (!isDataLeft) RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+ZoroDataLeft";
+			if (!isDataLeft)
+				RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+ZoroDataLeft";
 			bool isTimeAvail = qp->m_nextAvail.GetTimeStep() > Simulator::Now().GetTimeStep() ? false : true;
-			// if (!isTimeAvail) RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+TimeNotAvail";
+			if (!isTimeAvail)
+				RdmaHw::m_recordQpExec[qp->m_flow_id].pauseReason = "+TimeNotAvail";
 			// if (qp->snd_una == 0 && qp->snd_nxt == 0)
 			// {
 			// 	std::cout << qp->GetStringHashValueFromQp() << " curtime " << Simulator::Now().GetNanoSeconds();
@@ -581,6 +585,7 @@ namespace ns3 {
 		if (entry->isProbe)
 		{
 			m_currentPkt = entry->probePacket;
+
 			m_phyTxBeginTrace(m_currentPkt);
 			Time txTime = Seconds(m_bps.CalculateTxTime(m_currentPkt->GetSize()));
 			Time txCompleteTime = txTime + m_tInterframeGap;
@@ -608,6 +613,9 @@ namespace ns3 {
 		if (entry->isData)
 		{
 			m_currentPkt = entry->dataPacket;
+			PacketHopTag packetHopTag;
+			packetHopTag.SetHopId(0);
+			m_currentPkt->AddPacketTag(packetHopTag);
 			m_phyTxBeginTrace(m_currentPkt);
 			Time txTime = Seconds(m_bps.CalculateTxTime(m_currentPkt->GetSize()));
 			Time txCompleteTime = txTime + m_tInterframeGap;
@@ -849,6 +857,9 @@ namespace ns3 {
 		Ptr<RdmaQueuePair> lastQp = m_rdmaEQ->GetQp(qIndex);
 		RecordPacketSenTimeGap(lastQp);
 		p = m_rdmaEQ->DequeueQindex(qIndex);
+		PacketHopTag packetHopTag;
+		packetHopTag.SetHopId(0);
+		p->AddPacketTag(packetHopTag);
 		if (p->PeekHeader(ch) > 0)
 		{
 			NS_LOG_INFO("QbbNetDevice::ApplyLoadBalancingSolution Extracted CustomHeader:");
@@ -877,7 +888,16 @@ namespace ns3 {
 		// NS_LOG_INFO("stringhash is " << stringhash);
 		// RdmaHw::m_recordQpExec[flowId].sendSizeInbyte += p->GetSize() - ch.GetSerializedSize();;
 		// RdmaHw::m_recordQpExec[flowId].sendPacketNum++;
+
 		uint32_t randNum = m_plbTableDataCb(stringhash);
+		if (m_plblastRandNum.find(stringhash) != m_plblastRandNum.end())
+		{
+			if (m_plblastRandNum[stringhash] != randNum)
+			{
+				m_plbSwitchPathInfo[stringhash]++;
+			}
+		}
+		m_plblastRandNum[stringhash] = randNum;
 		plbtag.SetRandomNum(randNum);
 		p->AddPacketTag(plbtag);
 		m_traceQpDequeue(p, lastQp);
@@ -935,12 +955,17 @@ namespace ns3 {
 	{
 		int64_t lastSend = lastQp->packetSenTime;
 		lastQp->packetSenTime = Simulator::Now().GetNanoSeconds();
-		uint64_t flowId = lastQp->m_flow_id;
+		// uint64_t flowId = lastQp->m_flow_id;
 
 		if (lastSend != -1)
 		{
 			uint64_t packetTimegapInMicro = (lastQp->packetSenTime - lastSend) / 1000;
 			// flowPacketSenGap[flowId][packetTimegapInMicro]++;
+			if (packetTimegapInMicro > PacketSenGap.size())
+			{
+				PacketSenGap.resize(packetTimegapInMicro + 100, 0);
+			}
+			PacketSenGap[packetTimegapInMicro]++;
 		}
 		return;
 	}
@@ -999,6 +1024,10 @@ namespace ns3 {
 					RecordPacketSenTimeGap(lastQp);
 
 					p = m_rdmaEQ->DequeueQindex(qIndex);
+					// Record packet Hop num
+					PacketHopTag packetHopTag;
+					packetHopTag.SetHopId(0);
+					p->AddPacketTag(packetHopTag);
 					CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header |
 									CustomHeader::L4_Header);
 					p->PeekHeader(ch);

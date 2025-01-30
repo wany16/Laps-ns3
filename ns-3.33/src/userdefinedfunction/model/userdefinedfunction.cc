@@ -2085,24 +2085,57 @@ namespace ns3
     }
     return;
   }
+  void save_packetHop_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save packetHop_outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-packetHop.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+    fprintf(file, "hopNum packetNum \n");
+    for (auto it = RdmaHw::RecordPacketHop.begin(); it != RdmaHw::RecordPacketHop.end(); ++it)
+    {
+      uint32_t hopNum = it->first;
+      uint32_t packetNum = it->second;
+      fprintf(file, "%u %lu\n", hopNum, packetNum);
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
   void save_LB_outinfo(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save LB outinfo()----------");
+    save_packetHop_outinfo(varMap);
     if (varMap->lbsName == "ecmp")
     {
       save_ecmp_outinfo(varMap);
     }
     else if (varMap->lbsName == "conga")
     {
-      save_conga_outinfo(varMap);
+      // save_conga_outinfo(varMap);
+      save_conga_switchPath_outinfo(varMap);
     }
     else if (varMap->lbsName == "plb")
     {
-      save_plb_outinfo(varMap);
+      // save_plb_outinfo(varMap);
+      save_plb_switchPath_outinfo(varMap);
+    }
+    else if (varMap->lbsName == "conweave")
+    {
+      save_Conweave_DstTorQueue_outinfo(varMap);
+    }
+    else if (varMap->lbsName == "e2elaps")
+    {
+      save_e2elaps_pathLatency(varMap);
     }
     else if (varMap->lbsName == "letflow")
     {
-      save_letflow_outinfo(varMap);
+      // save_letflow_outinfo(varMap);
+      save_letflow_switchPort_outinfo(varMap);
     }
     return;
   }
@@ -2158,6 +2191,93 @@ namespace ns3
           fprintf(file, "nodeID:%d fID:%s CT:%lu OT:%s\n", nodeid, flowId.c_str(), currTime, outinfo.c_str());
         }
       }
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+
+  void save_letflow_switchPort_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save switchPort outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-letflowSwitchPortOutInf.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = SwitchNode::m_letflowSwitchPortInfo.begin(); it != SwitchNode::m_letflowSwitchPortInfo.end(); ++it)
+    {
+      std::string flowId = it->first;
+      uint32_t switchNum = it->second;
+      fprintf(file, "fID:%s %u\n", switchNum);
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+  void save_conga_switchPath_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save switchPort outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-switchPath.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = SwitchNode::m_congaSwitchPathInfo.begin(); it != SwitchNode::m_congaSwitchPathInfo.end(); ++it)
+    {
+      std::string flowId = it->first;
+      uint32_t switchNum = it->second;
+      fprintf(file, "fID:%s %u\n", switchNum);
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+  void save_plb_switchPath_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save switchPort outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-switchPath.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = QbbNetDevice::m_plbSwitchPathInfo.begin(); it != QbbNetDevice::m_plbSwitchPathInfo.end(); ++it)
+    {
+      std::string flowId = it->first;
+      uint32_t switchNum = it->second;
+      fprintf(file, "fID:%s %u\n", switchNum);
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+
+  void save_e2elaps_pathLatency(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save switchPort outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-pathLantency.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+    fprintf(file, "pid lantencyIn50US\n");
+    for (auto it = RdmaSmartFlowRouting::m_pathDelayRecordTable.begin(); it != RdmaSmartFlowRouting::m_pathDelayRecordTable.end(); ++it)
+    {
+      uint32_t pid = it->first;
+      std::string latency = vector2string<uint32_t>(it->second);
+
+      fprintf(file, "%u %s\n", pid, latency.c_str());
     }
     fflush(file);
     fclose(file);
@@ -2250,6 +2370,7 @@ namespace ns3
     fclose(file);
     return;
   }
+
   void save_qpFinshtest_outinfo(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save QP outinfo()----------");
@@ -2414,30 +2535,59 @@ namespace ns3
   void save_flow_packetSenTimeGap(global_variable_t *varMap)
   {
     NS_LOG_INFO("----------save QpRateChange outinfo()----------");
-    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-flowPacketSendTimeGap.txt";
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-PacketSendTimeGap.txt";
     FILE *file = fopen(file_name.c_str(), "w");
     if (file == NULL)
     {
       perror("Error opening file");
       return;
     }
-
-    for (auto it = RdmaHw::m_qpRatechange.begin(); it != RdmaHw::m_qpRatechange.end(); ++it)
+    // uint32_t flowidx = 1;
+    //  for (const auto &flow : QbbNetDevice::flowPacketSenGap)
+    //  {
+    //    std::string packetGap = vector2string<uint64_t>(flow);
+    //    fprintf(file, "flowID:%d %s\n", flowidx, packetGap.c_str());
+    //    flowidx++;
+    //  }
+    uint32_t vecSize = QbbNetDevice::PacketSenGap.size();
+    std::string str = "[";
+    std::string c = ", ";
+    for (uint32_t i = 0; i < vecSize - 1; i++)
     {
-
-      std::string qpId = it->first;
-      std::vector<RecordFlowRateEntry_t> &rateVec = it->second;
-      for (auto &rateEntry : rateVec)
-      {
-        fprintf(file, "flowID:%s %s\n", qpId.c_str(), rateEntry.to_string().c_str());
-      }
+      // if (QbbNetDevice::PacketSenGap[i] == 0)
+      // {
+      //   continue;
+      // }
+      std::string curStr = std::to_string(QbbNetDevice::PacketSenGap[i]);
+      str = str + curStr + c;
     }
-    uint32_t flowidx = 1;
-    for (const auto &flow : QbbNetDevice::flowPacketSenGap)
+
+    std::string curtailStr = std::to_string(QbbNetDevice::PacketSenGap[vecSize - 1]);
+
+    std::string packetGapStr = str + curtailStr + "]"; // time gap us
+    fprintf(file, "%s\n", packetGapStr.c_str());
+    fflush(file);
+    fclose(file);
+    return;
+  }
+
+  void save_Conweave_DstTorQueue_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save Conweave path outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-DstTorQueue.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
     {
-      std::string packetGap = vector2string<uint64_t>(flow);
-      fprintf(file, "flowID:%d %s\n", flowidx, packetGap.c_str());
-      flowidx++;
+      perror("Error opening file");
+      return;
+    }
+    fprintf(file, "DstTorId                  QueneLenIn50usTimeGap\n");
+    for (auto it = ConWeaveRouting::m_recordDstTorQueue.begin(); it != ConWeaveRouting::m_recordDstTorQueue.end(); ++it)
+    {
+      uint32_t nodeId = it->first;
+      std::string queueLen = vector2string<uint32_t>(it->second);
+
+      fprintf(file, "%u %s\n", nodeId, queueLen);
     }
     fflush(file);
     fclose(file);
@@ -4099,6 +4249,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     // init flow Record packet Send gap;
 
     QbbNetDevice::flowPacketSenGap.resize(varMap->flowCount, std::vector<uint64_t>(1000, 0));
+
     if (varMap->enableLLMWorkLoadTest)
     {
       std::cout << "node_install_LLMA_rdma_application" << std::endl;
@@ -4218,8 +4369,15 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     //
     save_qpFinshtest_outinfo(varMap);
     save_QPExec_outinfo(varMap);
-    // save_QpRateChange_outinfo(varMap);
-    save_QPSend_outinfo(varMap);
+
+    // save_QPSend_outinfo(varMap);
+    if (varMap->enableRecordLBOutInfo)
+    {
+      save_LB_outinfo(varMap);
+      save_QpRateChange_outinfo(varMap);
+      save_flow_packetSenTimeGap(varMap);
+    }
+    //
     if (varMap->lbsName == "conweave")
     {
       save_Conweave_pathload_outinfo(varMap);
@@ -4227,7 +4385,6 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     if (ENABLE_CCMODE_TEST)
     {
       save_ccmode_outinfo(varMap);
-      save_LB_outinfo(varMap);
     }
 
     if (varMap->enableQbbTrace)
@@ -4501,7 +4658,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     Config::SetDefault("ns3::QbbNetDevice::QcnEnabled", BooleanValue(varMap->enableQcn));
     NS_LOG_INFO("QbbNetDevice::QcnEnabled : " << boolToString(varMap->enableQcn));
     update_EST(varMap->paraMap, "QbbNetDevice::QcnEnabled", boolToString(varMap->enableQcn));
-    if (varMap->lbsName == "e2elaps" && varMap->enableLLMWorkLoadTest)
+    if (varMap->lbsName == "e2elaps" && varMap->enableLLMWorkLoadTest && varMap->enablee2elapsPFC)
     {
       Config::SetDefault("ns3::QbbNetDevice::QbbEnabled", BooleanValue(false));
       NS_LOG_INFO("QbbNetDevice::QbbEnabled : " << boolToString(false));

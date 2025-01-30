@@ -578,7 +578,31 @@ namespace ns3
         uint32_t randomNum;
     };
 
-class RandomIntegerGenerator {
+class PacketHopTag : public Tag
+    {
+    public:
+        PacketHopTag();
+        virtual ~PacketHopTag();
+
+        void SetHopId(uint32_t pid);
+        //void SetFlowId(uint32_t fid);
+        //void SetDelay(uint64_t ts);
+        uint32_t GetHopId(void) const;
+        //uint32_t GetFlowId(void) const;
+        //uint64_t GetDelay(void) const;
+        static TypeId GetTypeId(void);
+        virtual TypeId GetInstanceTypeId(void) const;
+        virtual uint32_t GetSerializedSize(void) const;
+        virtual void Serialize(TagBuffer i) const;
+        virtual void Deserialize(TagBuffer i);
+        virtual void Print(std::ostream &os) const;
+
+    private:
+        uint32_t m_hopId;
+        //uint32_t m_flowId;
+        //uint64_t m_delayInNs;
+    };
+    class RandomIntegerGenerator {
 public:
     RandomIntegerGenerator(unsigned int seed, double ratio)
     {

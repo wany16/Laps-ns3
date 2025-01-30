@@ -33,6 +33,8 @@ namespace ns3
     std::uniform_real_distribution<double> RdmaSmartFlowRouting::rndGen(0.0, 1.0);
     std::default_random_engine RdmaSmartFlowRouting::generator(std::random_device{}());
     std::map<uint32_t,uint32_t> RdmaSmartFlowRouting::pathPair;
+    std::map<uint32_t, std::vector<uint32_t>> RdmaSmartFlowRouting::m_pathDelayRecordTable;
+    bool RdmaSmartFlowRouting::enableRecordPathlatency = false;
 
     void RdmaSmartFlowRouting::setPathPair(std::vector<PathData> &PIT)
     {
@@ -1961,6 +1963,12 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
         uint32_t fPid = pitEntries[selPathIndex]->pid;
         add_path_tag_by_path_id(entry->dataPacket, fPid);
         NS_ASSERT_MSG(entry->lastQp, "The lastQp is null");
+        if (!m_recordPathLantencyEvent.IsRunning() && enableRecordPathlatency)
+        {
+            // NS_LOG_INFO("ConWeave routing restarts aging event scheduling:" << m_switch_id << now);
+            m_recordPathLantencyEvent = Simulator::Schedule(m_RecordTimeGap, &RdmaSmartFlowRouting::pathDelayRecord, this);
+        }
+
         if (Irn::mode == Irn::Mode::NACK)
         {
             uint32_t payload_size = p->GetSize() - ch.GetSerializedSize();
@@ -2084,7 +2092,17 @@ uint32_t RdmaSmartFlowRouting::GetPathBasedOnWeight(const std::vector<double> & 
         return probePitEntry;
     }
 
+    void RdmaSmartFlowRouting::pathDelayRecord()
+    {
 
+        for (auto it = m_nexthopSelTbl.begin(); it != m_nexthopSelTbl.end(); it++)
+        {
+            uint32_t pid = it->first;
+            uint32_t latency = it->second.latency;
+            m_pathDelayRecordTable[pid].push_back(latency);
+        }
+        m_recordPathLantencyEvent = Simulator::Schedule(m_RecordTimeGap, &RdmaSmartFlowRouting::pathDelayRecord, this);
+    }
 
     void RdmaSmartFlowRouting::set_PST(std::map<HostId2PathSeleKey, pstEntryData> &pathSelTbl)
     {

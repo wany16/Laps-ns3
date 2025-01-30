@@ -28,6 +28,9 @@ namespace ns3
 	std::map<uint32_t, std::map<uint64_t, std::string>> SwitchNode::congaoutinfo;
 	std::map<uint32_t, std::map<std::string, std::map<uint64_t, letflowSaveEntry>>> SwitchNode::m_letflowTestInf;
 	std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t,std::vector<uint64_t>>>> SwitchNode::m_recordPath;
+	std::map<std::string, uint32_t> SwitchNode::m_letflowSwitchPortInfo;
+	std::map<std::string, uint32_t> SwitchNode::m_congaSwitchPathInfo;
+	// std::map<std::string, uint32_t> SwitchNode::m_plbSwitchPathInfo;
 	// LB_Solution SwitchNode::lbSolution = LB_Solution::NONE;
 	uint32_t SwitchNode::GetHashValueFromCustomHeader(const CustomHeader &ch)
 	{
@@ -678,6 +681,13 @@ namespace ns3
 
 				// selectedPath = GetBestPath(dstToRId, 4);
 				selectedPath = GetCongaBestPath(forwarPstKey, 4);
+				if (m_congaflowletTable.find(flowid) != m_congaflowletTable.end() && (ch.l3Prot == 0x11))
+				{
+					if (selectedPath != m_congaflowletTable[flowid]->PathId)
+					{
+						m_congaSwitchPathInfo[flowid]++;
+					}
+				}
 				SwitchNode::nFlowletTimeout++;
 
 				// update flowlet info
@@ -943,7 +953,7 @@ namespace ns3
 	{
 		m_flowletTimeout = timeout;
 	}
-	uint32_t SwitchNode::GetLetFlowEgressPort(const Ipv4Address dip, std::string flowId)
+	uint32_t SwitchNode::GetLetFlowEgressPort(const Ipv4Address dip, std::string flowId, const CustomHeader &ch)
 	{
 		CandidatePortEntry routeEntries = GetLetFlowRouteEntry(dip);
 		uint32_t selectedPort;
@@ -988,9 +998,15 @@ namespace ns3
 
 		// Not hit. Random Select the Port
 		selectedPort = routeEntries.ports[rand() % routeEntries.ports.size()];
+		if (m_flowletTable.find(flowId) != m_flowletTable.end() && (ch.l3Prot == 0x11))
+		{
+			if (selectedPort != m_flowletTable[flowId].port)
+			{
+				m_letflowSwitchPortInfo[flowId]++;
+			}
+		}
 
 		LetFlowFlowletInfo flowlet;
-
 		flowlet.port = selectedPort;
 		flowlet.activeTime = now;
 		m_flowletTable[flowId] = flowlet;
@@ -999,6 +1015,7 @@ namespace ns3
 		m_letflowTestInf[GetId()][flowId][now.GetMicroSeconds()] = RecordEntry;
 
 		NS_LOG_INFO(" Random select the port is" << selectedPort << std::endl);
+
 		return selectedPort;
 	}
 	int SwitchNode::GetOutDev(Ptr<Packet> p, CustomHeader &ch)
@@ -1083,7 +1100,7 @@ namespace ns3
 			std::string flowId = GetStringHashValueFromCustomHeader(ch);
 			// std::map<uint64_t, letflowSaveEntry> saveEntry;
 			// m_letflowTestInf[GetId()][flowId] = saveEntry;
-			uint32_t egressPort = GetLetFlowEgressPort(Ipv4Address(ch.dip), flowId);
+			uint32_t egressPort = GetLetFlowEgressPort(Ipv4Address(ch.dip), flowId, ch);
 			return egressPort;
 		}
 		case LB_Solution::LB_CONGA:
@@ -1249,6 +1266,7 @@ namespace ns3
 	void SwitchNode::SendToDevContinue(Ptr<Packet> p, CustomHeader &ch)
 	{
 		int idx = GetOutDev(p, ch);
+
 		if (idx >= 0)
 		{
 
@@ -1291,6 +1309,13 @@ namespace ns3
 			m_bytes[inDev][idx][qIndex] += p->GetSize();
 			m_PortInf[GetId()][idx].Packetsize += p->GetSize();
 			m_PortInf[GetId()][idx].Packetcount += 1;
+			PacketHopTag packetHopTag;
+			PacketHopTag tempacketHopTag;
+			p->PeekPacketTag(tempacketHopTag);
+			uint32_t hopNum = tempacketHopTag.GetHopId();
+			packetHopTag.SetHopId(hopNum + 1);
+			p->RemovePacketTag(tempacketHopTag);
+			p->AddPacketTag(packetHopTag);
 			dev->SwitchSend(qIndex, p, ch);
 		}
 		else
@@ -1347,6 +1372,13 @@ namespace ns3
 			m_bytes[inDev][idx][qIndex] += p->GetSize();
 			m_PortInf[GetId()][idx].Packetsize += p->GetSize();
 			m_PortInf[GetId()][idx].Packetcount += 1;
+			PacketHopTag packetHopTag;
+			PacketHopTag tempacketHopTag;
+			p->PeekPacketTag(tempacketHopTag);
+			uint32_t hopNum = tempacketHopTag.GetHopId();
+			packetHopTag.SetHopId(hopNum + 1);
+			p->RemovePacketTag(tempacketHopTag);
+			p->AddPacketTag(packetHopTag);
 			dev->SwitchSend(qIndex, p, ch);
 		}
 		else

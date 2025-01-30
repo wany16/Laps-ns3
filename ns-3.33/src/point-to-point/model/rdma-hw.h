@@ -89,8 +89,7 @@ namespace ns3
 		static bool enablePathDelayRecord;
 		static void insertRateRecord(uint32_t flowId, uint64_t curRateInMbps);
 		static void insertPathDelayRecord(uint32_t pid, uint64_t pathDelayInNs);
-
-
+		static std::map<uint32_t, uint64_t> RecordPacketHop;
 		Ptr<Node> m_node;
 		DataRate m_minRate; //< Min sending rate
 		uint32_t m_mtu;

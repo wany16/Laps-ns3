@@ -232,10 +232,14 @@ public:
   RdmaReceiveCb m_rdmaReceiveCb;
   static std::map<std::string, std::string> qpSendInfo;
   static std::vector<std::vector<uint64_t>> flowPacketSenGap;
+  static std::vector<uint64_t> PacketSenGap;
 
   typedef Callback<uint32_t, std::string> PlbTableDataCb;
   PlbTableDataCb m_plbTableDataCb;
   bool PLB_LBSolution(int qIndex);
+
+  std::map<std::string,uint32_t>m_plblastRandNum;
+  static std::map<std::string, uint32_t> m_plbSwitchPathInfo;
   // callback for link down
   typedef Callback<void, Ptr<QbbNetDevice>> RdmaLinkDownCb;
   RdmaLinkDownCb m_rdmaLinkDownCb;

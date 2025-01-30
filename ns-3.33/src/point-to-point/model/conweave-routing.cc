@@ -28,6 +28,7 @@ namespace ns3
 
     RoutePath ConWeaveRouting::routePath;
     std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, uint64_t>>> ConWeaveRouting::m_recordPath;
+    std::map<uint32_t, std::vector<uint32_t>> ConWeaveRouting::m_recordDstTorQueue;
     ConWeaveDataTag::ConWeaveDataTag() : Tag() {}
     TypeId ConWeaveDataTag::GetTypeId(void)
     {
@@ -182,6 +183,7 @@ namespace ns3
     {
         m_agingEvent.Cancel();
         m_recordEvent.Cancel();
+        m_recordQueueEvent.Cancel();
     }
     TypeId ConWeaveRouting::GetTypeId(void)
     {
@@ -1297,6 +1299,12 @@ namespace ns3
         }
         else if (m_switch_id == dstToRId)
         {
+            if (!m_recordQueueEvent.IsRunning())
+            {
+                NS_LOG_INFO("ConWeave routing restarts aging event scheduling:" << m_switch_id << now);
+                m_recordQueueEvent = Simulator::Schedule(m_RecordTimeGap, &ConWeaveRouting::RecordQueneLen, this);
+            }
+
             if (foundConWeaveDataTag)
             {
                 NS_LOG_INFO("Reach Dst Tor ,is conweaveDataTag");
@@ -1483,6 +1491,15 @@ namespace ns3
         }
         recordNum++;
         m_recordEvent = Simulator::Schedule(m_recordTime, &ConWeaveRouting::RecordPathload, this);
+    }
+
+    void ConWeaveRouting::RecordQueneLen()
+    {
+
+        uint32_t total_ReorderPkt = GetVolumeVOQ();
+        m_recordDstTorQueue[m_switch_id].push_back(total_ReorderPkt);
+
+        m_recordQueueEvent = Simulator::Schedule(m_RecordTimeGap, &ConWeaveRouting::RecordQueneLen, this);
     }
 
     ConWeaveVOQ::ConWeaveVOQ() {}

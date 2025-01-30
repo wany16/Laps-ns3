@@ -825,7 +825,7 @@ namespace ns3
     bool enableQcn;
     std::map<std::string, std::vector<std::string>> configMap;
     bool enablePfcDynThresh;
-
+    bool enableRecordLBOutInfo;
     uint32_t intMulti;
     std::string ccMode;
     double pintLogBase;
@@ -907,7 +907,7 @@ namespace ns3
     uint32_t testPktNum;
     bool enableLLMWorkLoadTest;
     bool enableLLMAFlowRateChange;
-
+    bool enablee2elapsPFC;
     global_variable_t()
     {
       addr2node.clear();
@@ -996,7 +996,7 @@ namespace ns3
       enablePfc = false;
       enableProbeTrace = false;
       enbaleRateTrace = false;
-
+      enableRecordLBOutInfo=false;
       qlenMonitorIntervalInNs = 0;
       qlenMonitorFileName = "";
       qlenMonitorFileHandle = NULL;
@@ -1024,6 +1024,7 @@ namespace ns3
       numOfFinishedJob = 0;
       enableLLMWorkLoadTest = false;
       enableLLMAFlowRateChange = false;
+      enablee2elapsPFC = false;
     }
   };
 
@@ -1167,7 +1168,7 @@ namespace ns3
   void print_node_routing_tables(global_variable_t *varMap, uint32_t nodeidx);
   void calculate_bdp_and_rtt(global_variable_t *varMap);
   void set_switch_cc_para(global_variable_t *varMap);
-
+  void save_packetHop_outinfo(global_variable_t *varMap);
   void config_switch_lb(global_variable_t *varMap);
   void set_QBB_trace(global_variable_t *varMap);
   // void switchportinfoPrint(global_variable_t *varMap, uint32_t nodeId);
@@ -1177,13 +1178,18 @@ namespace ns3
   void save_ecmp_outinfo(global_variable_t *varMap);
   void save_LB_outinfo(global_variable_t *varMap);
   void save_letflow_outinfo(global_variable_t *varMap);
+  void save_letflow_switchPort_outinfo(global_variable_t *varMap);
   void save_QpRateChange_outinfo(global_variable_t *varMap);
   void save_Conweave_pathload_outinfo(global_variable_t *varMap);
+  void save_Conweave_DstTorQueue_outinfo(global_variable_t *varMap);
   void sim_finish(global_variable_t *varMap);
   void save_qpFinshtest_outinfo(global_variable_t *varMap);
    void save_QPSend_outinfo(global_variable_t *varMap);
   void save_QPExec_outinfo(global_variable_t *varMap);
+  void save_conga_switchPath_outinfo(global_variable_t *varMap);
+  void save_plb_switchPath_outinfo(global_variable_t *varMap);
   // void print_nic_info(global_variable_t *varMap);
+  void save_e2elaps_pathLatency(global_variable_t *varMap);
   void generate_rdma_flows_for_node_pair(global_variable_t *varMap);
   void generate_rdma_flows_on_nodes(global_variable_t *varMap);
   void install_rdma_flows_on_nodes(global_variable_t *varMap);

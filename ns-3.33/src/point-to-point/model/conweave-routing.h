@@ -310,6 +310,9 @@ namespace ns3
         static uint64_t GetFlowKey(uint32_t ip1, uint32_t ip2, uint16_t port1,
                                    uint16_t port2);                            // hashkey (4-tuple)
         static uint32_t DoHash(const uint8_t *key, size_t len, uint32_t seed); // hash function
+
+        static std::map<uint32_t, std::vector<uint32_t>> m_recordDstTorQueue;
+        Time m_RecordTimeGap = MicroSeconds(50);
         uint32_t GetNumVOQ() { return (uint32_t)m_voqMap.size(); }
         uint32_t GetVolumeVOQ();
         const std::unordered_map<std::string, ConWeaveVOQ> &GetVOQMap() { return m_voqMap; }
@@ -333,9 +336,12 @@ namespace ns3
         void onlyForwardPacket(ConWeaveDataTag &conweaveDataTag, Ptr<Packet> p, CustomHeader &ch);
         uint32_t get_the_path_length_by_path_id(const uint32_t pathId);
         bool reach_the_last_hop_of_path_tag(ConWeaveDataTag &conweaveDataTag);
+        void RecordQueneLen();
         void DeleteVOQ(std::string flowkey); // used for callback when reorder queue is flushed
         EventId m_agingEvent;
         EventId m_recordEvent;
+        EventId m_recordQueueEvent;
+
         void AgingEvent(); // aging Tx/RxTableEntry (for cleaning and improve NS-3 simulation)
 
         /* SET functions */

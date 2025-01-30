@@ -168,7 +168,7 @@ namespace ns3
     bool reach_the_last_hop_of_path_tag(CongaTag congaTag);
     uint32_t CalculateQueueLength(uint32_t interface);
     uint32_t GetDrillEgressPort(const Ipv4Address dip);
-    uint32_t GetLetFlowEgressPort(const Ipv4Address dip, std::string flowId);
+    uint32_t GetLetFlowEgressPort(const Ipv4Address dip, std::string flowId,const CustomHeader &ch);
     uint32_t randomSelectionFromTime();
 
   protected:
@@ -221,7 +221,10 @@ namespace ns3
     static std::map<uint32_t, std::map<uint32_t, uint32_t>> m_rrsPortInf;                      // map from nodeid to port to packetCount (RRS select port)
     static std::map<uint32_t, std::map<uint32_t, FlowPortInfo>> m_PortInf;
     static std::map<uint32_t,std::map<uint64_t, std::string>>congaoutinfo;
-    static std::map<uint32_t, std::map<std::string,std::map<uint64_t,letflowSaveEntry>>> m_letflowTestInf;  // map from nodeid to time to 
+    static std::map<uint32_t, std::map<std::string,std::map<uint64_t,letflowSaveEntry>>> m_letflowTestInf;  // map from nodeid to time to
+    static std::map<std::string, uint32_t> m_letflowSwitchPortInfo;
+    static std::map<std::string, uint32_t> m_congaSwitchPathInfo;
+    
     static uint32_t GetOutPortFromPath(const uint32_t &path, const uint32_t &hopCount); // decode outPort from path, given a hop's order
     bool GetIsToRSwitch();
     uint32_t GetSwitchId();

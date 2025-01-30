@@ -266,7 +266,70 @@ namespace ns3
         randomNum = num;
         return;
     }
+    PacketHopTag::PacketHopTag()
+    {
+        NS_LOG_FUNCTION(this);
+    }
 
+    PacketHopTag::~PacketHopTag()
+    {
+        NS_LOG_FUNCTION(this);
+    }
+
+    void PacketHopTag::SetHopId(uint32_t hop)
+    {
+        m_hopId = hop;
+        return;
+    }
+
+    uint32_t PacketHopTag::GetHopId(void) const
+    {
+        return m_hopId;
+    }
+
+    TypeId PacketHopTag::GetTypeId(void)
+    {
+        static TypeId tid = TypeId("ns3::PacketHopTag")
+                                .SetParent<Tag>()
+                                .SetGroupName("Internet")
+                                .AddConstructor<PacketHopTag>();
+        return tid;
+    }
+
+    TypeId PacketHopTag::GetInstanceTypeId(void) const
+    {
+        return GetTypeId();
+    }
+
+    uint32_t PacketHopTag::GetSerializedSize(void) const
+    {
+        NS_LOG_FUNCTION(this);
+        return sizeof(uint32_t);
+    }
+
+    void PacketHopTag::Serialize(TagBuffer i) const
+    {
+        NS_LOG_FUNCTION(this << &i);
+        i.WriteU32(m_hopId);
+
+        return;
+    }
+
+    void PacketHopTag::Deserialize(TagBuffer i)
+    {
+        NS_LOG_FUNCTION(this << &i);
+        m_hopId = i.ReadU32();
+
+        return;
+    }
+
+    void PacketHopTag::Print(std::ostream &os) const
+    {
+        NS_LOG_FUNCTION(this << &os);
+        os << "hopId: " << m_hopId;
+        os << "\n";
+        return;
+    }
     uint32_t PlbRehashTag::GetRandomNum() { return randomNum; }
 
     void PlbRehashTag::Print(std::ostream &os) const

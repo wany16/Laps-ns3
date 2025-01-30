@@ -174,7 +174,7 @@ namespace ns3 {
 		}
 		else
 		{
-			std::cerr << "No existed packet can be sent" << std::endl;
+			//std::cerr << "No existed packet can be sent" << std::endl;
 			return 0;
 		}
 		NS_LOG_LOGIC("Nothing can be sent");
