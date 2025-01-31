@@ -29,6 +29,7 @@ namespace ns3
     RoutePath ConWeaveRouting::routePath;
     std::map<HostId2PathSeleKey, std::map<uint32_t, std::map<uint32_t, uint64_t>>> ConWeaveRouting::m_recordPath;
     std::map<uint32_t, std::vector<uint32_t>> ConWeaveRouting::m_recordDstTorQueue;
+    std::map<std::string, uint32_t> ConWeaveRouting::m_switchPathInfo;
     ConWeaveDataTag::ConWeaveDataTag() : Tag() {}
     TypeId ConWeaveDataTag::GetTypeId(void)
     {
@@ -171,7 +172,7 @@ namespace ns3
         // set constants  确认这些参数怎么设置的
         m_extraReplyDeadline = NanoSeconds(80);      // 1 hop of packetsieze 1000B/ 100Gbps=0.08us=80ns          50KB / 100Gbps = 4us
         m_extraVOQFlushTime = MicroSeconds(32);      // for uncertainty
-        m_txExpiryTime = MicroSeconds(300);          // flowlet timegap
+        m_txExpiryTime = MicroSeconds(10);          // flowlet timegap
         m_defaultVOQWaitingTime = MicroSeconds(200); // 200us
         m_pathPauseTime = MicroSeconds(4);           // 400Kb queue, 100Gbps -> 4us
         m_pathAwareRerouting = true;                 // enable path-aware rerouting
@@ -638,11 +639,32 @@ namespace ns3
     {
         Time now = Simulator::Now();
         conweaveDataTag.SetPathId(tx_md.currPath);
+
         conweaveDataTag.SetHopCount(0);
         conweaveDataTag.SetEpoch(tx_md.epoch);
         conweaveDataTag.SetPhase(tx_md.phase);
         conweaveDataTag.SetTimestampTx(now.GetNanoSeconds());
         conweaveDataTag.SetTimestampTail(tx_md.tailTime);
+
+        std::string flowId = ipv4Address2string(Ipv4Address(ch.sip)) + "#" + ipv4Address2string(Ipv4Address(ch.dip)) + "#" + std::to_string(ch.udp.sport);
+
+        if (m_lastPathInfo.find(flowId) != m_lastPathInfo.end())
+        {
+
+            if (tx_md.currPath != m_lastPathInfo[flowId])
+            {
+                if (m_switchPathInfo.find(flowId) == m_switchPathInfo.end())
+                {
+                    m_switchPathInfo[flowId] = 1;
+                }
+                else
+                {
+                    m_switchPathInfo[flowId]++;
+                }
+            }
+        }
+        m_lastPathInfo[flowId] = tx_md.currPath;
+
         if (tx_md.flagExpired || tx_md.flagStabilized)
         { /* ask reply of INIT */
             conweaveDataTag.SetFlagData(ConWeaveDataTag::INIT);

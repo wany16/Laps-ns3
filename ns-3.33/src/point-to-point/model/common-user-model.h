@@ -193,6 +193,7 @@ namespace ns3
     {
         uint32_t selfHostId;
         uint32_t dstHostId;
+
         HostId2PathSeleKey() : selfHostId(0), dstHostId(0) {}
         HostId2PathSeleKey(uint32_t &self, uint32_t &dest) : selfHostId(self), dstHostId(dest) {}
         bool operator<(const HostId2PathSeleKey &other) const
@@ -598,7 +599,7 @@ class PacketHopTag : public Tag
         virtual void Print(std::ostream &os) const;
 
     private:
-        uint32_t m_hopId;
+        uint32_t m_hopId = 0;
         //uint32_t m_flowId;
         //uint64_t m_delayInNs;
     };

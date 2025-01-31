@@ -955,7 +955,10 @@ namespace ns3
 	}
 	uint32_t SwitchNode::GetLetFlowEgressPort(const Ipv4Address dip, std::string flowId, const CustomHeader &ch)
 	{
-		CandidatePortEntry routeEntries = GetLetFlowRouteEntry(dip);
+		// CandidatePortEntry routeEntries = GetLetFlowRouteEntry(dip);
+		std::pair<Ipv4Address, Ipv4Address> key = std::make_pair(Ipv4Address(ch.sip), Ipv4Address(ch.dip));
+		// CandidatePortEntry ecmpEntry = GetEcmpRouteEntry(Ipv4Address(ch.dip));
+		CandidatePortEntry routeEntries = m_letflowRouteTable1[key];
 		uint32_t selectedPort;
 		Time now = Simulator::Now();
 		// If the flowlet table entry is valid, return the port
@@ -1035,7 +1038,9 @@ namespace ns3
 		{
 			NS_LOG_INFO("swNodeId " << swnodeid << " Apply Load Balancing Algorithm: " << "ECMP");
 			uint32_t flowId = GetHashValueFromCustomHeader(ch);
-			CandidatePortEntry ecmpEntry = GetEcmpRouteEntry(Ipv4Address(ch.dip));
+			std::pair<Ipv4Address, Ipv4Address> key = std::make_pair(Ipv4Address(ch.sip), Ipv4Address(ch.dip));
+			// CandidatePortEntry ecmpEntry = GetEcmpRouteEntry(Ipv4Address(ch.dip));
+			CandidatePortEntry ecmpEntry = m_ecmpRouteTable1[key];
 			uint32_t egressPort = ecmpEntry.ports[flowId % ecmpEntry.ports.size()];
 			std::string ipInfo = ipv4Address2string(Ipv4Address(ch.sip)) + " " + ipv4Address2string(Ipv4Address(ch.dip)) + " " + std::to_string(ch.udp.sport);
 			NS_LOG_INFO(" flowId " << flowId << " " << ipInfo);
@@ -1059,7 +1064,10 @@ namespace ns3
 			}
 			uint32_t randNum = plbTag.GetRandomNum();
 			uint32_t flowId = GetHashValueFromCustomHeader(ch);
-			CandidatePortEntry ecmpEntry = GetEcmpRouteEntry(Ipv4Address(ch.dip));
+			std::pair<Ipv4Address, Ipv4Address> key = std::make_pair(Ipv4Address(ch.sip), Ipv4Address(ch.dip));
+
+			CandidatePortEntry ecmpEntry = m_ecmpRouteTable1[key];
+			// CandidatePortEntry ecmpEntry = GetEcmpRouteEntry(Ipv4Address(ch.dip));
 			uint32_t egressPort = ecmpEntry.ports[(flowId + randNum) % ecmpEntry.ports.size()];
 			return egressPort;
 		}
@@ -1321,8 +1329,9 @@ namespace ns3
 			PacketHopTag tempacketHopTag;
 			p->PeekPacketTag(tempacketHopTag);
 			uint32_t hopNum = tempacketHopTag.GetHopId();
-			std::cout << "NodeId: " << GetId() << " hopNum:" << hopNum << std::endl;
+
 			packetHopTag.SetHopId(hopNum + 1);
+			// std::cout << "NodeId: " << GetId() << " hopNum:" << hopNum + 1 << std::endl;
 			p->RemovePacketTag(tempacketHopTag);
 			p->AddPacketTag(packetHopTag);
 			dev->SwitchSend(qIndex, p, ch);
@@ -1496,6 +1505,64 @@ namespace ns3
 	{
 		m_Seed = seed;
 	}
+
+	void SwitchNode::AddPathTableEntry(std::pair<Ipv4Address, Ipv4Address> key, uint32_t intf_idx)
+	{
+		if (m_lbSolution == LB_Solution::LB_ECMP || m_lbSolution == LB_Solution::LB_PLB)
+		{
+			// m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
+
+			if (m_ecmpRouteTable1.find(key) == m_ecmpRouteTable1.end())
+			{
+				m_ecmpRouteTable1[key].ports.push_back(intf_idx);
+			}
+			else
+			{
+				std::vector<uint32_t> intfs = m_ecmpRouteTable1[key].ports;
+				bool isExisted = false;
+				for (uint32_t i = 0; i < intfs.size(); i++)
+				{
+					if (intfs[i] == intf_idx)
+					{
+						isExisted = true;
+						return;
+					}
+				}
+				if (!isExisted)
+				{
+					m_ecmpRouteTable1[key].ports.push_back(intf_idx);
+				}
+			}
+		}
+
+		if (m_lbSolution == LB_Solution::LB_LETFLOW)
+		{
+			// m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
+
+			if (m_letflowRouteTable1.find(key) == m_letflowRouteTable1.end())
+			{
+				m_letflowRouteTable1[key].ports.push_back(intf_idx);
+			}
+			else
+			{
+				std::vector<uint32_t> intfs = m_letflowRouteTable1[key].ports;
+				bool isExisted = false;
+				for (uint32_t i = 0; i < intfs.size(); i++)
+				{
+					if (intfs[i] == intf_idx)
+					{
+						isExisted = true;
+						return;
+					}
+				}
+				if (!isExisted)
+				{
+					m_letflowRouteTable1[key].ports.push_back(intf_idx);
+				}
+			}
+		}
+	}
+
 	void SwitchNode::AddTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx)
 	{
 		uint32_t dip = dstAddr.Get();

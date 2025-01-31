@@ -166,7 +166,10 @@ namespace ns3
     RrsEntryInfo GetRrsRouteEntry(const Ipv4Address dip) const;
     DrillEntryInfo GetDrillRouteEntry(const Ipv4Address dip) const;
     CandidatePortEntry GetLetFlowRouteEntry(const Ipv4Address dip) const;
+    std::map<std::pair<Ipv4Address, Ipv4Address>, CandidatePortEntry> m_ecmpRouteTable1;
+    std::map<std::pair<Ipv4Address, Ipv4Address>, CandidatePortEntry> m_letflowRouteTable1;
     bool reach_the_last_hop_of_path_tag(CongaTag congaTag);
+
     uint32_t CalculateQueueLength(uint32_t interface);
     uint32_t GetDrillEgressPort(const Ipv4Address dip);
     uint32_t GetLetFlowEgressPort(const Ipv4Address dip, std::string flowId,const CustomHeader &ch);
@@ -212,6 +215,7 @@ namespace ns3
     void SendToDevContinue(Ptr<Packet> p, CustomHeader &ch);
     void SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Packet> p);
     void SetFlowletTimeout(Time timeout);
+    void AddPathTableEntry(std::pair<Ipv4Address, Ipv4Address> key, uint32_t intf_idx);
     struct FlowPortInfo
     {
       uint32_t Packetcount;

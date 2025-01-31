@@ -310,9 +310,10 @@ namespace ns3
         static uint64_t GetFlowKey(uint32_t ip1, uint32_t ip2, uint16_t port1,
                                    uint16_t port2);                            // hashkey (4-tuple)
         static uint32_t DoHash(const uint8_t *key, size_t len, uint32_t seed); // hash function
-
+        static std::map<std::string, uint32_t> m_switchPathInfo;
+        std::map<std::string, uint32_t> m_lastPathInfo;
         static std::map<uint32_t, std::vector<uint32_t>> m_recordDstTorQueue;
-        Time m_RecordTimeGap = MicroSeconds(50);
+        Time m_RecordTimeGap = MilliSeconds(5);
         uint32_t GetNumVOQ() { return (uint32_t)m_voqMap.size(); }
         uint32_t GetVolumeVOQ();
         const std::unordered_map<std::string, ConWeaveVOQ> &GetVOQMap() { return m_voqMap; }

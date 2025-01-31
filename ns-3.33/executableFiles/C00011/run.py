@@ -200,7 +200,7 @@ m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb','25'
 patternNameMap = {'Ring': 1, 'All': 0.032, 'Reduce': 0.333}
 onePatternNameMap = {'All': 1}
 oneLLMAPatternNameMap = {'One2all': 1,"All2one":1}
-allLbsNameList = ['plb','letflow', 'ecmp']
+allLbsNameList = ['conga','conweave','e2elaps']
 allLbsNameList1 = ['plb']
 loadratioListall=[
     '0.5', '0.55', '0.6', '0.65', '0.7', '0.75', '0.8', '0.85', '0.9', '0.95',

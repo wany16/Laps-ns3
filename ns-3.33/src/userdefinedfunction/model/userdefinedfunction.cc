@@ -2127,6 +2127,7 @@ namespace ns3
     else if (varMap->lbsName == "conweave")
     {
       save_Conweave_DstTorQueue_outinfo(varMap);
+      save_conweave_switchPath_outinfo(varMap);
     }
     else if (varMap->lbsName == "e2elaps")
     {
@@ -2610,6 +2611,27 @@ namespace ns3
       std::string queueLen = vector2string<uint32_t>(it->second);
 
       fprintf(file, "%u %s\n", nodeId, queueLen.c_str());
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+  void save_conweave_switchPath_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save switchPath outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-switchPath.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = ConWeaveRouting::m_switchPathInfo.begin(); it != ConWeaveRouting::m_switchPathInfo.end(); ++it)
+    {
+      std::string flowId = it->first;
+      uint32_t switchNum = it->second;
+      fprintf(file, "fID:%s %u\n", flowId.c_str(), switchNum);
     }
     fflush(file);
     fclose(file);
@@ -3717,12 +3739,15 @@ void install_routing_entries_based_on_single_pit_entry_for_switch(global_variabl
   std::vector<uint32_t> ports = pit.portSequence;
   uint32_t dstNodeId = nodes[nodes.size() - 1];
   Ptr<Node> dstNode = varMap->allNodes.Get(dstNodeId);
+  uint32_t srcNodeId = nodes[0];
+  Ptr<Node> srcNode = varMap->allNodes.Get(srcNodeId);
   if (dstNode->GetNodeType() != SERVER_NODE_TYPE)
   {
     std::cout << "ERROR NODE type" << std::endl;
   }
   auto dstIP = dstNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
-
+  auto srcIP = srcNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+  std::pair<Ipv4Address, Ipv4Address> key = std::make_pair(srcIP, dstIP);
   for (size_t j = 0; j < nodes.size() - 1; j++)
   {
     uint32_t nodeIdx = nodes[j];
@@ -3734,7 +3759,7 @@ void install_routing_entries_based_on_single_pit_entry_for_switch(global_variabl
       Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(node);
       NS_ASSERT_MSG(sw, "Error in node type");
 
-      sw->AddTableEntry(dstIP, interface);
+      sw->AddPathTableEntry(key, interface);
     }
     else if (node->GetNodeType() == SERVER_NODE_TYPE)
     {
@@ -4445,7 +4470,7 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     if (varMap->enableRecordLBOutInfo)
     {
       save_LB_outinfo(varMap);
-      save_QpRateChange_outinfo(varMap);
+      // save_QpRateChange_outinfo(varMap);
       save_flow_packetSenTimeGap(varMap);
     }
     //

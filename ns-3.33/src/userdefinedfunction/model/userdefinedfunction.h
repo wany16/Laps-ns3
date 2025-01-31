@@ -1182,6 +1182,7 @@ namespace ns3
   void save_QpRateChange_outinfo(global_variable_t *varMap);
   void save_Conweave_pathload_outinfo(global_variable_t *varMap);
   void save_Conweave_DstTorQueue_outinfo(global_variable_t *varMap);
+  void save_conweave_switchPath_outinfo(global_variable_t *varMap);
   void sim_finish(global_variable_t *varMap);
   void save_qpFinshtest_outinfo(global_variable_t *varMap);
    void save_QPSend_outinfo(global_variable_t *varMap);
