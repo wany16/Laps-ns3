@@ -64,7 +64,7 @@ namespace ns3
 		void SetTimeoutForLaps(Ptr<RdmaQueuePair> qp, uint32_t pid, Time timeInNs); 
 		static void printRateRecordToFile(std::string fileName);
 		static void printPathDelayRecordToFile(std::string fileName);
-
+        static std::map<uint32_t,uint64_t> m_RecordBuffSize;
 		void CheckTxCompletedQp(uint16_t sport);
 
 		static uint32_t qpFlowIndex;

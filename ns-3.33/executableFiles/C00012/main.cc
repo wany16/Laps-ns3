@@ -93,6 +93,7 @@ int main(int argc, char *argv[])
     cmd.AddValue("enableLLMAFlowRateChange", "creat LLM Work Load Test", varMap.enableLLMAFlowRateChange);
     cmd.AddValue("enablee2elapsPFC", "creat LLM Work Load Test", varMap.enablee2elapsPFC);
     cmd.AddValue("enableRecordLBOutInfo", "creat LLM Work Load Test", varMap.enableRecordLBOutInfo);
+
     cmd.Parse(argc, argv);
     update_EST(varMap.paraMap, "loadRatio", varMap.loadRatio);
 

@@ -146,7 +146,7 @@ namespace ns3
 		// set constants
 		m_dreTime = Time(MicroSeconds(200));
 		m_agingTime = Time(MilliSeconds(10));
-		m_flowletTimeout = Time(MicroSeconds(10));
+		// m_flowletTimeout = Time(MicroSeconds(10));
 		m_quantizeBit = 3;
 		m_alpha = 0.2;
 		Ptr<RdmaSmartFlowRouting> smartFlowRouting = m_mmu->m_SmartFlowRouting;
@@ -998,11 +998,19 @@ namespace ns3
 
 		// Not hit. Random Select the Port
 		selectedPort = routeEntries.ports[rand() % routeEntries.ports.size()];
-		if (m_flowletTable.find(flowId) != m_flowletTable.end() && (ch.l3Prot == 0x11))
+		if ((m_flowletTable.find(flowId) != m_flowletTable.end()) && (ch.l3Prot == 0x11))
 		{
 			if (selectedPort != m_flowletTable[flowId].port)
 			{
-				m_letflowSwitchPortInfo[flowId]++;
+
+				if (m_letflowSwitchPortInfo.find(flowId) != m_letflowSwitchPortInfo.end())
+				{
+					m_letflowSwitchPortInfo[flowId]++;
+				}
+				else
+				{
+					m_letflowSwitchPortInfo[flowId] = 1;
+				}
 			}
 		}
 
@@ -1313,6 +1321,7 @@ namespace ns3
 			PacketHopTag tempacketHopTag;
 			p->PeekPacketTag(tempacketHopTag);
 			uint32_t hopNum = tempacketHopTag.GetHopId();
+			std::cout << "NodeId: " << GetId() << " hopNum:" << hopNum << std::endl;
 			packetHopTag.SetHopId(hopNum + 1);
 			p->RemovePacketTag(tempacketHopTag);
 			p->AddPacketTag(packetHopTag);
@@ -1490,10 +1499,55 @@ namespace ns3
 	void SwitchNode::AddTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx)
 	{
 		uint32_t dip = dstAddr.Get();
-		m_rtTable[dip].push_back(intf_idx);
+		// m_rtTable[dip].push_back(intf_idx);
+		// uint32_t dip = dstAddr.Get();
+		if (m_rtTable.find(dip) == m_rtTable.end())
+		{
+			m_rtTable[dip].push_back(intf_idx);
+		}
+		else
+		{
+			std::vector<int32_t> intfs = m_rtTable[dip];
+			bool isExisted = false;
+			for (uint32_t i = 0; i < intfs.size(); i++)
+			{
+				if (intfs[i] == intf_idx)
+				{
+					isExisted = true;
+					return;
+				}
+			}
+			if (!isExisted)
+			{
+				m_rtTable[dip].push_back(intf_idx);
+			}
+		}
+
 		if (m_lbSolution == LB_Solution::LB_ECMP)
 		{
-			m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
+			// m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
+
+			if (m_ecmpRouteTable.find(dstAddr) == m_ecmpRouteTable.end())
+			{
+				m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
+			}
+			else
+			{
+				std::vector<uint32_t> intfs = m_ecmpRouteTable[dstAddr].ports;
+				bool isExisted = false;
+				for (uint32_t i = 0; i < intfs.size(); i++)
+				{
+					if (intfs[i] == intf_idx)
+					{
+						isExisted = true;
+						return;
+					}
+				}
+				if (!isExisted)
+				{
+					m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
+				}
+			}
 		}
 		if (m_lbSolution == LB_Solution::LB_RPS)
 		{
@@ -1509,7 +1563,28 @@ namespace ns3
 		}
 		if (m_lbSolution == LB_Solution::LB_LETFLOW)
 		{
-			m_letflowRouteTable[dstAddr].ports.push_back(intf_idx);
+			if (m_letflowRouteTable.find(dstAddr) == m_letflowRouteTable.end())
+			{
+				m_letflowRouteTable[dstAddr].ports.push_back(intf_idx);
+			}
+			else
+			{
+				std::vector<uint32_t> intfs = m_letflowRouteTable[dstAddr].ports;
+				bool isExisted = false;
+				for (uint32_t i = 0; i < intfs.size(); i++)
+				{
+					if (intfs[i] == intf_idx)
+					{
+						isExisted = true;
+						return;
+					}
+				}
+				if (!isExisted)
+				{
+					m_letflowRouteTable[dstAddr].ports.push_back(intf_idx);
+				}
+			}
+			// m_letflowRouteTable[dstAddr].ports.push_back(intf_idx);
 		}
 		if (m_lbSolution == LB_Solution::LB_CONGA)
 		{
@@ -1517,7 +1592,28 @@ namespace ns3
 		}
 		if (m_lbSolution == LB_Solution::LB_PLB)
 		{
-			m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
+			if (m_ecmpRouteTable.find(dstAddr) == m_ecmpRouteTable.end())
+			{
+				m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
+			}
+			else
+			{
+				std::vector<uint32_t> intfs = m_ecmpRouteTable[dstAddr].ports;
+				bool isExisted = false;
+				for (uint32_t i = 0; i < intfs.size(); i++)
+				{
+					if (intfs[i] == intf_idx)
+					{
+						isExisted = true;
+						return;
+					}
+				}
+				if (!isExisted)
+				{
+					m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
+				}
+			}
+			// m_ecmpRouteTable[dstAddr].ports.push_back(intf_idx);
 		}
 	}
 

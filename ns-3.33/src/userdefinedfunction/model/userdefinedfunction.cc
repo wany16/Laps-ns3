@@ -2130,7 +2130,8 @@ namespace ns3
     }
     else if (varMap->lbsName == "e2elaps")
     {
-      save_e2elaps_pathLatency(varMap);
+      // save_e2elaps_pathLatency(varMap);
+      save_e2elaps_buffsize_outinfo(varMap);
     }
     else if (varMap->lbsName == "letflow")
     {
@@ -2212,7 +2213,28 @@ namespace ns3
     {
       std::string flowId = it->first;
       uint32_t switchNum = it->second;
-      fprintf(file, "fID:%s %u\n", switchNum);
+      fprintf(file, "fID:%s %u\n", flowId.c_str(), switchNum);
+    }
+    fflush(file);
+    fclose(file);
+    return;
+  }
+  void save_e2elaps_buffsize_outinfo(global_variable_t *varMap)
+  {
+    NS_LOG_INFO("----------save buffsize outinfo()----------");
+    std::string file_name = varMap->outputFileDir + varMap->fileIdx + "-buffsize.txt";
+    FILE *file = fopen(file_name.c_str(), "w");
+    if (file == NULL)
+    {
+      perror("Error opening file");
+      return;
+    }
+
+    for (auto it = RdmaHw::m_RecordBuffSize.begin(); it != RdmaHw::m_RecordBuffSize.end(); ++it)
+    {
+      uint32_t buff = it->first;
+      uint64_t num = it->second;
+      fprintf(file, "%u %lu\n", buff, num);
     }
     fflush(file);
     fclose(file);
@@ -2233,7 +2255,7 @@ namespace ns3
     {
       std::string flowId = it->first;
       uint32_t switchNum = it->second;
-      fprintf(file, "fID:%s %u\n", switchNum);
+      fprintf(file, "fID:%s %u\n", flowId.c_str(), switchNum);
     }
     fflush(file);
     fclose(file);
@@ -2254,7 +2276,7 @@ namespace ns3
     {
       std::string flowId = it->first;
       uint32_t switchNum = it->second;
-      fprintf(file, "fID:%s %u\n", switchNum);
+      fprintf(file, "fID:%s %u\n", flowId.c_str(), switchNum);
     }
     fflush(file);
     fclose(file);
@@ -2587,7 +2609,7 @@ namespace ns3
       uint32_t nodeId = it->first;
       std::string queueLen = vector2string<uint32_t>(it->second);
 
-      fprintf(file, "%u %s\n", nodeId, queueLen);
+      fprintf(file, "%u %s\n", nodeId, queueLen.c_str());
     }
     fflush(file);
     fclose(file);
@@ -3689,6 +3711,45 @@ void install_routing_entries_based_on_single_pit_entry_for_laps(global_variable_
   }
 }
 
+void install_routing_entries_based_on_single_pit_entry_for_switch(global_variable_t *varMap, PathData &pit)
+{
+  std::vector<uint32_t> nodes = pit.nodeIdSequence;
+  std::vector<uint32_t> ports = pit.portSequence;
+  uint32_t dstNodeId = nodes[nodes.size() - 1];
+  Ptr<Node> dstNode = varMap->allNodes.Get(dstNodeId);
+  if (dstNode->GetNodeType() != SERVER_NODE_TYPE)
+  {
+    std::cout << "ERROR NODE type" << std::endl;
+  }
+  auto dstIP = dstNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+
+  for (size_t j = 0; j < nodes.size() - 1; j++)
+  {
+    uint32_t nodeIdx = nodes[j];
+    uint32_t interface = ports[j];
+    NS_ASSERT_MSG(nodeIdx < varMap->allNodes.GetN(), "Error in nodes.size()");
+    Ptr<Node> node = varMap->allNodes.Get(nodeIdx);
+    if (node->GetNodeType() == SWITCH_NODE_TYPE)
+    {
+      Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(node);
+      NS_ASSERT_MSG(sw, "Error in node type");
+
+      sw->AddTableEntry(dstIP, interface);
+    }
+    else if (node->GetNodeType() == SERVER_NODE_TYPE)
+    {
+      // Ptr<RdmaDriver> rdmaDriver = node->GetObject<RdmaDriver>();
+      // NS_ASSERT_MSG(rdmaDriver, "unfound rdma driver on server node");
+      // rdmaDriver->m_rdma->m_E2ErdmaSmartFlowRouting->insert_entry_to_PIT(pit);
+      node->GetObject<RdmaDriver>()->m_rdma->AddTableEntry(dstIP, interface);
+    }
+    else
+    {
+      NS_ASSERT_MSG(false, "Error in unknown node type");
+    }
+  }
+}
+
 void install_routing_entries_based_on_single_pst_entry_for_laps(global_variable_t *varMap, pstEntryData &pst)
 {
   HostId2PathSeleKey key = pst.key;
@@ -3752,6 +3813,16 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     NS_LOG_FUNCTION(varMap->allNodes.GetN() << varMap->swNodes.GetN() << varMap->svNodes.GetN());
     if (varMap->lbsName == "e2elaps") {
       install_routing_entries_for_laps(varMap);
+      return;
+    }
+    if (varMap->lbsName == "ecmp" || varMap->lbsName == "letflow" || varMap->lbsName == "plb")
+    {
+      std::vector<PathData> PIT = load_PIT_from_file(varMap->pitFile);
+
+      for (size_t i = 0; i < PIT.size(); i++)
+      {
+        install_routing_entries_based_on_single_pit_entry_for_switch(varMap, PIT[i]);
+      }
       return;
     }
 
@@ -4658,11 +4729,11 @@ void install_routing_entries_based_on_single_smt_entry_for_laps(NodeContainer no
     Config::SetDefault("ns3::QbbNetDevice::QcnEnabled", BooleanValue(varMap->enableQcn));
     NS_LOG_INFO("QbbNetDevice::QcnEnabled : " << boolToString(varMap->enableQcn));
     update_EST(varMap->paraMap, "QbbNetDevice::QcnEnabled", boolToString(varMap->enableQcn));
-    if (varMap->lbsName == "e2elaps" && varMap->enableLLMWorkLoadTest && varMap->enablee2elapsPFC)
+    if (varMap->lbsName == "e2elaps" && varMap->enablee2elapsPFC)
     {
-      Config::SetDefault("ns3::QbbNetDevice::QbbEnabled", BooleanValue(false));
-      NS_LOG_INFO("QbbNetDevice::QbbEnabled : " << boolToString(false));
-      update_EST(varMap->paraMap, "QbbNetDevice::QbbEnabled", boolToString(false));
+      Config::SetDefault("ns3::QbbNetDevice::QbbEnabled", BooleanValue(varMap->enablee2elapsPFC));
+      NS_LOG_INFO("QbbNetDevice::QbbEnabled : " << boolToString(varMap->enablee2elapsPFC));
+      update_EST(varMap->paraMap, "QbbNetDevice::QbbEnabled", boolToString(varMap->enablee2elapsPFC));
     }
     else
     {

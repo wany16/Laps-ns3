@@ -1813,12 +1813,7 @@ std::vector<double> RdmaSmartFlowRouting::CalPathWeightBasedOnDelay(const std::v
                     "Mininal Delay: " << paths[i]->theoreticalSmallestLatencyInNs << ", " <<
                     "Weight: " << weights[i]
                    );
-        // std::cout << "Path: " << paths[i]->pid << ", " <<
-        //             "Now: " << t.GetNanoSeconds() << ", " <<
-        //             "Realtime Delay: " << paths[i]->latency << ", " <<
-        //             "Mininal Delay: " << paths[i]->theoreticalSmallestLatencyInNs << ", " <<
-        //             // "nextAvailableTime: " << paths[i]->nextAvailableTime.GetNanoSeconds() << ", " <<
-        //             "Weight: " << weights[i] << std::endl;
+        // std::cout << "Path: " << paths[i]->pid << ", " << "Now: " << t.GetNanoSeconds() << ", " << "Realtime Delay: " << paths[i]->latency << ", " << "Mininal Delay: " << paths[i]->theoreticalSmallestLatencyInNs << ", " << "nextAvailableTime: " << paths[i]->nextAvailableTime.GetNanoSeconds() << ", " << "Weight: " << weights[i] << std::endl;
 
         // if (is9604)
         // {

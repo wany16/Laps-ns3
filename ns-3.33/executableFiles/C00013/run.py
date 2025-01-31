@@ -199,7 +199,7 @@ m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb','25'
 #patternNames = ['Ring', 'all2all', 'Reduce']
 patternNameMap = {'Ring': 1, 'All': 0.032, 'Reduce': 0.333}
 onePatternNameMap = {'All': 1}
-oneLLMAPatternNameMap = {'One2all': 1}
+oneLLMAPatternNameMap = {'All2one': 1}
 allLbsNameList = ['e2elaps', 'letflow', 'ecmp','plb','conweave','conga']
 
 loadratioListall=[
@@ -211,6 +211,7 @@ loadratioListTest=['1.0']
 lbsNameList = ['ecmp']
 alltopoDirlist=['railOnly','dragonfly','fatTree']
 topoDirlist=['railOnly','dragonfly']
+topoDirlist1=['dragonfly']
 allWorkloadNamelist=['DCTCP_CDF','RPC_CDF','VL2_CDF']
 workloadNamelist=['LLM_INFER_LLAMA','VL2_CDF','FbHdp2015','GoogleRPC2008','AliStorage2019']
 workloadNamelistTest=['LLM_INFER_LLAMA']
@@ -333,7 +334,7 @@ def runLBSimTest():
 def runTopoSimTest():
     enableFlowCongestTest=True
     # Ring
-    for toponame in topoDirlist:
+    for toponame in topoDirlist1:
         
         for patternName, patternLoadRatioShift in oneLLMAPatternNameMap.items():
             # 0.7

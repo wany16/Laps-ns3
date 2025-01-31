@@ -34,6 +34,7 @@ namespace ns3
 	uint32_t RdmaHw::qpFlowIndex;
 	std::map<uint32_t, QpRecordEntry> RdmaHw::m_recordQpExec;
 	std::map<uint32_t, uint64_t> RdmaHw::RecordPacketHop;
+	std::map<uint32_t, uint64_t> RdmaHw::m_RecordBuffSize;
 
 	bool RdmaHw::enablePathDelayRecord = false;
 
@@ -1899,6 +1900,14 @@ int RdmaHw::ReceiveProbeDataOnDstHostForLaps(Ptr<Packet> p, CustomHeader &ch)
 			uint32_t goback_seq = seq / m_chunk * m_chunk;
 			qp->AcknowledgeForLaps(goback_seq, ch.ack.irnNack, ch.ack.irnNackSize,f_pid);
 		}
+		uint32_t buffsize = qp->m_irn.m_sack.getSackBufferOverhead() / 1000;
+		if (m_RecordBuffSize.find(buffsize) == m_RecordBuffSize.end())
+		{
+
+			m_RecordBuffSize[buffsize] = 0;
+		}
+
+		m_RecordBuffSize[buffsize]++;
 
 		// qp->CheckAndUpdateQpStateForLaps();
 
@@ -2365,8 +2374,30 @@ ReceiverSequenceCheckResult RdmaHw::ReceiverCheckSeqForLaps(uint32_t seq, Ptr<Rd
 
 	void RdmaHw::AddTableEntry(Ipv4Address &dstAddr, uint32_t intf_idx)
 	{
+
 		uint32_t dip = dstAddr.Get();
-		m_rtTable[dip].push_back(intf_idx);
+		if (m_rtTable.find(dip) == m_rtTable.end())
+		{
+			m_rtTable[dip].push_back(intf_idx);
+		}
+		else
+		{
+			std::vector<int32_t> intfs = m_rtTable[dip];
+			bool isExisted = false;
+			for (uint32_t i = 0; i < intfs.size(); i++)
+			{
+				if (intfs[i] == intf_idx)
+				{
+					isExisted = true;
+					return;
+				}
+			}
+			if (!isExisted)
+			{
+				m_rtTable[dip].push_back(intf_idx);
+			}
+		}
+		// m_rtTable[dip].push_back(intf_idx);
 	}
 
 	void RdmaHw::ClearTable()

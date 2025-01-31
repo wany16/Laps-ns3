@@ -119,7 +119,7 @@ parser.add_argument("--lbsName",
                     default="RPS",
                     help="Load balancing algorithm")
 parser.add_argument("--flowletTimoutInUs",
-                    default="10",
+                    default="50",
                     help="The time out of the flowlet in microsecond.")
 parser.add_argument(
     "--loadRatioShift",
@@ -214,6 +214,7 @@ topoDirlist=['railOnly','dragonfly']
 allWorkloadNamelist=['DCTCP_CDF','RPC_CDF','VL2_CDF']
 workloadNamelist=['LLM_INFER_LLAMA','VL2_CDF','FbHdp2015','GoogleRPC2008','AliStorage2019']
 workloadNamelistTest=['DCTCP_CDF']
+workloadNamelistTest1=['GoogleRPC2008']
 def runBigSimTest():
   
     for patternName, patternLoadRatioShift in patternNameMap.items():
@@ -397,8 +398,8 @@ def runTopoSimTest():
                             --enableFlowCongestTest={}\
                             --enableLLMWorkLoadTest={}\
                             --enablee2elapsPFC={}\
-                            --enableLLMAFlowRateChange={} \
-                            --enableRecordLBOutInfo={}"\
+                            --enableRecordLBOutInfo={}\
+                            --enableLLMAFlowRateChange={}"\
                             '.format(mainFileName, fileIdx, vm_outputFiles_path,
                                     vm_inputFiles_path,
                                     vm_inputFiles_path + toponame+"/"+args.topoFileName,
@@ -420,8 +421,9 @@ def runTopoSimTest():
                                     enableFlowCongestTest,
                                     EnableLLM,
                                     enablee2elapsPFC,
-                                    enableLLMAFlowRateChange,
-                                    enableRecordLBOutInfo
+                                    enableRecordLBOutInfo,
+                                    enableLLMAFlowRateChange
+                                    
                                     )
                             print(Line_command)
                             os.system(Line_command)

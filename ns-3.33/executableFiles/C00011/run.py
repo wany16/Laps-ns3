@@ -199,9 +199,9 @@ m_PS2lb={'30':'ecmp','29':'letflow','28':'conga','27':'conweave','26':'plb','25'
 #patternNames = ['Ring', 'all2all', 'Reduce']
 patternNameMap = {'Ring': 1, 'All': 0.032, 'Reduce': 0.333}
 onePatternNameMap = {'All': 1}
-oneLLMAPatternNameMap = {'One2all': 1}
-allLbsNameList = ['e2elaps', 'letflow', 'ecmp','plb','conweave','conga']
-
+oneLLMAPatternNameMap = {'One2all': 1,"All2one":1}
+allLbsNameList = ['plb','letflow', 'ecmp']
+allLbsNameList1 = ['plb']
 loadratioListall=[
     '0.5', '0.55', '0.6', '0.65', '0.7', '0.75', '0.8', '0.85', '0.9', '0.95',
     '1.0'
@@ -339,6 +339,7 @@ def runTopoSimTest():
             # 0.7
                 enableLLMAFlowRateChange=False
                 enablee2elapsPFC=True
+                enableRecordLBOutInfo=True
                 for lbsName in allLbsNameList:
                     for workloadName  in workloadNamelistTest:
                         
@@ -352,8 +353,13 @@ def runTopoSimTest():
                             flowLunchEndTimeInSec=args.flowLunchEndTimeInSec
                         
                         
-                        if lbsName=="e2elaps":
+                        if lbsName=="e2elaps" :
                             ccMode='Laps'
+                            pitDir=vm_inputFiles_path + toponame+"/"+ "laps-"+args.pitFileName
+                            pstDir=vm_inputFiles_path + toponame+"/"+ "laps-"+args.pstFileName
+                            
+                        elif lbsName=="ecmp"or lbsName=="letflow" or lbsName=="plb" :
+                            ccMode=args.ccMode
                             pitDir=vm_inputFiles_path + toponame+"/"+ "laps-"+args.pitFileName
                             pstDir=vm_inputFiles_path + toponame+"/"+ "laps-"+args.pstFileName
                             
@@ -361,7 +367,6 @@ def runTopoSimTest():
                             ccMode=args.ccMode
                             pitDir=vm_inputFiles_path + toponame+"/"+ args.pitFileName
                             pstDir=vm_inputFiles_path + toponame+"/"+ args.pstFileName
-                        
                         for loadratio in loadratioList:
                             workloadFile = vm_workload_path + workloadName + ".txt"
                             fileIdx = experimentalName+"_"+toponame+"_"+workloadName + "_" +\
@@ -396,6 +401,7 @@ def runTopoSimTest():
                             --enableFlowCongestTest={}\
                             --enableLLMWorkLoadTest={}\
                             --enablee2elapsPFC={}\
+                            --enableRecordLBOutInfo={}\
                             --enableLLMAFlowRateChange={}"\
                             '.format(mainFileName, fileIdx, vm_outputFiles_path,
                                     vm_inputFiles_path,
@@ -418,6 +424,7 @@ def runTopoSimTest():
                                     enableFlowCongestTest,
                                     EnableLLM,
                                     enablee2elapsPFC,
+                                    enableRecordLBOutInfo,
                                     enableLLMAFlowRateChange
                                     )
                             print(Line_command)

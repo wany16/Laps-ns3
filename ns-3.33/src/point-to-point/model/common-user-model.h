@@ -542,7 +542,7 @@ namespace ns3
     {
         uint32_t congested_rounds;
         uint32_t pkts_in_flight;
-        uint32_t randomNum = 0;
+        uint32_t randomNum = std::rand();
         Time pause_until = Seconds(0);
     };
     struct PlbRecordEntry

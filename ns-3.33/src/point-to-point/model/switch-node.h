@@ -154,6 +154,7 @@ namespace ns3
 
     LB_Solution m_lbSolution;
     std::map<Ipv4Address, CandidatePortEntry> m_ecmpRouteTable;
+
     std::map<Ipv4Address, CandidatePortEntry> m_rpsRouteTable;
     std::map<Ipv4Address, CandidatePortEntry> m_letflowRouteTable;
     std::map<Ipv4Address, RrsEntryInfo> m_rrsRouteTable;

@@ -1188,6 +1188,7 @@ namespace ns3
   void save_QPExec_outinfo(global_variable_t *varMap);
   void save_conga_switchPath_outinfo(global_variable_t *varMap);
   void save_plb_switchPath_outinfo(global_variable_t *varMap);
+  void save_e2elaps_buffsize_outinfo(global_variable_t *varMap);
   // void print_nic_info(global_variable_t *varMap);
   void save_e2elaps_pathLatency(global_variable_t *varMap);
   void generate_rdma_flows_for_node_pair(global_variable_t *varMap);
@@ -1212,7 +1213,7 @@ namespace ns3
   void record_save_addr_on_single_node(Ptr<Node> node, std::map<Ipv4Address, Ptr<Node>> &addr2node, std::map<uint32_t, est_entry_t> &paraMap);
   void config_switch(global_variable_t *varMap);
   void install_rdma_application(global_variable_t *varMap);
-
+void install_routing_entries_based_on_single_pit_entry_for_switch(global_variable_t *varMap, PathData &pit);
   void install_rdma_driver(global_variable_t *varMap);
   void load_default_configures(global_variable_t *varMap);
   void iterate_single_incast_kv_cache_application(global_variable_t *varMap, uint32_t jobIdx);

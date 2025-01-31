@@ -633,9 +633,6 @@ namespace ns3 {
 			m_rdmaLbPktSent(entry->lastQp, totalPktSize, totalTInterframeGap);
 			RecordPacketSenTimeGap(entry->lastQp);
 			uint32_t fid = entry->lastQp->m_flow_id;
-			RdmaHw::m_recordQpExec[fid].sendSizeInbyte += m_currentPkt->GetSize() - ch.GetSerializedSize();
-			RdmaHw::m_recordQpExec[fid].sendPacketNum++;
-
 			Ipv4SmartFlowPathTag pathTag;
 			m_currentPkt->PeekPacketTag(pathTag);
 			uint32_t pid = pathTag.get_path_id();
@@ -644,6 +641,8 @@ namespace ns3 {
 			m_currentPkt->PeekHeader(ch);
 			hdr_size = ch.GetSerializedSize();
 			payloadSize = m_currentPkt->GetSize()-hdr_size;
+			RdmaHw::m_recordQpExec[fid].sendSizeInbyte += m_currentPkt->GetSize() - ch.GetSerializedSize();
+			RdmaHw::m_recordQpExec[fid].sendPacketNum++;
 			NS_LOG_INFO("PktId: " << pktId  << " Type: DATA, Size: " << payloadSize <<	" Pid: " << pid);
 
 			// entry->lastQp->m_irn.m_sack.appendOutstandingData(pid, ch.udp.seq, payloadSize); /////////////////////////////
